@@ -1,0 +1,30 @@
+{
+    "name": "ispa-cms/core",
+    "version": "2026.03.0",
+    "description": "",
+    "license": "AGPL-3.0-only",
+    "authors": [
+        {
+            "name": "Vuong Nguyen Minh",
+            "email": "malayvuong@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": []
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cms\\Core\\": "app/",
+            "Cms\\Core\\Database\\Factories\\": "database/factories/",
+            "Cms\\Core\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cms\\Core\\Tests\\": "tests/"
+        }
+    }
+}

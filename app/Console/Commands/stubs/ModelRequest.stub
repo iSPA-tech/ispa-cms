@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Http\Requests\{{ name }};
+
+use Illuminate\Foundation\Http\FormRequest;
+use Cms\Core\Http\RedirectFailedTrait;
+
+class {{ type }}{{ name }}Request extends FormRequest
+{
+  use RedirectFailedTrait;
+
+  /**
+   * Determine if the user is authorized to make this request.
+   *
+   * @return bool
+   */
+  public function authorize(): bool
+  {
+    return true;
+  }
+
+  /**
+   * Get the validation rules that apply to the request.
+   *
+   * @return array
+   */
+  public function rules(): array
+  {
+    return [
+
+    ];
+  }
+}

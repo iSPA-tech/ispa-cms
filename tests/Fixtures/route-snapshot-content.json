@@ -1,0 +1,745 @@
+[
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "about/{slug}",
+    "name": "reader",
+    "action": "Website\\BlogController@reader",
+    "middleware": [
+      "web"
+    ],
+    "wheres": [],
+    "project_only": true
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "ajax/content-view",
+    "name": "ajax.content-view",
+    "action": "Website\\ContentAjaxController@contentView",
+    "middleware": [
+      "web"
+    ],
+    "wheres": [],
+    "project_only": true
+  },
+  {
+    "methods": [
+      "POST"
+    ],
+    "uri": "ajax/save-bookmark",
+    "name": "ajax.save-bookmark",
+    "action": "Website\\AjaxController@saveBookmark",
+    "middleware": [
+      "web"
+    ],
+    "wheres": [],
+    "project_only": true
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/admin/tag",
+    "name": "api.v2.tag.index",
+    "action": "V2\\Admin\\TagController@index",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": {
+      "uuid": "[0-9a-fA-F-]{36}"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "POST"
+    ],
+    "uri": "api/v2/admin/tag",
+    "name": "api.v2.tag.store",
+    "action": "V2\\Admin\\TagController@store",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": {
+      "uuid": "[0-9a-fA-F-]{36}"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/admin/tag/search",
+    "name": "api.v2.",
+    "action": "V2\\Admin\\TagController@search",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "DELETE"
+    ],
+    "uri": "api/v2/admin/tag/{uuid}",
+    "name": "api.v2.tag.destroy",
+    "action": "V2\\Admin\\TagController@destroy",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": {
+      "uuid": "[0-9a-fA-F-]{36}"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/admin/tag/{uuid}",
+    "name": "api.v2.tag.show",
+    "action": "V2\\Admin\\TagController@show",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": {
+      "uuid": "[0-9a-fA-F-]{36}"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "PUT",
+      "PATCH"
+    ],
+    "uri": "api/v2/admin/tag/{uuid}",
+    "name": "api.v2.tag.update",
+    "action": "V2\\Admin\\TagController@update",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": {
+      "uuid": "[0-9a-fA-F-]{36}"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/admin/tag/{uuid}/edit",
+    "name": "api.v2.tag.edit",
+    "action": "V2\\Admin\\TagController@edit",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin",
+      "throttle:500,1"
+    ],
+    "wheres": {
+      "uuid": "[0-9a-fA-F-]{36}"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/client/bookmark",
+    "name": null,
+    "action": "V2\\Client\\BookmarkController@index",
+    "middleware": [
+      "api",
+      "api.verify",
+      "api.log",
+      "auth:sanctum",
+      "api.audience:client",
+      "throttle:20,1,v2-client:"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/client/bookmark/status",
+    "name": null,
+    "action": "V2\\Client\\BookmarkController@status",
+    "middleware": [
+      "api",
+      "api.verify",
+      "api.log",
+      "auth:sanctum",
+      "api.audience:client",
+      "throttle:20,1,v2-client:"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "POST"
+    ],
+    "uri": "api/v2/client/bookmark/toggle",
+    "name": null,
+    "action": "V2\\Client\\BookmarkController@toggle",
+    "middleware": [
+      "api",
+      "api.verify",
+      "api.log",
+      "auth:sanctum",
+      "api.audience:client",
+      "throttle:20,1,v2-client:"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/client/{uuid}/post",
+    "name": null,
+    "action": "V2\\Client\\PostController@index",
+    "middleware": [
+      "api",
+      "api.verify",
+      "api.log",
+      "auth:sanctum",
+      "api.audience:client",
+      "throttle:20,1,v2-client:"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/client/{uuid}/post/{uid}",
+    "name": null,
+    "action": "V2\\Client\\PostController@show",
+    "middleware": [
+      "api",
+      "api.verify",
+      "api.log",
+      "auth:sanctum",
+      "api.audience:client",
+      "throttle:20,1,v2-client:"
+    ],
+    "wheres": {
+      "uid": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/article",
+    "name": null,
+    "action": "V2\\Public\\PostController@index",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/article/{categorySlug}/{postSlug}",
+    "name": null,
+    "action": "V2\\Public\\PostController@show",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "categorySlug": "[a-zA-Z0-9-]+",
+      "postSlug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/article/{uid}",
+    "name": null,
+    "action": "V2\\Public\\PostController@show",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "uid": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/view/about-us",
+    "name": null,
+    "action": "V2\\Public\\ReaderController@about_us",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/view/article/{uid}",
+    "name": "api-web-view-article",
+    "action": "V2\\Public\\ArticleController@article_view",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "uid": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/view/article/{uid}/json",
+    "name": "api-web-json-article",
+    "action": "V2\\Public\\ArticleController@article_json",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "uid": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/view/privacy-policy",
+    "name": null,
+    "action": "V2\\Public\\ReaderController@privacy_policy",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v2/public/view/terms-of-service",
+    "name": null,
+    "action": "V2\\Public\\ReaderController@terms_of_service",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/admin/post",
+    "name": "v3.",
+    "action": "V3\\Admin\\PostController@index",
+    "middleware": [
+      "api",
+      "auth:sanctum",
+      "api.admin:admin,service"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category",
+    "name": "v3.category.index",
+    "action": "V3\\Public\\CategoryController@index",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category/all",
+    "name": "v3.category.all",
+    "action": "V3\\Public\\CategoryController@getAll",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category/featured",
+    "name": "v3.category.featured-categories",
+    "action": "V3\\Public\\CategoryController@featuredCategories",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category/{slug}/all-posts-of-tree",
+    "name": "v3.category.all-posts-of-tree",
+    "action": "V3\\Public\\CategoryController@allPostsOfTree",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category/{slug}/tree-with-post",
+    "name": "v3.category.tree-with-post",
+    "action": "V3\\Public\\CategoryController@treeWithPost",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category/{uid}",
+    "name": "v3.category.show",
+    "action": "V3\\Public\\CategoryController@show",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/category/{uid}/post",
+    "name": "v3.category.post",
+    "action": "V3\\Public\\CategoryController@post",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "uid": "[a-zA-Z0-9]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/about/{slug}",
+    "name": "v3.post.about",
+    "action": "V3\\Public\\PostController@about",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/all",
+    "name": "v3.post.all",
+    "action": "V3\\Public\\PostController@getAll",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/featured",
+    "name": "v3.post.featured-posts",
+    "action": "V3\\Public\\PostController@featuredPosts",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/latest",
+    "name": "v3.post.latest-posts",
+    "action": "V3\\Public\\PostController@latestPosts",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/recommended",
+    "name": "v3.post.recommended-posts",
+    "action": "V3\\Public\\PostController@recommendedPosts",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/slug/{slug}",
+    "name": "v3.post.detail-by-slug",
+    "action": "V3\\Public\\PostController@detailBySlug",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/post/{uuid}",
+    "name": "v3.post.show",
+    "action": "V3\\Public\\PostController@show",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/tag",
+    "name": "v3.tag.index",
+    "action": "V3\\Public\\TagController@index",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": [],
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "api/v3/tag/{slug}",
+    "name": "v3.tag.show",
+    "action": "V3\\Public\\TagController@show",
+    "middleware": [
+      "api",
+      "api.verify"
+    ],
+    "wheres": {
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "bai-viet/{cate}/{slug}",
+    "name": "article.vi",
+    "action": "Website\\BlogController@article",
+    "middleware": [
+      "web"
+    ],
+    "wheres": {
+      "cate": "[a-zA-Z0-9-]+",
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "bai-viet/{slug}",
+    "name": "category.vi",
+    "action": "Website\\BlogController@category",
+    "middleware": [
+      "web"
+    ],
+    "wheres": {
+      "blog": "[{blog|bai-viet}]+",
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "blog/{cate}/{slug}",
+    "name": "article.en",
+    "action": "Website\\BlogController@article",
+    "middleware": [
+      "web"
+    ],
+    "wheres": {
+      "cate": "[a-zA-Z0-9-]+",
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "blog/{slug}",
+    "name": "category.en",
+    "action": "Website\\BlogController@category",
+    "middleware": [
+      "web"
+    ],
+    "wheres": {
+      "blog": "[{blog|bai-viet}]+",
+      "slug": "[a-zA-Z0-9-]+"
+    },
+    "project_only": false
+  },
+  {
+    "methods": [
+      "GET",
+      "HEAD"
+    ],
+    "uri": "news",
+    "name": "news",
+    "action": "Website\\BlogController@news",
+    "middleware": [
+      "web"
+    ],
+    "wheres": [],
+    "project_only": true
+  }
+]

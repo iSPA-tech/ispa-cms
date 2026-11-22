@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use DateTimeInterface;
+use DateTimeImmutable;
+use App\Constants\Tables;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * Class {{ name }}
+ * -- About the {{ name }} Entity
+ * @package App\Models
+ * @author malayvuong
+ * @since 1.0.0
+ *
+ * @property integer id
+ * @property string status
+ * @property string created_at
+ * @property string updated_at
+ * @property string deleted_at
+ */
+class {{ name }} extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    /** @var string */
+    public $table = '{{ name_lower }}s';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = [];
+}

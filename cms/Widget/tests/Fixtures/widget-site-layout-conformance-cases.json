@@ -1,0 +1,46 @@
+{
+    "note": "Chunk 2 Task 24b conformance case list, loaded by WidgetSiteLayoutApiConformanceTest. This file is NOT the frozen API contract (that is widget-site-layout-api-contract.json, produced by Task 12 and never edited by this gate) -- it is a declarative role/route matrix the LIVE conformance test cross-checks against the live HTTP API. Every one of the 30 frozen routes is exercised with Webmaster (must never see 403) and a denied user (must always see exactly 403 WIDGET_PERMISSION_DENIED); this file adds the additional named privilege-inheritance boundaries the task brief calls out by name (editor/publisher/approver/emergency responder), so a route-permission regression is caught by DATA, not only by hand-written PHP assertions.",
+    "contract_source": "cms/Widget/tests/Fixtures/widget-site-layout-api-contract.json",
+    "roles": {
+        "webmaster": [
+            "widget_instance.viewAny", "widget_instance.view", "widget_instance.create", "widget_instance.update", "widget_instance.delete",
+            "widget_layout.viewAny", "widget_layout.view", "widget_layout.update", "widget_layout.preview", "widget_layout.publish", "widget_layout.rollback",
+            "widget_template.approve", "widget_template.emergencyDisable"
+        ],
+        "editor": ["widget_layout.viewAny", "widget_layout.view", "widget_layout.update", "widget_layout.preview"],
+        "publisher": ["widget_layout.viewAny", "widget_layout.view", "widget_layout.update", "widget_layout.preview", "widget_layout.publish", "widget_layout.rollback"],
+        "approver": ["widget_template.approve"],
+        "emergency_responder": ["widget_template.emergencyDisable"],
+        "denied": []
+    },
+    "role_source_note": "editor/publisher permission sets are copied verbatim from WidgetPilotAuthorizationContractTest's own frozen EDITOR_KEYS/PUBLISHER_KEYS constants (Chunk 1 Task 12b) for cross-suite consistency, not reinvented here.",
+    "every_route_matrix": {
+        "webmaster_must_never_see_403": true,
+        "denied_must_always_see_exactly_403_with_code": "WIDGET_PERMISSION_DENIED",
+        "applies_to": "every route in the frozen contract's routes[] array"
+    },
+    "privilege_inheritance_checks": [
+        {"role": "editor", "method": "POST", "path": "/layouts/{uuid}/publish", "expect": "denied", "reason": "editor holds widget_layout.update/preview but never publish"},
+        {"role": "editor", "method": "POST", "path": "/layouts/{uuid}/rollback", "expect": "denied", "reason": "editor holds widget_layout.update/preview but never rollback"},
+        {"role": "editor", "method": "POST", "path": "/catalog/manifests/materialize", "expect": "denied", "reason": "editor never holds widget_template.approve"},
+        {"role": "publisher", "method": "POST", "path": "/catalog/manifests/materialize", "expect": "denied", "reason": "publisher holds publish/rollback but never widget_template.approve"},
+        {"role": "publisher", "method": "POST", "path": "/catalog/manifests/{manifest_hash}/runtime-block", "expect": "denied", "reason": "publisher never holds widget_template.emergencyDisable"},
+        {"role": "approver", "method": "POST", "path": "/instances", "expect": "denied", "reason": "approver holds only widget_template.approve, never widget_instance.create"},
+        {"role": "approver", "method": "POST", "path": "/layouts/{uuid}/publish", "expect": "denied", "reason": "approver never holds widget_layout.publish"},
+        {"role": "approver", "method": "GET", "path": "/instances", "expect": "denied", "reason": "approver never holds widget_instance.viewAny"},
+        {"role": "emergency_responder", "method": "POST", "path": "/catalog/manifests/{manifest_hash}/approval", "expect": "denied", "reason": "emergency responder never holds widget_template.approve"},
+        {"role": "emergency_responder", "method": "GET", "path": "/instances", "expect": "denied", "reason": "emergency responder never holds widget_instance.viewAny"},
+        {"role": "emergency_responder", "method": "GET", "path": "/layouts", "expect": "denied", "reason": "emergency responder never holds widget_layout.viewAny"}
+    ],
+    "emergency_inert_routes": [
+        {"method": "POST", "path": "/catalog/manifests/{manifest_hash}/runtime-block", "expected_status": 503, "expected_code": "WIDGET_RUNTIME_CONTROL_TOPOLOGY_UNAVAILABLE"},
+        {"method": "DELETE", "path": "/catalog/manifests/{manifest_hash}/runtime-block", "expected_status": 503, "expected_code": "WIDGET_RUNTIME_CONTROL_TOPOLOGY_UNAVAILABLE"}
+    ],
+    "no_get_side_effect_routes": [
+        {"method": "GET", "path": "/layouts/{uuid}", "note": "bootstrap owns creation via PUT /layouts/by-key/{layout_key} only; a GET must never create a Layout"}
+    ],
+    "project_limited_role": {
+        "fabricated": false,
+        "reason": "Single active-project mode (Task 5a freeze, re-confirmed by WidgetPilotAuthorizationContractTest's own docblock: 'no real project-scoped RBAC exists... No project-limited role is fabricated'). WidgetProjectContextResolver derives the project server-side from config('ispa-cms.folder_name'); no route in the frozen contract accepts a client-supplied project selector (the materialize route's own forbidden_request_fields explicitly bans project_name/project). The only reachable project-isolation surface is WidgetProjectContextResolver::assertProject() rejecting a caller-supplied mismatching name, already proven at Task 12/12b -- this gate re-asserts the STRUCTURAL reason (no route accepts a project selector at all) rather than fabricating a role with no data-model support."
+    }
+}

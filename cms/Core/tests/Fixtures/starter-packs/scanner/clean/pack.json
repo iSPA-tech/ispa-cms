@@ -1,0 +1,30 @@
+{
+    "key": "parish-starter",
+    "version": "1.4.2",
+    "requires": "^13.0",
+    "released_at": "2026-11-08",
+    "updated_at": "2026-11-08T09:30:00+07:00",
+    "translation_group_uuid": "3f2b8c1e-9a4d-4e6f-8b21-0c9d7e5a4f10",
+    "token_uuid": "0912a3b4-5678-4c9d-8e7f-091234567890",
+    "slug": "huong-dan-cai-dat-tai-khoan-va-ket-noi-api-key-cho-nguoi-moi-bat-dau-2026",
+    "post_slug": "bai-viet-0912345678-tin-tuc",
+    "max_tokens": 4096,
+    "token_limit": 2000,
+    "password_min_length": 8,
+    "password_rules": "min:8|mixed",
+    "brand_color": "#0a7ea4",
+    "price": "1.250.000",
+    "contact_email": "info@example.com",
+    "support_email": "support@example.test",
+    "news_email": "news@mail.example.com",
+    "avatar": "images/logo@2x.png",
+    "label": "{'@'} mention",
+    "dependency": "@vue/runtime-core",
+    "labels": {
+        "password": "Mật khẩu",
+        "api_key": "Khóa API của bạn",
+        "token": "Token"
+    },
+    "api_key": "YOUR_API_KEY",
+    "secret": ""
+}

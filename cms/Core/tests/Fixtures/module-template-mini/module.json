@@ -1,0 +1,5 @@
+{
+    "name": "Skeleton",
+    "alias": "skeleton",
+    "providers": ["Cms\\Skeleton\\Providers\\SkeletonServiceProvider"]
+}

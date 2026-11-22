@@ -1,0 +1,145 @@
+{
+  "_bootstrap-BGiqBO2y.js": {
+    "file": "assets/bootstrap-BGiqBO2y.js",
+    "name": "bootstrap",
+    "imports": [
+      "_chunk-Cte6qgjF.js"
+    ]
+  },
+  "_chunk-Cte6qgjF.js": {
+    "file": "assets/chunk-Cte6qgjF.js",
+    "name": "chunk"
+  },
+  "projects/Default/dev/theme.css": {
+    "file": "assets/theme-C_jCONju.css",
+    "name": "theme",
+    "names": [
+      "theme.css"
+    ],
+    "src": "projects/Default/dev/theme.css",
+    "isEntry": true
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-CihZcRqk.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-CcBSGqN9.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "_bootstrap-BGiqBO2y.js"
+    ]
+  },
+  "resources/js/comment.js": {
+    "file": "assets/comment-CwNJ7iKf.js",
+    "name": "comment",
+    "src": "resources/js/comment.js",
+    "isEntry": true
+  },
+  "resources/js/home.search.js": {
+    "file": "assets/home.search-spBro59k.js",
+    "name": "home.search",
+    "src": "resources/js/home.search.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "_bootstrap-BGiqBO2y.js"
+    ]
+  },
+  "resources/js/iSpa.js": {
+    "file": "assets/iSpa-BBK-MUbd.js",
+    "name": "iSpa",
+    "src": "resources/js/iSpa.js",
+    "isEntry": true
+  },
+  "resources/js/language.js": {
+    "file": "assets/language-CUAPA-8t.js",
+    "name": "language",
+    "src": "resources/js/language.js",
+    "isEntry": true
+  },
+  "resources/plugins/calendar.min.css": {
+    "file": "assets/calendar-CptZtO0c.css",
+    "name": "calendar.min",
+    "names": [
+      "calendar.css"
+    ],
+    "src": "resources/plugins/calendar.min.css",
+    "isEntry": true
+  },
+  "resources/plugins/calendar.min.js": {
+    "file": "assets/calendar.min-D5KptmeZ.js",
+    "name": "calendar.min",
+    "src": "resources/plugins/calendar.min.js",
+    "isEntry": true,
+    "imports": [
+      "_chunk-Cte6qgjF.js"
+    ]
+  },
+  "resources/plugins/fancybox.min.css": {
+    "file": "assets/fancybox-CYesjhip.css",
+    "name": "fancybox.min",
+    "names": [
+      "fancybox.css"
+    ],
+    "src": "resources/plugins/fancybox.min.css",
+    "isEntry": true
+  },
+  "resources/plugins/fancybox.min.js": {
+    "file": "assets/fancybox.min-DWmipR0l.js",
+    "name": "fancybox.min",
+    "src": "resources/plugins/fancybox.min.js",
+    "isEntry": true,
+    "imports": [
+      "_chunk-Cte6qgjF.js"
+    ]
+  },
+  "resources/plugins/lightslider.min.css": {
+    "file": "assets/lightslider-D7CC4WV3.css",
+    "name": "lightslider.min",
+    "names": [
+      "lightslider.css"
+    ],
+    "src": "resources/plugins/lightslider.min.css",
+    "isEntry": true
+  },
+  "resources/plugins/lightslider.min.js": {
+    "file": "assets/lightslider.min-D_4cKLuk.js",
+    "name": "lightslider.min",
+    "src": "resources/plugins/lightslider.min.js",
+    "isEntry": true
+  },
+  "resources/plugins/quill.snow.css": {
+    "file": "assets/quill-At5Q-UOi.css",
+    "name": "quill.snow",
+    "names": [
+      "quill.css"
+    ],
+    "src": "resources/plugins/quill.snow.css",
+    "isEntry": true
+  },
+  "resources/plugins/swiper-bundle.min.css": {
+    "file": "assets/swiper-bundle-CSbHrNhk.css",
+    "name": "swiper-bundle.min",
+    "names": [
+      "swiper-bundle.css"
+    ],
+    "src": "resources/plugins/swiper-bundle.min.css",
+    "isEntry": true
+  },
+  "resources/plugins/swiper-bundle.min.js": {
+    "file": "assets/swiper-bundle.min-fUqz7A4O.js",
+    "name": "swiper-bundle.min",
+    "src": "resources/plugins/swiper-bundle.min.js",
+    "isEntry": true,
+    "imports": [
+      "_chunk-Cte6qgjF.js"
+    ]
+  }
+}

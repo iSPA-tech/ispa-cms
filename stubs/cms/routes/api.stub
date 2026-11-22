@@ -1,0 +1,16 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use $MODULE_NAMESPACE$\$STUDLY_NAME$\$CONTROLLER_NAMESPACE$\$STUDLY_NAME$Controller;
+
+Route::group(['prefix' => 'v5.x', 'namespace' => 'VersionFive', 'as' => 'v5.'], static function () {
+    // Admin APIs routes
+    Route::middleware(['auth:sanctum'])->prefix('admin')->group(static function () {
+        Route::apiResource('$PLURAL_LOWER_NAME$', $STUDLY_NAME$Controller::class)->names('$LOWER_NAME$');
+    });
+
+    // Public APIs routes
+    Route::prefix('public')->group(function () {
+        Route::apiResource('$PLURAL_LOWER_NAME$', $STUDLY_NAME$Controller::class)->names('$LOWER_NAME$');
+    });
+});

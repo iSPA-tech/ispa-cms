@@ -1,0 +1,308 @@
+<?php
+
+namespace App\Http\Controllers{{ api }};
+
+use Exception;
+use App\Constants\Tables;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Repositories\Interfaces\{{ name }}Interface;
+use App\Http\Requests\{{ name }}\Store{{ name }}Request;
+use App\Http\Requests\{{ name }}\Update{{ name }}Request;
+use App\Http\Requests\{{ name }}\MultiDelete{{ name }}Request;
+use App\Http\Controllers\{{ type }}Controller;
+
+class {{ name }}Controller extends AdminController
+{
+    protected string $rulePrefix = '';
+
+    /**
+     * Controller constructor
+     *
+     * @param {{ name }}Interface $model
+     *
+     * @author malayvuong
+     * @since 1.0.0
+     * @added {{ date }}
+     */
+    public function __construct(
+        protected {{ name }}Interface $model
+    ) {
+        $this->rulePrefix = str(Tables::{{ table }})->singular();
+
+        parent::__construct();
+    }
+
+    /**
+     * Quick Update resource.
+     *
+     * @param Integer $id
+     * @param AppResponse $res
+     * @return AppResponse $res
+     *
+     * @author malayvuong
+     */
+    public function quickUpdate(int $id)
+    {
+        if ($id < 1) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        $model = $this->model->find($id);
+
+        if (!$model) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        if (! user()?->can($this->rulePrefix . '.update')) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        /** Todo: Make your change here */
+        if (!$model->save()) {
+            return ires()->error()->message(__('mgs.failed.update', ['name' => __('nav.a.{{ lang }}')]));
+        }
+
+        return ires()->message(__('mgs.ok.update', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    /**
+     * Switch a status of resource.
+     *
+     * @param Integer $id
+     * @param AppResponse $res
+     * @return AppResponse $res
+     *
+     * @author malayvuong
+     */
+    public function switch(int $id)
+    {
+        if ($id < 1) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        $model = $this->model->find($id);
+
+        if (!$model) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        if (! user()?->can($this->rulePrefix . '.update', $model)) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        /** Todo: Make your change here */
+        if (!$model->save()) {
+            return ires()->error()->message(__('mgs.failed.update', ['name' => __('nav.a.{{ lang }}')]));
+        }
+
+        return ires()->message(__('mgs.ok.update', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    /**
+     * Display a listing of the resource.
+     *
+     * @author malayvuong
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function index()
+    {
+        if (! user()?->can($this->rulePrefix . '.viewAny')) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        $model = $this->model->get([
+
+        ]);
+
+        return ires()->data($model);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @author malayvuong
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function create()
+    {
+        return $res;
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @author malayvuong
+     * @param Store{{ name }}Request $request
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function store(Store{{ name }}Request $request)
+    {
+        if (! user()?->can($this->rulePrefix . '.create')) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        DB::beginTransaction();
+        try {
+            $model = $this->fill();
+
+            $model->save();
+        }
+        catch (Exception $e) {
+            Log::debug('{{ name }}Controller@store: ' . $e->getMessage());
+            DB::rollBack();
+            return ires()->error()->message($e->getMessage());
+        }
+        DB::commit();
+
+        return ires()->message(__('mgs.ok.create', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    /**
+     * Display the specified resource.
+     *
+     * @author malayvuong
+     * @param Integer $id
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function show(int $id)
+    {
+        if ($id < 1) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        return $res;
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param int $id
+     * @param AppResponse $res
+     * @return AppResponse $res
+     * @author malayvuong
+     */
+    public function edit(int $id)
+    {
+        if ($id < 1) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        $model = $this->model->find($id);
+
+        if (!$model) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        if (! user()?->can($this->rulePrefix . '.update', $model)) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        return ires()->data($model);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @author malayvuong
+     * @param Integer $id
+     * @param Update{{ name }}Request $request
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function update(int $id, Update{{ name }}Request $request)
+    {
+        if ($id < 1) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        $model = $this->model->find($id);
+
+        if (!$model) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        if (! user()?->can($this->rulePrefix . '.update', $model)) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        $model = $this->fill($model);
+
+        if (!$model->save()) {
+            return ires()->error()->message(__('mgs.failed.update', ['name' => __('nav.a.{{ lang }}')]));
+        }
+
+        return ires()->message(__('mgs.ok.update', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @author malayvuong
+     * @param Integer $id
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function destroy(int $id)
+    {
+        if ($id < 1) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        $model = $this->model->find($id);
+
+        if (!$model) {
+            return ires()->error()->message(__('mgs.model.404'));
+        }
+
+        if (! user()?->can($this->rulePrefix . '.delete', $model)) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        if (!$model->delete()) {
+            return ires()->error()->message(__('mgs.failed.delete', ['name' => __('nav.a.{{ lang }}')]));
+        }
+
+        return ires()->message(__('mgs.ok.delete', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    /**
+     * Remove the multiple specified resource from storage.
+     *
+     * @author malayvuong
+     * @param MultiDelete{{ name }}Request $request
+     * @param AppResponse $res
+     * @return AppResponse $res
+     */
+    public function massDestroy(MultiDelete{{ name }}Request $request)
+    {
+        if (! user()?->can($this->rulePrefix . '.delete', $this->model->model())) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        return ires()->message(__('mgs.ok.delete', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    /**
+     * Fill table
+     *
+     * @param null $model
+     * @return Mixed $model
+     *
+     * @author malayvuong
+     */
+    protected function fill($model = null): mixed
+    {
+        if (!$model) {
+            $model = $this->model->model();
+        }
+
+        $model->fill(request()->only($model->getFillable()));
+
+        return $model;
+    }
+}

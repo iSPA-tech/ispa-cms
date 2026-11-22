@@ -1,0 +1,14 @@
+<?php
+
+namespace $NAMESPACE$;
+
+use $MODEL_NAMESPACE$\$NAME$;
+use Cms\Core\Observers\AbstractObserver;
+
+final class $NAME$Observer extends AbstractObserver
+{
+    protected function modelClass(): string
+    {
+        return $NAME$::class;
+    }
+}

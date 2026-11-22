@@ -1,0 +1,16 @@
+<?php
+
+namespace $NAMESPACE$;
+
+use Illuminate\Auth\Access\HandlesAuthorization;
+use Cms\Core\Policies\AbstractModelPolicy;
+
+final class $CLASS$ extends AbstractModelPolicy
+{
+    use HandlesAuthorization;
+
+    protected function prefix(): string
+    {
+        return 'your-permission-prefix';
+    }
+}

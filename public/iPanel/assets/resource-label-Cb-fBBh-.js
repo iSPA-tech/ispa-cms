@@ -1,0 +1,1 @@
+var e=(e,t,n,r=e)=>{let i=`text.permission.resource.${e}`;return n?.(i)?t(i):r};export{e as t};

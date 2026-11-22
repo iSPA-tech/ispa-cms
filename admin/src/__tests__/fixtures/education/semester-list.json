@@ -1,0 +1,38 @@
+{
+  "status": "success",
+  "data": {
+    "data": [
+      {
+        "id": 10,
+        "name": "Spring 2026",
+        "description": "Early spring term",
+        "start_date": "2026-01-10",
+        "end_date": "2026-04-01",
+        "status": "active",
+        "timeline_state": "ongoing",
+        "period_classes_count": 3,
+        "subjects_count": 5,
+        "assessments_count": 2,
+        "research_results_count": 1,
+        "is_current": true
+      },
+      {
+        "id": 11,
+        "name": "Summer 2026",
+        "description": "Summer intensive",
+        "start_date": "2026-05-01",
+        "end_date": "2026-08-15",
+        "status": "planned",
+        "timeline_state": "upcoming",
+        "period_classes_count": 0,
+        "subjects_count": 0,
+        "assessments_count": 0,
+        "research_results_count": 0,
+        "is_current": false
+      }
+    ],
+    "current_page": 1,
+    "total": 2,
+    "per_page": 50
+  }
+}

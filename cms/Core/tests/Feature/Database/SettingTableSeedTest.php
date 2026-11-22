@@ -1,0 +1,108 @@
+<?php
+
+use Cms\Core\Database\Seeders\SettingTableSeed;
+use Cms\Core\Tests\TestCase;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+uses(TestCase::class);
+
+beforeEach(function () {
+    config()->set('database.default', 'sqlite');
+    config()->set('database.connections.sqlite.database', ':memory:');
+
+    Schema::create('settings', function (Blueprint $table) {
+        $table->id();
+        $table->string('setting_key')->nullable()->unique();
+        $table->string('type')->default('text');
+        $table->string('group_name')->nullable();
+        $table->string('name')->nullable();
+        $table->text('value')->nullable();
+        $table->unsignedBigInteger('enumerate_id')->nullable();
+        $table->unsignedBigInteger('language_id')->nullable();
+        $table->text('input_setting')->nullable();
+        $table->timestamps();
+        $table->softDeletes();
+    });
+});
+
+afterEach(function () {
+    Schema::dropIfExists('settings');
+});
+
+test('setting table seed uses setting key instead of fixed id', function () {
+    DB::table('settings')->insert([
+        'id' => 999,
+        'setting_key' => 'email.MAIL_MAILER',
+        'type' => 'text',
+        'group_name' => 'custom_email',
+        'name' => 'CUSTOM_MAILER',
+        'value' => 'custom-value',
+        'input_setting' => '{"title":"old"}',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    (new SettingTableSeed())->run();
+
+    $rows = DB::table('settings')
+        ->where('setting_key', 'email.MAIL_MAILER')
+        ->get();
+
+    expect($rows)->toHaveCount(1);
+
+    $row = $rows->first();
+    expect($row->id)->toBe(999)
+        ->and($row->value)->toBe('custom-value')
+        ->and($row->group_name)->toBe('custom_email')
+        ->and($row->name)->toBe('CUSTOM_MAILER')
+        ->and($row->type)->toBe('select')
+        ->and($row->input_setting)->not->toBe('{"title":"old"}');
+
+    expect(DB::table('settings')->where('setting_key', 'geoplaces.provider.google_places.api_key')->exists())
+        ->toBeTrue();
+});
+
+test('setting table seed does not import private environment-bound values', function () {
+    (new SettingTableSeed())->run();
+
+    $privateValues = DB::table('settings')
+        ->whereIn('setting_key', [
+            'email.MAIL_PASSWORD',
+            'advanced.VERSION',
+            'geoplaces.provider.google_places.api_key',
+        ])
+        ->pluck('value', 'setting_key');
+
+    expect($privateValues)->toHaveCount(3)
+        ->and($privateValues->filter(static fn ($value): bool => $value !== null))->toBeEmpty();
+});
+
+test('setting table seed creates empty hcaptcha credentials', function () {
+    (new SettingTableSeed())->run();
+
+    $settings = DB::table('settings')
+        ->whereIn('setting_key', [
+            'api.HCAPTCHA_SITE_KEY',
+            'api.HCAPTCHA_SECRET_KEY',
+        ])
+        ->get()
+        ->keyBy('setting_key');
+
+    expect($settings)->toHaveCount(2)
+        ->and($settings['api.HCAPTCHA_SITE_KEY']->type)->toBe('text')
+        ->and($settings['api.HCAPTCHA_SECRET_KEY']->type)->toBe('password')
+        ->and($settings->pluck('value')->filter(static fn ($value): bool => $value !== null))->toBeEmpty();
+});
+
+test('setting table seed exposes hcaptcha only through the shared provider selector', function () {
+    (new SettingTableSeed())->run();
+
+    $input = DB::table('settings')
+        ->where('setting_key', 'advanced.recaptcha_provider')
+        ->value('input_setting');
+    $options = collect(json_decode((string) $input, true, flags: JSON_THROW_ON_ERROR)['options'] ?? []);
+
+    expect($options->where('value', 'hcaptcha')->pluck('label')->all())->toBe(['hCaptcha']);
+});

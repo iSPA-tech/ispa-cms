@@ -1,0 +1,21 @@
+{
+    "format": 1,
+    "packages": {
+        "@ant-design/icons-vue": { "major": 7, "used_by": ["AffiliateRecommendation", "Content", "Core", "Ecommerce", "Inventory", "Journal", "Product", "RealEstate", "Widget"] },
+        "@tanstack/vue-query": { "major": 5, "used_by": ["Content", "Education", "GeoPlaces", "Product", "RealEstate"] },
+        "@vue-flow/core": { "major": 1, "used_by": ["Core"] },
+        "@vueuse/core": { "major": 14, "used_by": ["Core", "Widget"] },
+        "ant-design-vue": { "major": 4, "used_by": ["*"] },
+        "axios": { "major": 1, "used_by": ["Widget"] },
+        "clsx": { "major": 2, "used_by": ["Content", "RealEstate"] },
+        "dayjs": { "major": 1, "used_by": ["CmsManagement", "Content", "Core", "DigitalLibrary", "Ecommerce", "Education", "GeoPlaces", "Helpdesk", "Inventory", "MailHub", "PlatformHub", "Product", "QuestionBank", "RealEstate", "Webmail"] },
+        "html-to-image": { "major": 1, "used_by": ["Core"] },
+        "lodash-es": { "major": 4, "used_by": ["Content", "Core", "GeoPlaces", "RealEstate", "Widget"] },
+        "numeral": { "major": 2, "used_by": ["Content"] },
+        "vue": { "major": 3, "used_by": ["*"] },
+        "vue-cal": { "major": 4, "used_by": ["Education"] },
+        "vue-i18n": { "major": 11, "used_by": ["*"] },
+        "vue-router": { "major": 5, "used_by": ["*"] },
+        "vuedraggable": { "major": 4, "used_by": ["Widget"] }
+    }
+}

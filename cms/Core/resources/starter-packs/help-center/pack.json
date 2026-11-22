@@ -1,0 +1,18 @@
+{
+    "pack_format": 1,
+    "key": "help-center",
+    "version": "1.0.0",
+    "name": {"vi": "Trung tâm trợ giúp", "en": "Help center"},
+    "description": {
+        "vi": "Trung tâm trợ giúp song ngữ: cơ sở tri thức mẫu (bản nháp), ba vai trò và cài đặt an toàn.",
+        "en": "A bilingual help center: a starter knowledge base (drafts), three roles and safe default settings."
+    },
+    "modules": {"Core": "*", "Content": "*", "Account": "*", "Helpdesk": "*"},
+    "config": "config.package.json",
+    "roles": "roles.json",
+    "workflows": null,
+    "content": [
+        {"module": "Helpdesk", "importer": "helpdesk.kb", "file": "content/helpdesk/kb.json"}
+    ],
+    "post_apply": ["cache-clear"]
+}

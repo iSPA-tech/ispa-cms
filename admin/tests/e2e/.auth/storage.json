@@ -1,0 +1,207 @@
+{
+  "cookies": [
+    {
+      "name": "iSpa-app-cms-dev-local-cms-admin-theme",
+      "value": "light",
+      "domain": "localhost",
+      "path": "/iPanel",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-cms-dev-local-locale-250430",
+      "value": "en",
+      "domain": "localhost",
+      "path": "/iPanel",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-cms-dev-local-token",
+      "value": "test-token",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-cms-dev-local-locale-250430",
+      "value": "en",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-cms-dev-local-domain-token-11",
+      "value": "{\"status\":\"success\",\"data\":{\"token\":\"test-domain-token\"}}",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-8081-token",
+      "value": "test-token",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-8081-locale-250430",
+      "value": "en",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-8081-domain-token-11",
+      "value": "{\"status\":\"success\",\"data\":{\"token\":\"test-domain-token\"}}",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-token",
+      "value": "test-token",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-locale-250430",
+      "value": "en",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-domain-token-11",
+      "value": "{\"status\":\"success\",\"data\":{\"token\":\"test-domain-token\"}}",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-3000-token",
+      "value": "test-token",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-3000-locale-250430",
+      "value": "en",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "iSpa-app-localhost-3000-domain-token-11",
+      "value": "{\"status\":\"success\",\"data\":{\"token\":\"test-domain-token\"}}",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:8081",
+      "localStorage": [
+        {
+          "name": "iSpa-app-cms-dev-local-account-data-250430",
+          "value": "{\"id\":1,\"uuid\":\"playwright-admin-uuid\",\"name\":\"Playwright Admin\",\"roles\":[{\"id\":1,\"permissions\":[{\"group\":\"gameadmin.authority\",\"name\":\"view\"},{\"group\":\"gameadmin.authority\",\"name\":\"review\"},{\"group\":\"gameadmin.authority\",\"name\":\"reconcile\"},{\"group\":\"gameadmin.authority\",\"name\":\"export\"},{\"group\":\"gameadmin.authority\",\"name\":\"trace\"}]}]}"
+        },
+        {
+          "name": "iSpa-app-cms-dev-local-global-settings-250430",
+          "value": "{}"
+        },
+        {
+          "name": "iSpa-app-cms-dev-local-languages-data-250430",
+          "value": "[]"
+        },
+        {
+          "name": "iSpa-app-localhost-8081-account-data-250430",
+          "value": "{\"id\":1,\"uuid\":\"playwright-admin-uuid\",\"name\":\"Playwright Admin\",\"roles\":[{\"id\":1,\"permissions\":[{\"group\":\"gameadmin.authority\",\"name\":\"view\"},{\"group\":\"gameadmin.authority\",\"name\":\"review\"},{\"group\":\"gameadmin.authority\",\"name\":\"reconcile\"},{\"group\":\"gameadmin.authority\",\"name\":\"export\"},{\"group\":\"gameadmin.authority\",\"name\":\"trace\"}]}]}"
+        },
+        {
+          "name": "iSpa-app-current-version",
+          "value": "250430"
+        },
+        {
+          "name": "iSpa-app-localhost-global-settings-250430",
+          "value": "{}"
+        },
+        {
+          "name": "iSpa-app-localhost-3000-global-settings-250430",
+          "value": "{}"
+        },
+        {
+          "name": "iSpa-app-localhost-account-data-250430",
+          "value": "{\"id\":1,\"uuid\":\"playwright-admin-uuid\",\"name\":\"Playwright Admin\",\"roles\":[{\"id\":1,\"permissions\":[{\"group\":\"gameadmin.authority\",\"name\":\"view\"},{\"group\":\"gameadmin.authority\",\"name\":\"review\"},{\"group\":\"gameadmin.authority\",\"name\":\"reconcile\"},{\"group\":\"gameadmin.authority\",\"name\":\"export\"},{\"group\":\"gameadmin.authority\",\"name\":\"trace\"}]}]}"
+        },
+        {
+          "name": "iSpa-app-cms-dev-local-messages-250430",
+          "value": "{\"__schema\":\"canonical-group-v2\",\"en\":{\"a\":{},\"c\":{},\"e\":{},\"m\":{},\"n\":{},\"p\":{},\"s\":{},\"t\":{},\"w\":{}}}"
+        },
+        {
+          "name": "iSpa-app-localhost-8081-languages-data-250430",
+          "value": "[]"
+        },
+        {
+          "name": "iSpa-app-localhost-3000-account-data-250430",
+          "value": "{\"id\":1,\"uuid\":\"playwright-admin-uuid\",\"name\":\"Playwright Admin\",\"roles\":[{\"id\":1,\"permissions\":[{\"group\":\"gameadmin.authority\",\"name\":\"view\"},{\"group\":\"gameadmin.authority\",\"name\":\"review\"},{\"group\":\"gameadmin.authority\",\"name\":\"reconcile\"},{\"group\":\"gameadmin.authority\",\"name\":\"export\"},{\"group\":\"gameadmin.authority\",\"name\":\"trace\"}]}]}"
+        },
+        {
+          "name": "iSpa-app-localhost-8081-global-settings-250430",
+          "value": "{}"
+        },
+        {
+          "name": "iSpa-app-localhost-languages-data-250430",
+          "value": "[]"
+        },
+        {
+          "name": "iSpa-app-localhost-3000-languages-data-250430",
+          "value": "[]"
+        }
+      ]
+    }
+  ]
+}

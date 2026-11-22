@@ -1,0 +1,2260 @@
+{
+    "App\\Clients\\CmsClient": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct()",
+            "gptTranslate": "public function gptTranslate(array $body): mixed",
+            "textToSpeech": "public function textToSpeech(string $langPath, string $content, string $filePath): mixed",
+            "translate": "public function translate(string $langPath, string $content): mixed"
+        }
+    },
+    "App\\Clients\\OpenAIClient": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(?GuzzleHttp\\Client $client = NULL, ?int $maxAttempts = NULL, ?int $backoffMs = NULL)",
+            "createCompletion": "public function createCompletion(array $body = array ()): array",
+            "createEmbedding": "public function createEmbedding(string $input, ?string $model = NULL): array",
+            "createEmbeddingResponse": "public function createEmbeddingResponse(string $input, ?string $model = NULL): array",
+            "getContent": "public function getContent(array $responseFromOpenAI = array ()): string"
+        }
+    },
+    "App\\Constants\\CacheConstants": {
+        "kind": "class",
+        "constants": {
+            "CACHE_ABOUT_BY_SLUG": "cache:about:%s",
+            "CACHE_ALL_POSTS_OF_CATEGORY_TREE": "cache:category:%s:all-posts-of-tree:%s",
+            "CACHE_BASIC_TOKEN": "cache:basic_token",
+            "CACHE_CATEGORIES_BY_TYPE": "cache:categories-by-type:%s",
+            "CACHE_CATEGORY_ALL": "cache:category:all",
+            "CACHE_CATEGORY_BY_SLUG": "cache:category:%s:tree-with-post:%s",
+            "CACHE_CATEGORY_CHILDREN": "cache:category-children:%s",
+            "CACHE_FEATURED_CATEGORIES": "cache:category:featured:%s",
+            "CACHE_FEATURED_POSTS": "cache:post:featured:%s",
+            "CACHE_FOOTER_MENU": "cache:static:footer-menu",
+            "CACHE_LATEST_POSTS": "cache:post:latest:%s",
+            "CACHE_LATEST_POSTS_BY_CATEGORY_SLUG": "cache:post:latest:category:%s:pageSize:%s",
+            "CACHE_MAIN_MENU": "cache:static:main-menu",
+            "CACHE_POSTS_BY_CATEGORY_SLUG": "cache:post:%s:category:%s:pageSize:%s:page:%s",
+            "CACHE_POSTS_BY_CONFIG": "cache:post:%s:config:%s:limit:%s",
+            "CACHE_POSTS_BY_DATE_RANGE": "cache:%s:date:%s-%s",
+            "CACHE_POST_ALL": "cache:post:all",
+            "CACHE_POST_BY_SLUG": "cache:post:slug:%s",
+            "CACHE_POST_BY_TYPE_AND_UUID": "cache:post:%s:slug:%s",
+            "CACHE_SETTINGS": "cache:static:settings",
+            "CACHE_TOP_VIEW": "cache:top-view:%s:%s:%s",
+            "CLIENT_USER_SNAPSHOT_TTL": 86400
+        },
+        "methods": {
+            "getConstants": "public static function getConstants(): array"
+        }
+    },
+    "App\\Constants\\Constant": {
+        "kind": "class",
+        "constants": {
+            "ADVANCED_SEARCH": "advanced_search",
+            "ALL_WITH_AUDIO": "all_with_audio",
+            "ALL_WITH_DOCUMENT": "all_with_document",
+            "ALL_WITH_POST": "all_with_post",
+            "ALL_WITH_VIDEO": "all_with_video",
+            "AlL_TREE_BY_SLUG": "all_tree_by_slug",
+            "BANNER_BY_TYPE": "banner_by_type",
+            "BANNER_DETAIL_BY_ID": "banner_detail:id",
+            "BANNER_TYPE_ADS_336_280": "336_280",
+            "BANNER_TYPE_POPUP": "popup",
+            "BOOKMARK_BY_LATEST": "bookmark_by_latest",
+            "BOOKMARK_BY_USER": "bookmark_by_user",
+            "BOOKMARK_DETAIL_BY_ID": "bookmark_detail:id",
+            "BRAND_DETAIL_BY_ID": "brand_detail:id",
+            "CACHE_BANNERS": {
+                "cache_banners": "cache_banners:banner_list:lang_%s:pageSize_%s:page_%s",
+                "banner_detail:id": "cache_banners:banner_detail:by_id_%s",
+                "banner_by_type": "cache_banners:banner_by_type:lang_%s:type_%s"
+            },
+            "CACHE_BOOKMARKS": {
+                "cache_bookmarks": "cache_bookmarks:bookmark_list:user_id_%s:target_type_%s:page_%s:pageSize_%s",
+                "bookmark_detail:id": "cache_bookmarks:bookmark_detail:by_id_%s",
+                "bookmark_by_user": "cache_bookmarks:bookmark_by_user:user_id_%s:target_type_%s",
+                "bookmark_by_latest": "cache_bookmarks:bookmark_by_latest:user_id_%s:target_type_%s:limit_%s"
+            },
+            "CACHE_BRANDS": {
+                "brand_detail:id": "cache_brands:brand_detail:by_id_%s"
+            },
+            "CACHE_BY_AUDIT_LOG_USER_ID": "cache_audit_logs:user_id_%s:page_%s:pageSize_%s",
+            "CACHE_BY_BANNERS": "cache_banners",
+            "CACHE_BY_BOOKMARKS": "cache_bookmarks",
+            "CACHE_BY_BRANDS": "cache_brands",
+            "CACHE_BY_CATEGORIES": "cache_categories",
+            "CACHE_BY_COMMENTS": "cache_comments",
+            "CACHE_BY_FIELDS": "cache_fields",
+            "CACHE_BY_GALLERIES": "cache_galleries",
+            "CACHE_BY_ITEMS": "cache_items",
+            "CACHE_BY_LUGS": "cache_slugs",
+            "CACHE_BY_MENUS": "cache_menus",
+            "CACHE_BY_PLACES": "cache_places",
+            "CACHE_BY_POSTS": "cache_posts",
+            "CACHE_BY_PRODUCTS": "cache_products",
+            "CACHE_BY_PRODUCT_BUNDLES": "cache_product_bundles",
+            "CACHE_BY_PRODUCT_VARIANT_OPTIONS": "cache_product_variant_options",
+            "CACHE_CATEGORIES": {
+                "all_with_audio": "cache_categories:all_with_audio:lang_%s",
+                "all_with_video": "cache_categories:all_with_video:lang_%s",
+                "all_with_document": "cache_categories:all_with_document:lang_%s",
+                "all_with_post": "cache_categories:all_with_post:lang_%s",
+                "category_detail:id": "cache_categories:category_detail:by_type_%s:by_id_%s",
+                "all_tree_by_slug": "cache_categories:all_tree_by_slug:by_type_%s:lang_%s",
+                "featured_category": "cache_categories:featured_category:by_type_%s:lang_%s:limit_%s"
+            },
+            "CACHE_COMMENTS": {
+                "comment_detail:id": "cache_comments:comment_detail:by_id_%s",
+                "comment_by_target": "cache_comments:comment_by_target:target_id_%s:target_type_%s:reply_to_%s"
+            },
+            "CACHE_FIELDS": {
+                "field_detail:id": "cache_fields:field_detail:by_id_%s"
+            },
+            "CACHE_GALLERIES": {
+                "cache_galleries": "cache_galleries:gallery_list:lang_%s:pageSize_%s:page_%s",
+                "gallery_latest": "cache_galleries:gallery_list:latest:lang_%s:pageSize_%s:page_%s",
+                "gallery_detail:id": "cache_galleries:gallery_detail:by_id_%s"
+            },
+            "CACHE_ITEMS": {
+                "item_detail:id": "cache_items:item_detail:by_id_%s"
+            },
+            "CACHE_KEY_BANNER": "banners",
+            "CACHE_KEY_CALENDARS": "calendars",
+            "CACHE_KEY_CATEGORIES": "categories",
+            "CACHE_KEY_CATEGORIES_TARGET": "categories_target",
+            "CACHE_KEY_CATEGORY_IDS_BY_TYPE": "category_ids_by_type_%s",
+            "CACHE_KEY_COUNTER": "counter",
+            "CACHE_KEY_DETAIL": "detail_%s_%s",
+            "CACHE_KEY_DOCUMENTS": "documents",
+            "CACHE_KEY_FEATURED_CATEGORY": "feature_category",
+            "CACHE_KEY_GALLERIES": "galleries",
+            "CACHE_KEY_LATEST_DOCUMENT": "latest_document",
+            "CACHE_KEY_MEDIA_AUDIO": "media_audio",
+            "CACHE_KEY_MEDIA_POWERPOINT": "media_powerpoint",
+            "CACHE_KEY_MEDIA_VIDEO": "media_video",
+            "CACHE_KEY_MENUS": "menus",
+            "CACHE_KEY_MENU_ACCOUNT": "account_menu",
+            "CACHE_KEY_MENU_FOOTER": "footer_menu",
+            "CACHE_KEY_MENU_FOOTER_SECONDARY": "secondary_footer",
+            "CACHE_KEY_MENU_MAIN": "main_menu",
+            "CACHE_KEY_NEWS": "news",
+            "CACHE_KEY_PLACE_DETAIL": "place_detail_%s",
+            "CACHE_KEY_POSTS": "posts",
+            "CACHE_KEY_POSTS_LIST": "posts_list",
+            "CACHE_KEY_POSTS_SLIDER": "posts_slider",
+            "CACHE_KEY_POST_IDS_BY_TYPE": "post_ids_by_type_%s",
+            "CACHE_KEY_PRODUCTS": "products",
+            "CACHE_KEY_PRODUCT_DETAIL": "product_detail_%s",
+            "CACHE_KEY_PRODUCT_VARIANT_DETAIL": "product_detail_%s_variant",
+            "CACHE_KEY_SEARCH": "search",
+            "CACHE_KEY_SLUGS": "slugs",
+            "CACHE_KEY_UPLOADS": "uploads",
+            "CACHE_MENUS": {
+                "menu_detail:id": "cache_menus:menu_detail:by_id_%s",
+                "menu_by_group_key": "cache_menus:menu_by_group_key:group_key_%s:lang_id_%s"
+            },
+            "CACHE_PLACES": {
+                "place_detail:id": "cache_places:place_detail:by_id_%s"
+            },
+            "CACHE_POSTS": {
+                "cache_posts": "cache_posts:post_list:lang_%s:type_%s:pageSize_%s:page_%s",
+                "new_by_limit": "cache_posts:new_post:lang_%s:pageSize_%s",
+                "post_detail:id": "cache_posts:post_detail:type_%s:by_id_%s",
+                "latest_with_audio": "cache_posts:latest_with_audio:lang_%s:pageSize_%s",
+                "latest_with_event": "cache_posts:latest_with_events:lang_%s:pageSize_%s",
+                "latest_with_video": "cache_posts:latest_with_video:lang_%s:pageSize_%s",
+                "latest_with_document": "cache_posts:latest_with_document:lang_%s:pageSize_%s",
+                "latest_with_post": "cache_posts:latest_with_post:lang_%s:pageSize_%s",
+                "related_posts": "cache_posts:related_posts:lang_%s:category_%s:post_%s:pageSize_%s",
+                "search_by_type": "cache_posts:search_by_type:lang_%s:type_%s:keywords_%s:pageSize_%s:page_%s",
+                "category_ids_by_type": "cache_posts:category_ids_by_type:lang_%s:type_%s:category_ids_%s:pageSize_%s:page_%s",
+                "search": "cache_posts:search:lang_%s:type_%s:category_ids_%s:keywords_%s:pageSize_%s:page_%s",
+                "posts_by_required_login": "cache_posts:posts_by_required_login:lang_%s:type_%s:pageSize_%s:page_%s",
+                "advanced_search": "cache_posts:advanced_search:lang_%s:filter_%s"
+            },
+            "CACHE_PRODUCTS": {
+                "product_detail:id": "cache_products:product_detail:by_id_%s",
+                "product_top_seller": "cache_products:product_top_seller:lang_%s:pageSize_%s:page_%s"
+            },
+            "CACHE_PRODUCT_BUNDLES": {
+                "product_bundle_detail:id": "cache_product_bundles:product_bundle_detail:by_id_%s"
+            },
+            "CATEGORY_DETAIL_BY_ID": "category_detail:id",
+            "CATEGORY_TYPE_ARTICLE": 0,
+            "CATEGORY_TYPE_EVENT": 3,
+            "CATEGORY_TYPE_GALLERY": 2,
+            "CATEGORY_TYPE_PLACE": 1,
+            "CATEGORY_TYPE_PRODUCT": 4,
+            "CATEGORY_TYPE_ROLE": 6,
+            "CATEGORY_TYPE_UPLOAD": 5,
+            "COMMENT_BY_TARGET": "comment_by_target",
+            "COMMENT_DETAIL_BY_ID": "comment_detail:id",
+            "DOCUMENT": "document",
+            "DOCUMENT_LIMIT": 6,
+            "DOCUMENT_PER_PAGE": 10,
+            "DOWNLOAD": "download",
+            "FEATURED_CATEGORY": "featured_category",
+            "FIELD_DETAIL_BY_ID": "field_detail:id",
+            "GALLERY": "gallery",
+            "GALLERY_DETAIL_BY_ID": "gallery_detail:id",
+            "GALLERY_LATEST": "gallery_latest",
+            "HOMEPAGE": "homepage",
+            "HTTP_NOT_FOUND": "404",
+            "ITEM_DETAIL_BY_ID": "item_detail:id",
+            "LATEST_WITH_ADMISSION": "latest_with_admission",
+            "LATEST_WITH_AUDIO": "latest_with_audio",
+            "LATEST_WITH_DOCUMENT": "latest_with_document",
+            "LATEST_WITH_EVENT": "latest_with_event",
+            "LATEST_WITH_NOTIFICATION": "latest_with_notification",
+            "LATEST_WITH_PAGE": "latest_with_page",
+            "LATEST_WITH_POST": "latest_with_post",
+            "LATEST_WITH_VIDEO": "latest_with_video",
+            "MENU_BY_GROUP_KEY": "menu_by_group_key",
+            "MENU_DETAIL_BY_ID": "menu_detail:id",
+            "NEW_BY_LIMIT": "new_by_limit",
+            "PAGE_VIEW": "page_view",
+            "PLACE_DETAIL_BY_ID": "place_detail:id",
+            "POSTS": "posts",
+            "POSTS_BY_CATEGORIES_IDS": "category_ids_by_type",
+            "POSTS_BY_REQUIRED_LOGIN": "posts_by_required_login",
+            "POST_DETAIL_BY_ID": "post_detail:id",
+            "PRODUCT_BUNDLE_DETAIL_BY_ID": "product_bundle_detail:id",
+            "PRODUCT_DETAIL_BY_ID": "product_detail:id",
+            "PRODUCT_TOP_SELLER": "product_top_seller",
+            "RELATED_POSTS": "related_posts",
+            "SEARCH": "search",
+            "SEARCH_BY_TYPE": "search_by_type",
+            "TAG_SCAN": "scan",
+            "TRACKING_TYPE_ARTICLE": "articles",
+            "TRACKING_TYPE_ARTICLE_CATEGORY": "article_categories",
+            "TRACKING_TYPE_AUDIO": "audios",
+            "TRACKING_TYPE_CATEGORY": "categories",
+            "TRACKING_TYPE_DOCUMENT": "documents",
+            "TRACKING_TYPE_DOWNLOAD": "downloads",
+            "TRACKING_TYPE_PAGE": "pages",
+            "TRACKING_TYPE_PRODUCT": "products",
+            "TRACKING_TYPE_PRODUCT_CATEGORY": "product_categories",
+            "TRACKING_TYPE_PRODUCT_DETAIL": "product_detail"
+        },
+        "methods": {
+            "getConstants": "public static function getConstants(): array"
+        }
+    },
+    "App\\Constants\\RedisConstants": {
+        "kind": "class",
+        "constants": {
+            "META": "meta",
+            "PLACES": "places",
+            "POSTDETAIL": "post_detail",
+            "POSTS": "posts",
+            "POST_DETAIL": "post_detail:%s",
+            "PUBLIC": "public",
+            "PUBLIC_PLACES": "public_places",
+            "PUBLIC_POSTS": "public_posts",
+            "SETTINGS": "settings",
+            "TTL_1_DAY": 86400,
+            "TTL_1_HOUR": 3600,
+            "TTL_1_MINUTE": 60,
+            "TTL_1_MONTH": 2592000,
+            "TTL_1_WEEK": 604800,
+            "TTL_1_YEAR": 31536000,
+            "USER": "user"
+        },
+        "methods": {
+            "getConstants": "public static function getConstants(): array"
+        }
+    },
+    "App\\Enums\\ContentStatusEnum": {
+        "kind": "enum",
+        "implements": [
+            "BackedEnum",
+            "UnitEnum"
+        ],
+        "cases": {
+            "CONTENT_DRAFT": "content_draft",
+            "CONTENT_PENDING_TRANSLATION": "content_pending_translation",
+            "CONTENT_ON_QUEUE_TRANSLATION": "content_on_queue_translation",
+            "CONTENT_TRANSLATED": "content_translated",
+            "CONTENT_MODERATED": "content_moderated",
+            "CONTENT_PUBLISHED": "content_published",
+            "CONTENT_REJECTED": "content_rejected"
+        }
+    },
+    "App\\Enums\\PostTypeEnum": {
+        "kind": "enum",
+        "implements": [
+            "BackedEnum",
+            "UnitEnum"
+        ],
+        "cases": {
+            "ARTICLE": "post",
+            "PAGE": "page",
+            "DOCUMENT": "document",
+            "VIDEO": "video",
+            "AUDIO": "audio"
+        },
+        "methods": {
+            "get": "public static function get(string $key): ?string"
+        }
+    },
+    "App\\Enums\\StatusEnum": {
+        "kind": "enum",
+        "implements": [
+            "BackedEnum",
+            "UnitEnum"
+        ],
+        "cases": {
+            "STATUS_DRAFT": "status_draft",
+            "STATUS_PENDING": "status_pending",
+            "STATUS_PUBLISHED": "status_published",
+            "STATUS_ARCHIVED": "status_archived"
+        },
+        "constants": {
+            "ARCHIVED": "App\\Enums\\StatusEnum::STATUS_ARCHIVED",
+            "DRAFT": "App\\Enums\\StatusEnum::STATUS_DRAFT",
+            "PENDING": "App\\Enums\\StatusEnum::STATUS_PENDING",
+            "PUBLISHED": "App\\Enums\\StatusEnum::STATUS_PUBLISHED"
+        }
+    },
+    "App\\Events\\SaveTracking": {
+        "kind": "class",
+        "properties": {
+            "agent": "public readonly ?string $agent",
+            "eventId": "public readonly string $eventId",
+            "host": "public readonly ?string $host",
+            "id": "public readonly int $id",
+            "ip": "public readonly ?string $ip",
+            "isDiscovery": "public bool $isDiscovery",
+            "occurredAt": "public readonly Carbon\\CarbonImmutable $occurredAt",
+            "path": "public readonly ?string $path",
+            "routeName": "public readonly ?string $routeName",
+            "routeParameters": "public readonly array $routeParameters",
+            "sessionId": "public readonly ?string $sessionId",
+            "tags": "public readonly array $tags",
+            "type": "public readonly ?string $type",
+            "url": "public readonly ?string $url"
+        },
+        "methods": {
+            "__construct": "public function __construct(array $tags, ?string $type = NULL, int $id = 0, ?string $visitorKey = NULL, ?string $publicUrl = NULL)",
+            "__unserialize": "public function __unserialize(array $values): void"
+        }
+    },
+    "App\\Events\\SendEmail": {
+        "kind": "class",
+        "properties": {
+            "data": "public array $data",
+            "isDiscovery": "public bool $isDiscovery"
+        },
+        "methods": {
+            "__construct": "public function __construct(array $data = array ())",
+            "broadcastOn": "public function broadcastOn(): Illuminate\\Broadcasting\\Channel|array"
+        }
+    },
+    "App\\Events\\TextToSpeechContentRequest": {
+        "kind": "class",
+        "properties": {
+            "contentId": "public int $contentId",
+            "isDiscovery": "public bool $isDiscovery",
+            "token": "public ?string $token",
+            "uid": "public ?string $uid"
+        },
+        "methods": {
+            "__construct": "public function __construct(int $contentId, ?string $uid = NULL, ?string $token = NULL)",
+            "broadcastOn": "public function broadcastOn(): Illuminate\\Broadcasting\\Channel|array"
+        }
+    },
+    "App\\Events\\TranslateContentRequest": {
+        "kind": "class",
+        "properties": {
+            "columnNameToTranslate": "public array $columnNameToTranslate",
+            "fromContentId": "public int $fromContentId",
+            "isDiscovery": "public bool $isDiscovery",
+            "toContentId": "public int $toContentId",
+            "token": "public ?string $token",
+            "uid": "public ?string $uid"
+        },
+        "methods": {
+            "__construct": "public function __construct(int $fromContentId, int $toContentId, array $columnNameToTranslate = array (), ?string $uid = NULL, ?string $token = NULL)",
+            "broadcastOn": "public function broadcastOn(): Illuminate\\Broadcasting\\Channel|array"
+        }
+    },
+    "App\\Helpers\\AppHelpers": {
+        "kind": "class",
+        "extends": "Illuminate\\Support\\Facades\\Facade",
+        "methods": {
+            "cropImage": "public static function cropImage(string $disk, string $sourcePath, string $outPutPath, int $width = 0, int $height = 0, string $extension = 'webp'): void",
+            "getChanges": "public static function getChanges(mixed $model = NULL): array",
+            "getInstance": "public static function getInstance(): self",
+            "getLanguage": "public static function getLanguage()",
+            "getLanguages": "public static function getLanguages(): mixed",
+            "getLocation": "public static function getLocation(): Stevebauman\\Location\\Position|bool",
+            "makeKey": "public static function makeKey(array $data = array (), string $separator = '|'): string",
+            "modelRelationshipHelper": "public static function modelRelationshipHelper(array $with = array ()): array",
+            "rankId": "public static function rankId(?string $rank = NULL): int"
+        }
+    },
+    "App\\Helpers\\Crawler\\ArticleCrawler": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(?iterable $extractors = NULL)",
+            "crawl": "public function crawl(string $url): array",
+            "extract": "public function extract(string $url, Facebook\\WebDriver\\Remote\\RemoteWebElement $page): array",
+            "extractorFor": "public function extractorFor(string $url): App\\Helpers\\Crawler\\ArticleExtractor"
+        }
+    },
+    "App\\Http\\Controllers\\Controller": {
+        "kind": "class",
+        "extends": "Illuminate\\Routing\\Controller",
+        "properties": {
+            "breadcrumbs": "public array $breadcrumbs",
+            "freshCache": "public bool $freshCache"
+        },
+        "methods": {
+            "__construct": "public function __construct()",
+            "maintenance": "public function maintenance(): Illuminate\\Contracts\\View\\View|Illuminate\\Contracts\\View\\Factory|Illuminate\\Routing\\Redirector|Illuminate\\Http\\RedirectResponse|Illuminate\\Contracts\\Foundation\\Application"
+        }
+    },
+    "App\\Http\\Controllers\\V3\\Public\\Concerns\\DecoratesPostPreviewImages": {
+        "kind": "trait",
+        "methods": {
+            "decoratePostPreviewImages": "protected function decoratePostPreviewImages(mixed $posts): mixed",
+            "imageVariantUrl": "protected function imageVariantUrl(mixed $image, string $context, string $presetName): ?string"
+        }
+    },
+    "App\\Http\\Controllers\\V3\\Public\\Concerns\\SerializesPublicPayloadOnce": {
+        "kind": "trait",
+        "methods": {
+            "serializeOnce": "protected function serializeOnce(mixed $payload): mixed"
+        }
+    },
+    "App\\Models\\Comment": {
+        "kind": "class",
+        "extends": "Cms\\Core\\Models\\AbstractBaseModel",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "constants": {
+            "APPENDED_RELATIONS_SCOPE": "core.appended-relations",
+            "CATEGORY_ATTACHMENTS": "attachments",
+            "CATEGORY_AVATAR": "avatar",
+            "CATEGORY_IMAGES": "images",
+            "CATEGORY_LOGO": "logo"
+        },
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "attachments": "public function attachments(string $category = self::CATEGORY_ATTACHMENTS): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "comment_status": "public function comment_status(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "contact": "public function contact(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "getHashtags": "public function getHashtags(): array",
+            "getImageAttribute": "public function getImageAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getLogoAttribute": "public function getLogoAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getStatusAttribute": "public function getStatusAttribute(mixed $value): mixed",
+            "image": "public function image(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "images": "public function images(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "logo": "public function logo(): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "mainImage": "public function mainImage(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "scopeArchived": "public function scopeArchived(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeDraft": "public function scopeDraft(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePending": "public function scopePending(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePublished": "public function scopePublished(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWhereStatus": "public function scopeWhereStatus(Illuminate\\Database\\Eloquent\\Builder $query, App\\Enums\\StatusEnum|array|string|null $status): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithImage": "public function scopeWithImage(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithLogo": "public function scopeWithLogo(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "seo": "public function seo(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "seos": "public function seos(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "setStatusAttribute": "public function setStatusAttribute(mixed $value): void",
+            "syncAttachments": "public function syncAttachments(array $data = array (), string $category = self::CATEGORY_ATTACHMENTS): void",
+            "syncAvatar": "public function syncAvatar(array $data = array (), string $category = self::CATEGORY_AVATAR): void",
+            "syncImages": "public function syncImages(array $data = array (), string $category = self::CATEGORY_IMAGES): void",
+            "syncSeo": "public function syncSeo(array $data = array ()): void",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "App\\Models\\Seo": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "App\\Models\\Slug": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "category": "public function category(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo",
+            "categoryFor": "public static function categoryFor(?string $targetType, string|int|null $targetId): ?string",
+            "gallery": "public function gallery(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo",
+            "language": "public function language(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "post": "public function post(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "App\\Models\\Tracking\\Track": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "App\\Models\\Tracking\\TrackingTargetDaily": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "methods": {
+            "getTable": "public function getTable(): string"
+        }
+    },
+    "App\\Models\\Tracking\\TrackingTop": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        }
+    },
+    "App\\Models\\Tracking\\TrackingTopDaily": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        }
+    },
+    "App\\Models\\User": {
+        "kind": "class",
+        "extends": "Illuminate\\Foundation\\Auth\\User",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Auth\\Access\\Authorizable",
+            "Illuminate\\Contracts\\Auth\\Authenticatable",
+            "Illuminate\\Contracts\\Auth\\CanResetPassword",
+            "Illuminate\\Contracts\\Auth\\MustVerifyEmail",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Laravel\\Passkeys\\Contracts\\PasskeyUser",
+            "Stringable"
+        ],
+        "methods": {
+            "assignRole": "public function assignRole(int $role_id): void",
+            "auditLogs": "public function auditLogs(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "authChallenges": "public function authChallenges(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "avatar": "public function avatar(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "boot": "public static function boot(): void",
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "children": "public function children(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "getParentsAttribute": "public function getParentsAttribute()",
+            "getParsedSettingsAttribute": "public function getParsedSettingsAttribute(): object",
+            "hasPermissionResolved": "public function hasPermissionResolved(string $key): bool",
+            "hasRole": "public function hasRole(?string $key = NULL): bool",
+            "isWebmaster": "public function isWebmaster(): bool",
+            "meta": "public function meta(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "mfaFactors": "public function mfaFactors(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "parent": "public function parent(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "permissionKeys": "public function permissionKeys(): array",
+            "permissions": "public function permissions(): array",
+            "roleLevel": "public function roleLevel(): int",
+            "roles": "public function roles(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "sendEmailVerificationNotification": "public function sendEmailVerificationNotification(): void",
+            "setMetaData": "public function setMetaData(string $key, mixed $value = ''): void",
+            "settings": "public function settings(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "status_enum": "public function status_enum(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "tags": "public function tags(): Illuminate\\Database\\Eloquent\\Relations\\MorphToMany"
+        }
+    },
+    "App\\Providers\\Abstracts\\ModuleServiceProvider": {
+        "kind": "abstract class",
+        "extends": "Illuminate\\Support\\ServiceProvider",
+        "methods": {
+            "boot": "public function boot(): void",
+            "getModuleName": "abstract protected function getModuleName(): string",
+            "getModuleNameLower": "abstract protected function getModuleNameLower(): string",
+            "mergeConfigFrom": "protected function mergeConfigFrom($path, $key): void",
+            "provides": "public function provides(): array",
+            "register": "public function register(): void",
+            "registerCommandSchedules": "protected function registerCommandSchedules(): void",
+            "registerCommands": "protected function registerCommands(): void",
+            "registerConfig": "protected function registerConfig(): void",
+            "registerModuleProviders": "protected function registerModuleProviders(): void",
+            "registerRepositoryBindings": "protected function registerRepositoryBindings(): void",
+            "registerTranslations": "public function registerTranslations(): void",
+            "registerViews": "public function registerViews(): void"
+        }
+    },
+    "App\\Repositories\\Interfaces\\CommentInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "get": "abstract public function get(array $params)",
+            "getCommentList": "abstract public function getCommentList(string $targetType, int $targetId, int $replyTo = 0, bool $freshCache = false): mixed",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "App\\Repositories\\Interfaces\\JsonException": {
+        "kind": "missing"
+    },
+    "App\\Rules\\ContentRequired": {
+        "kind": "class",
+        "implements": [
+            "Illuminate\\Contracts\\Validation\\Rule"
+        ],
+        "methods": {
+            "__construct": "public function __construct()",
+            "message": "public function message(): string",
+            "passes": "public function passes($attribute, $value): bool"
+        }
+    },
+    "App\\Services\\AdminUpdateContentService": {
+        "kind": "class",
+        "properties": {
+            "isDiscovery": "public bool $isDiscovery"
+        },
+        "methods": {
+            "__construct": "public function __construct()",
+            "checkContentByLanguage": "public function checkContentByLanguage(mixed $model, Illuminate\\Database\\Eloquent\\Collection $languages): void",
+            "setMetaValue": "public function setMetaValue(mixed $value, mixed $model, bool $isDate = false, ?string $name = NULL): mixed",
+            "syncAudios": "public function syncAudios($model, array $data): bool",
+            "syncCategory": "public function syncCategory(Illuminate\\Http\\Request $request, $model): bool",
+            "syncContent": "public function syncContent(Illuminate\\Http\\Request $request, mixed $model): void",
+            "syncContents": "public function syncContents(Illuminate\\Http\\Request $request, $model): void",
+            "syncImages": "public function syncImages($model, array $data): bool",
+            "syncMetaData": "public function syncMetaData(Illuminate\\Http\\Request $request, mixed $model): void",
+            "syncTag": "public function syncTag(Illuminate\\Http\\Request $request, $model): mixed",
+            "updateSeo": "public function updateSeo(Illuminate\\Http\\Request $request, $model): bool",
+            "updateSlug": "public function updateSlug(Illuminate\\Http\\Request $request, $model): bool"
+        }
+    },
+    "App\\Services\\Dashboard\\AttentionRegistry": {
+        "kind": "class",
+        "methods": {
+            "forUser": "public function forUser(Illuminate\\Contracts\\Auth\\Authenticatable $user, bool $withItems = false): array",
+            "register": "public function register(string $key, Closure|string $ability, callable $count, ?callable $items = NULL, array $meta = array ()): void"
+        }
+    },
+    "App\\Services\\Pipelines\\AttachImagesInsideContent": {
+        "kind": "class",
+        "properties": {
+            "isDiscovery": "public bool $isDiscovery"
+        },
+        "methods": {
+            "handle": "public function handle($model, Closure $next)"
+        }
+    },
+    "App\\Services\\Pipelines\\DetachImagesInsideContent": {
+        "kind": "class",
+        "properties": {
+            "isDiscovery": "public bool $isDiscovery"
+        },
+        "methods": {
+            "handle": "public function handle($model, Closure $next)"
+        }
+    },
+    "App\\Services\\Upload\\AttachAndDetachImages": {
+        "kind": "class",
+        "extends": "Illuminate\\Support\\Facades\\Facade",
+        "properties": {
+            "isDiscovery": "public bool $isDiscovery"
+        },
+        "methods": {
+            "attachImageInsideContent": "public static function attachImageInsideContent(mixed $model = NULL): void",
+            "detachImagesInsideContent": "public static function detachImagesInsideContent(mixed $model = NULL): void",
+            "imageIdsFromContent": "public static function imageIdsFromContent(array $content = array ()): array"
+        }
+    },
+    "App\\Support\\Modules\\ModuleStatus": {
+        "kind": "final class",
+        "methods": {
+            "enabledNames": "public static function enabledNames(): array",
+            "isEnabled": "public static function isEnabled(string $name): bool"
+        }
+    },
+    "App\\Traits\\Models\\PublishedDateTrait": {
+        "kind": "trait",
+        "methods": {
+            "publishedDate": "public function publishedDate(): Illuminate\\Database\\Eloquent\\Casts\\Attribute"
+        }
+    },
+    "App\\Traits\\Models\\ViewCounterTrait": {
+        "kind": "trait",
+        "methods": {
+            "flushTotalViewMemo": "public static function flushTotalViewMemo(): void",
+            "scopeWithTotalView": "public function scopeWithTotalView(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "totalView": "public function totalView(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "warmTotalViews": "public static function warmTotalViews(iterable $models): void"
+        }
+    },
+    "App\\Traits\\Observers\\BeforeCreateTrait": {
+        "kind": "trait",
+        "methods": {
+            "creating": "public static function creating(mixed $model): void"
+        }
+    },
+    "App\\Traits\\Observers\\BeforeUpdateTrait": {
+        "kind": "trait",
+        "methods": {
+            "updating": "public static function updating(mixed $model): void"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\Action": {
+        "kind": "final class",
+        "methods": {
+            "ability": "public function ability(string $ability): static",
+            "after": "public function after(string $hookName): static",
+            "bulk": "public function bulk(bool $bulk = true): static",
+            "confirm": "public function confirm(string $key): static",
+            "danger": "public function danger(bool $danger = true): static",
+            "endpoint": "public function endpoint(string $routeName, array $payload = array (), string $method = 'POST'): static",
+            "fields": "public function fields(array $fields): static",
+            "getAbility": "public function getAbility(): ?string",
+            "getAfter": "public function getAfter(): ?string",
+            "getConfirm": "public function getConfirm(): ?string",
+            "getFields": "public function getFields(): array",
+            "getLabel": "public function getLabel(): ?string",
+            "getLabelFrom": "public function getLabelFrom(): ?array",
+            "getMethod": "public function getMethod(): string",
+            "getPayload": "public function getPayload(): array",
+            "getRefresh": "public function getRefresh(): ?string",
+            "getRouteName": "public function getRouteName(): ?string",
+            "getSubmitLabel": "public function getSubmitLabel(): ?string",
+            "getSuccessMessage": "public function getSuccessMessage(): ?string",
+            "getVisibleWhen": "public function getVisibleWhen(): ?array",
+            "isBulk": "public function isBulk(): bool",
+            "isDanger": "public function isDanger(): bool",
+            "label": "public function label(string $key): static",
+            "labelFrom": "public function labelFrom(string $field, string $onKey, string $offKey): static",
+            "make": "public static function make(string $name): static",
+            "name": "public function name(): string",
+            "refresh": "public function refresh(string $target): static",
+            "submitLabel": "public function submitLabel(string $key): static",
+            "successMessage": "public function successMessage(string $key): static",
+            "visibleWhen": "public function visibleWhen(array $condition): static"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\DetailView": {
+        "kind": "final class",
+        "methods": {
+            "endpoint": "public function endpoint(string $routeName): static",
+            "getLabels": "public function getLabels(): array",
+            "getRouteName": "public function getRouteName(): ?string",
+            "getSections": "public function getSections(): array",
+            "getTabs": "public function getTabs(): array",
+            "getTimelineType": "public function getTimelineType(): ?string",
+            "labels": "public function labels(array $keys): static",
+            "make": "public static function make(): static",
+            "sections": "public function sections(array $fieldNames): static",
+            "tab": "public function tab(string $name, string $labelKey, string $widget): static",
+            "timeline": "public function timeline(string $recordType): static"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\Field": {
+        "kind": "final class",
+        "methods": {
+            "availableIn": "public function availableIn(string $context): bool",
+            "boolean": "public static function boolean(string $name): static",
+            "colors": "public function colors(array $colors): static",
+            "contexts": "public function contexts(): array",
+            "count": "public static function count(string $name): static",
+            "custom": "public function custom(): static",
+            "date": "public static function date(string $name): static",
+            "dateOnly": "public function dateOnly(): static",
+            "dateRange": "public static function dateRange(string $name, string $startField, string $endField): static",
+            "datetime": "public static function datetime(string $name): static",
+            "default": "public function default(string|int|float|bool $value): static",
+            "dependsOn": "public function dependsOn(string $field, string $param): static",
+            "email": "public static function email(string $name): static",
+            "endpointsBy": "public function endpointsBy(string $field, array $map): static",
+            "enum": "public static function enum(string $name, array $values): static",
+            "enumerate": "public static function enumerate(string $name, string $group): static",
+            "expiry": "public function expiry(int $warnDays, string $expiredLabel, string $warningLabel): static",
+            "filterAllLabel": "public function filterAllLabel(string $key): static",
+            "filterable": "public function filterable(): static",
+            "fromRecord": "public function fromRecord(string $valueKey, ?string $labelKey = NULL): static",
+            "getFilterAllLabel": "public function getFilterAllLabel(): ?string",
+            "getWidth": "public function getWidth(): ?int",
+            "helpText": "public function helpText(array $help): static",
+            "isFilterable": "public function isFilterable(): bool",
+            "isReadOnly": "public function isReadOnly(): bool",
+            "isSearchable": "public function isSearchable(): bool",
+            "isSortable": "public function isSortable(): bool",
+            "label": "public function label(string $key): static",
+            "labelKey": "public function labelKey(): string",
+            "labelText": "public function labelText(array $labels): static",
+            "link": "public function link(array $routeLocation): static",
+            "listed": "public function listed(): static",
+            "max": "public function max(int $max): static",
+            "min": "public function min(int $min): static",
+            "multiple": "public function multiple(): static",
+            "name": "public function name(): string",
+            "number": "public static function number(string $name): static",
+            "onlyOn": "public function onlyOn(string ...$contexts): static",
+            "optionText": "public function optionText(array $labelsByValue): static",
+            "options": "public function options(array $labelKeysByValue): static",
+            "pattern": "public function pattern(string $regex): static",
+            "permission": "public function permission(string $ability): static",
+            "permissionAbility": "public function permissionAbility(): ?string",
+            "prebuiltRules": "public function prebuiltRules(array $laravelRules, array $schemaRules): static",
+            "readOnly": "public function readOnly(): static",
+            "relation": "public static function relation(string $name, string $endpoint, string $labelKey = 'name', string $valueKey = 'uuid'): static",
+            "relationExists": "public function relationExists(callable $check): static",
+            "required": "public function required(): static",
+            "requiredWhen": "public function requiredWhen(array $condition): static",
+            "rule": "public function rule(mixed $rule): static",
+            "rulesFor": "public function rulesFor(string $context, array $input = array ()): ?array",
+            "searchParam": "public function searchParam(string $param): static",
+            "searchable": "public function searchable(): static",
+            "secondary": "public function secondary(string $fieldName): static",
+            "slug": "public static function slug(string $name, string $fromField): static",
+            "sortable": "public function sortable(): static",
+            "status": "public static function status(string $name, array $values): static",
+            "text": "public static function text(string $name): static",
+            "textarea": "public static function textarea(string $name): static",
+            "toSchema": "public function toSchema(): array",
+            "type": "public function type(): string",
+            "unit": "public function unit(string $unitKey): static",
+            "visibleWhen": "public function visibleWhen(array $condition): static",
+            "width": "public function width(int $px): static"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\FormView": {
+        "kind": "final class",
+        "methods": {
+            "ability": "public function ability(string $ability): static",
+            "after": "public function after(string $hookName): static",
+            "contexts": "public function contexts(): array",
+            "create": "public static function create(array $fieldNames): static",
+            "endpoint": "public function endpoint(string $routeName, string $method = 'POST'): static",
+            "fieldsFor": "public function fieldsFor(string $context): ?array",
+            "getAbility": "public function getAbility(): ?string",
+            "getAfter": "public function getAfter(): ?string",
+            "getLabels": "public function getLabels(): array",
+            "getMethod": "public function getMethod(): string",
+            "getRouteName": "public function getRouteName(): ?string",
+            "getSuccessMessage": "public function getSuccessMessage(?string $context = NULL): ?string",
+            "getUpdateMethod": "public function getUpdateMethod(): string",
+            "getUpdateRouteName": "public function getUpdateRouteName(): ?string",
+            "labels": "public function labels(array $keys): static",
+            "make": "public static function make(): static",
+            "successMessage": "public function successMessage(string $key, ?string $context = NULL): static",
+            "update": "public function update(array $fieldNames): static",
+            "updateEndpoint": "public function updateEndpoint(string $routeName, string $method = 'PUT'): static",
+            "withCreate": "public function withCreate(array $fieldNames): static"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\ListView": {
+        "kind": "final class",
+        "methods": {
+            "breadcrumbParent": "public function breadcrumbParent(string $routeName, string $labelKey, ?string $icon = NULL): static",
+            "bulkActions": "public function bulkActions(array $actionNames): static",
+            "columns": "public function columns(array $fieldNames): static",
+            "detailLink": "public function detailLink(bool $on = true): static",
+            "endpoint": "public function endpoint(string $routeName, string $adapter = 'ispa-list-v1'): static",
+            "filters": "public function filters(array $fieldNames): static",
+            "getAdapter": "public function getAdapter(): string",
+            "getBreadcrumbParent": "public function getBreadcrumbParent(): ?array",
+            "getBulkActions": "public function getBulkActions(): array",
+            "getColumns": "public function getColumns(): array",
+            "getFilters": "public function getFilters(): array",
+            "getLabels": "public function getLabels(): array",
+            "getRouteName": "public function getRouteName(): ?string",
+            "getRowActions": "public function getRowActions(): array",
+            "getSearchParam": "public function getSearchParam(): ?string",
+            "getSearchPlaceholder": "public function getSearchPlaceholder(): ?string",
+            "hasDetailLink": "public function hasDetailLink(): bool",
+            "isSelectable": "public function isSelectable(): bool",
+            "labels": "public function labels(array $keys): static",
+            "make": "public static function make(): static",
+            "rowActions": "public function rowActions(array $actionNames): static",
+            "search": "public function search(string $param, string $placeholderKey): static",
+            "selectable": "public function selectable(bool $selectable = true): static"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\Resource": {
+        "kind": "abstract class",
+        "methods": {
+            "abilities": "public function abilities(): ?array",
+            "ability": "abstract public function ability(): string",
+            "actions": "public function actions(): array",
+            "detail": "public function detail(): ?Cms\\Core\\Admin\\Resources\\DetailView",
+            "field": "final public function field(string $name): Cms\\Core\\Admin\\Resources\\Field",
+            "fields": "abstract public function fields(): array",
+            "form": "public function form(): ?Cms\\Core\\Admin\\Resources\\FormView",
+            "key": "abstract public function key(): string",
+            "list": "public function list(): ?Cms\\Core\\Admin\\Resources\\ListView",
+            "ruleSets": "public function ruleSets(): array",
+            "rules": "final public function rules(string $context, array $input = array ()): array",
+            "scopedResource": "public function scopedResource(): ?string",
+            "supportsCustomFields": "public function supportsCustomFields(): bool"
+        }
+    },
+    "Cms\\Core\\Admin\\Resources\\ResourceRegistry": {
+        "kind": "final class",
+        "methods": {
+            "__construct": "public function __construct(Illuminate\\Contracts\\Container\\Container $container)",
+            "has": "public function has(string $key): bool",
+            "keys": "public function keys(): array",
+            "make": "public function make(string $key): Cms\\Core\\Admin\\Resources\\Resource",
+            "register": "public function register(string $key, string $class): void"
+        }
+    },
+    "Cms\\Core\\Agents\\Attributes\\AgentTool": {
+        "kind": "class",
+        "properties": {
+            "ability": "public ?string $ability",
+            "approvalRequired": "public bool $approvalRequired",
+            "capabilityClass": "public ?string $capabilityClass",
+            "citationRequired": "public bool $citationRequired",
+            "contractSteward": "public string $contractSteward",
+            "description": "public ?string $description",
+            "family": "public ?string $family",
+            "moduleScope": "public ?string $moduleScope",
+            "name": "public ?string $name",
+            "safetyLevel": "public string $safetyLevel",
+            "sideEffectClass": "public string $sideEffectClass",
+            "timeoutSeconds": "public ?int $timeoutSeconds"
+        },
+        "methods": {
+            "__construct": "public function __construct(?string $name = NULL, ?string $family = NULL, ?string $moduleScope = NULL, string $contractSteward = 'core', string $sideEffectClass = 'read_only', string $safetyLevel = 'safe', bool $citationRequired = false, bool $approvalRequired = false, ?string $capabilityClass = 'class_0_read_only', ?int $timeoutSeconds = NULL, ?string $description = NULL, ?string $ability = NULL)"
+        }
+    },
+    "Cms\\Core\\Agents\\Contracts\\ArtifactApplierInterface": {
+        "kind": "interface",
+        "methods": {
+            "apply": "abstract public function apply(Cms\\Core\\Models\\Agents\\AgentArtifact $artifact, Cms\\Core\\Models\\Agents\\AgentApproval $approval): array"
+        }
+    },
+    "Cms\\Core\\Constants\\CoreTableConstant": {
+        "kind": "class",
+        "constants": {
+            "AGENT_APPROVAL": "agent_approvals",
+            "AGENT_ARTIFACT": "agent_artifacts",
+            "AGENT_MEMORY": "agent_memories",
+            "AGENT_POLICY": "agent_policies",
+            "AGENT_PROFILE": "agent_profiles",
+            "AGENT_PROFILE_TOOL": "agent_profile_tools",
+            "AGENT_RUN": "agent_runs",
+            "AGENT_RUN_STEP": "agent_run_steps",
+            "AGENT_SCHEDULE": "agent_schedules",
+            "AGENT_TOOL_BINDING": "agent_tool_bindings",
+            "AGENT_TOOL_CALL": "agent_tool_calls",
+            "AGENT_TOOL_DEFINITION": "agent_tool_definitions",
+            "AI_CALL_LOGS": "core_ai_call_logs",
+            "AI_EXTRACTION_RUNS": "core_ai_extraction_runs",
+            "AI_USAGE_DAILY": "core_ai_usage_daily",
+            "API_LOGS": "api_logs",
+            "AUDIT_LOGS": "audit_logs",
+            "AUTH_CHALLENGES": "auth_challenges",
+            "BACKGROUND_TASKS": "core_background_tasks",
+            "BACKUPS": "core_backups",
+            "BACKUP_COPIES": "core_backup_copies",
+            "BACKUP_DESTINATIONS": "core_backup_destinations",
+            "CATEGORIES": "categories",
+            "CATEGORY_TARGET": "category_target",
+            "COMMENTS": "comments",
+            "CONFIG_PACKAGE_RUNS": "core_config_package_runs",
+            "DATA_SCOPE_ASSIGNMENTS": "data_scope_assignments",
+            "DATA_SCOPE_GRANTS": "data_scope_grants",
+            "EMAILS": "emails",
+            "EMAIL_LOGS": "email_logs",
+            "EMAIL_TEMPLATES": "email_templates",
+            "ENRICHMENT_SOURCES": "enrichment_sources",
+            "ENUMERATES": "enumerates",
+            "ENUMERATE_TYPES": "enumerates_types",
+            "FIELDS": "fields",
+            "FIELD_ITEMS": "field_items",
+            "FULLTEXT_SEARCH": "%s_search_iSPA",
+            "LANGUAGES": "languages",
+            "MENUS": "menus",
+            "MENU_ITEMS": "menu_items",
+            "META_ATTRIBUTES": "meta_attributes",
+            "META_ATTRIBUTE_VALUE_PIVOT": "meta_attribute_value_pivot",
+            "META_CLASSES": "meta_classes",
+            "META_CLASS_ATTRIBUTE_PIVOT": "meta_class_attribute_pivot",
+            "META_DATA": "meta_data",
+            "META_VALUES_BIG_NUM": "meta_values_big_num",
+            "META_VALUES_BOOLEAN": "meta_values_boolean",
+            "META_VALUES_DATE": "meta_values_date",
+            "META_VALUES_RANGE": "meta_values_range",
+            "META_VALUES_STRING": "meta_values_string",
+            "META_VALUES_TEXT": "meta_values_text",
+            "META_VALUES_TINY_NUM": "meta_values_tiny_num",
+            "PASSWORD_RESETS": "password_resets",
+            "PERMISSIONS": "permissions",
+            "PERMISSION_ROLE": "permission_role",
+            "PUBLISHED_DATA_CANDIDATES": "core_published_data_candidates",
+            "PUBLISHED_DATA_EMBEDDINGS": "core_published_data_embeddings",
+            "PUBLISHED_DATA_SOURCE_CLUSTERS": "core_published_data_source_clusters",
+            "RECORD_NOTES": "core_record_notes",
+            "RESOURCE_OVERLAYS": "resource_overlays",
+            "ROLES": "roles",
+            "ROLE_USER": "role_user",
+            "SAVED_VIEWS": "core_saved_views",
+            "SCHEDULER": "schedulers",
+            "SEED_FINGERPRINTS": "core_seed_fingerprints",
+            "SEOS": "seos",
+            "SETTINGS": "settings",
+            "SLUGS": "slugs",
+            "STARTER_PACK_APPLICATIONS": "core_starter_pack_applications",
+            "STORAGES": "storages",
+            "TAGS": "tags",
+            "TAGS_DATA": "tags_data",
+            "TRANSLATES": "translates",
+            "UPLOADS": "uploads",
+            "UPLOAD_TARGET_PIVOT": "upload_target_pivot",
+            "USERS": "users",
+            "USERS_META": "user_meta",
+            "USERS_SETTINGS": "user_settings",
+            "USER_MFA_FACTORS": "user_mfa_factors",
+            "USER_MFA_RECOVERY_CODES": "user_mfa_recovery_codes",
+            "VECTOR_EMBEDDINGS": "vector_embeddings",
+            "WEBHOOK_RECEIPTS": "core_webhook_receipts",
+            "WIDGET": "widgets",
+            "WIDGET_INPUT": "widget_inputs",
+            "WIDGET_THEME": "widget_themes",
+            "WORKFLOW": "workflows",
+            "WORKFLOW_CONNECTION": "workflow_connections",
+            "WORKFLOW_INSTANCE": "workflow_instances",
+            "WORKFLOW_INSTANCE_STEP": "workflow_instance_steps",
+            "WORKFLOW_PROJECT": "workflow_projects",
+            "WORKFLOW_STEP": "workflow_steps"
+        }
+    },
+    "Cms\\Core\\Database\\Seeders\\AiRuntimeTaskSeederBase": {
+        "kind": "abstract class",
+        "extends": "Illuminate\\Database\\Seeder",
+        "methods": {
+            "agenticDriver": "protected function agenticDriver(): mixed",
+            "extractionProvider": "protected function extractionProvider(): mixed",
+            "normalizeProvider": "protected function normalizeProvider(mixed $provider): string",
+            "run": "public function run(): void",
+            "seedIfMissing": "protected function seedIfMissing(string $key, string $value): void",
+            "taskCatalog": "abstract protected function taskCatalog(): array"
+        }
+    },
+    "Cms\\Core\\Database\\Seeders\\Concerns\\ReportsTranslationImport": {
+        "kind": "trait",
+        "methods": {
+            "reportTranslationImport": "protected function reportTranslationImport(string $moduleName, array $result): void"
+        }
+    },
+    "Cms\\Core\\Events\\AuditLogEvent": {
+        "kind": "class",
+        "properties": {
+            "action": "public string $action",
+            "changed": "public array $changed",
+            "color": "public ?string $color",
+            "icon": "public ?string $icon",
+            "id": "public int $id",
+            "type": "public string $type",
+            "user_id": "public ?int $user_id"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $action, array $changed, string $type, int $id, ?string $icon = NULL, ?string $color = NULL, ?int $user_id = 0)",
+            "broadcastOn": "public function broadcastOn(): array"
+        }
+    },
+    "Cms\\Core\\Facades\\CMSCache": {
+        "kind": "class",
+        "extends": "Illuminate\\Support\\Facades\\Facade"
+    },
+    "Cms\\Core\\Helpers\\CacheHelper": {
+        "kind": "class",
+        "extends": "Illuminate\\Support\\Facades\\Facade",
+        "methods": {
+            "autoForget": "public function autoForget(Illuminate\\Database\\Eloquent\\Model $model, Illuminate\\Http\\Request $request): void",
+            "forget": "public function forget(?string $cacheKey = NULL): void",
+            "forgetByPostType": "public function forgetByPostType(mixed $model): void",
+            "forgetByTag": "public function forgetByTag(string ...$tags): void",
+            "getInstance": "public static function getInstance(): self",
+            "store": "public function store(string $cacheKey, string $title, int $ttl = 0): void"
+        }
+    },
+    "Cms\\Core\\Helpers\\CacheKeyHelper": {
+        "kind": "class",
+        "methods": {
+            "allPosts": "public static function allPosts(): string",
+            "allProductVariantOption": "public static function allProductVariantOption(): string",
+            "auditLogsByUserId": "public static function auditLogsByUserId(int $userId, int $page, int $pageSize): string",
+            "bannerByType": "public static function bannerByType(string|int|null $lang = NULL, string $type = ''): string",
+            "bannerDetailById": "public static function bannerDetailById(int $id): string",
+            "bannerList": "public static function bannerList(string|int|null $lang = NULL, int $pageSize = 10, int $page = 1): string",
+            "bannerType": "public static function bannerType(string $type = ''): string",
+            "basicToken": "public static function basicToken(): string",
+            "bookmarkByLatest": "public static function bookmarkByLatest(int $userId, string $targetType, int $limit): string",
+            "bookmarkByUser": "public static function bookmarkByUser(int $userId, string $targetType): string",
+            "bookmarkList": "public static function bookmarkList(int $userId, string $targetType, int $page, int $pageSize): string",
+            "brandDetailById": "public static function brandDetailById(int $id): string",
+            "categoriesByType": "public static function categoriesByType(string $type): string",
+            "categoryAll": "public static function categoryAll(): string",
+            "categoryBySlug": "public static function categoryBySlug(string $categorySlug, int $limit = 12): string",
+            "categoryChildren": "public static function categoryChildren(int $parentId = 0): string",
+            "commentByTarget": "public static function commentByTarget(int $targetId, string $targetType, int $replyTo = 0): string",
+            "commentDetailById": "public static function commentDetailById(int $id): string",
+            "countAllPosts": "public static function countAllPosts(): string",
+            "custom": "public static function custom(array $data = array (), string $separator = '|'): string",
+            "featuredCategories": "public static function featuredCategories(string $key): string",
+            "featuredPosts": "public static function featuredPosts(int $limit = 6): string",
+            "fieldDetailById": "public static function fieldDetailById(int $id): string",
+            "footerMenu": "public static function footerMenu(): string",
+            "format": "public static function format(string $pattern, mixed ...$params): string",
+            "galleryDetailById": "public static function galleryDetailById(int $id): string",
+            "galleryList": "public static function galleryList(string|int|null $lang = NULL, int $pageSize = 10, int $page = 1): string",
+            "getAllProductKeys": "public static function getAllProductKeys(): array",
+            "getLangId": "public static function getLangId(): int",
+            "itemDetailById": "public static function itemDetailById(int $id): string",
+            "latestGallery": "public static function latestGallery(string|int|null $lang = NULL, int $pageSize = 10, int $page = 1): string",
+            "latestPostByType": "public static function latestPostByType(string $type = 'post', int $limit = 6): string",
+            "latestPosts": "public static function latestPosts(int $limit = 6): string",
+            "mainMenu": "public static function mainMenu(): string",
+            "menuByGroupKey": "public static function menuByGroupKey(string $groupKey, string|int|null $langId = NULL): string",
+            "parse": "public static function parse(string $key): array",
+            "placeDetailById": "public static function placeDetailById(int $id): string",
+            "postByCategoryIds": "public static function postByCategoryIds(array $ids = array (), int $page = 1, int $limit = 12, string $type = 'post'): string",
+            "postBySlug": "public static function postBySlug(string $slug, ?int $languageId = NULL): string",
+            "postsByCategorySlug": "public static function postsByCategorySlug(string $postType, string $slug, int $pageSize, int $page): string",
+            "postsByConfig": "public static function postsByConfig(string $postType, string $configKey, int $limit): string",
+            "postsByDateRange": "public static function postsByDateRange(string $postType, string $from, string $to): string",
+            "productBundleDetailById": "public static function productBundleDetailById(int $id): string",
+            "productDetailById": "public static function productDetailById(int $id): string",
+            "settings": "public static function settings(): string",
+            "slugDetail": "public static function slugDetail(string $slug, string|int|null $langId = NULL): string",
+            "tagFromKey": "public static function tagFromKey(string $key): array",
+            "topSellingProducts": "public static function topSellingProducts(string|int|null $lang = NULL, int $pageSize = 10, int $page = 1): string",
+            "topViewOfPostByRange": "public static function topViewOfPostByRange(string $range = '1y', int $limit = 4): string"
+        }
+    },
+    "Cms\\Core\\Helpers\\RedisHelper": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(string $separator = '.')",
+            "del": "public static function del(string $key): void",
+            "delByTags": "public static function delByTags(array $tags): void",
+            "get": "public static function get(string $key): mixed",
+            "getInstance": "public static function getInstance(): Cms\\Core\\Helpers\\RedisHelper|static",
+            "hmset": "public static function hmset(string $key, array $data): void",
+            "makeKey": "public static function makeKey(array $options): string",
+            "parseKey": "public static function parseKey(string $key)",
+            "set": "public static function set(array|string $inputKey, mixed $value, ?int $ttl = NULL): void",
+            "websiteSetting": "public static function websiteSetting(): array"
+        }
+    },
+    "Cms\\Core\\Http\\Controllers\\AdminController": {
+        "kind": "class",
+        "extends": "Illuminate\\Routing\\Controller",
+        "methods": {
+            "QrGenerate": "public function QrGenerate(Illuminate\\Http\\Request $request)",
+            "QrRender": "public function QrRender(Illuminate\\Http\\Request $request): Illuminate\\Http\\Response",
+            "__construct": "public function __construct()",
+            "a__multi": "public function a__multi(array $data = array (), array $return = array ()): array",
+            "appI18nManifest": "public function appI18nManifest(): Illuminate\\Http\\JsonResponse",
+            "getChildrenIds": "public function getChildrenIds(int $id): array",
+            "locales": "public function locales(string $version = '1.0.0', string $path = 'adm', string $locale = 'vi', string $character = 'a'): Symfony\\Component\\HttpFoundation\\Response",
+            "moduleJson": "public function moduleJson(string $module, string $locale = 'vi'): Symfony\\Component\\HttpFoundation\\BinaryFileResponse"
+        }
+    },
+    "Cms\\Core\\Http\\RedirectFailedTrait": {
+        "kind": "trait",
+        "methods": {
+            "failedValidation": "protected function failedValidation(Illuminate\\Contracts\\Validation\\Validator $validator): void",
+            "validatorErrors": "public function validatorErrors(): array",
+            "validatorFails": "public function validatorFails(): bool"
+        }
+    },
+    "Cms\\Core\\Http\\Requests\\V3\\GetFeaturedCategoriesRequest": {
+        "kind": "class",
+        "extends": "Illuminate\\Foundation\\Http\\FormRequest",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Validation\\ValidatesWhenResolved",
+            "Stringable"
+        ],
+        "methods": {
+            "authorize": "public function authorize(): bool",
+            "rules": "public function rules(): array"
+        }
+    },
+    "Cms\\Core\\Http\\Resources\\Category\\CategoryResource": {
+        "kind": "class",
+        "extends": "Illuminate\\Http\\Resources\\Json\\JsonResource",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Responsable",
+            "JsonSerializable"
+        ],
+        "methods": {
+            "toArray": "public function toArray(Illuminate\\Http\\Request $request): JsonSerializable|Illuminate\\Contracts\\Support\\Arrayable|array"
+        }
+    },
+    "Cms\\Core\\Http\\Resources\\Website\\ClientPostCollection": {
+        "kind": "class",
+        "extends": "Illuminate\\Http\\Resources\\Json\\ResourceCollection",
+        "implements": [
+            "ArrayAccess",
+            "Countable",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Responsable",
+            "IteratorAggregate",
+            "JsonSerializable",
+            "Traversable"
+        ],
+        "methods": {
+            "toArray": "public function toArray(Illuminate\\Http\\Request $request): array"
+        }
+    },
+    "Cms\\Core\\Http\\Resources\\Website\\PublicCategoryResource": {
+        "kind": "class",
+        "extends": "Illuminate\\Http\\Resources\\Json\\JsonResource",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Responsable",
+            "JsonSerializable"
+        ],
+        "methods": {
+            "toArray": "public function toArray(Illuminate\\Http\\Request $request): array"
+        }
+    },
+    "Cms\\Core\\Http\\Resources\\Website\\PublicPostCollection": {
+        "kind": "class",
+        "extends": "Illuminate\\Http\\Resources\\Json\\ResourceCollection",
+        "implements": [
+            "ArrayAccess",
+            "Countable",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Responsable",
+            "IteratorAggregate",
+            "JsonSerializable",
+            "Traversable"
+        ],
+        "methods": {
+            "toArray": "public function toArray(Illuminate\\Http\\Request $request): array"
+        }
+    },
+    "Cms\\Core\\Http\\Resources\\Website\\PublicPostResource": {
+        "kind": "class",
+        "extends": "Illuminate\\Http\\Resources\\Json\\JsonResource",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Responsable",
+            "JsonSerializable"
+        ],
+        "methods": {
+            "toArray": "public function toArray(Illuminate\\Http\\Request $request): array"
+        }
+    },
+    "Cms\\Core\\Interfaces\\CategoryInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "AdminIndex": "abstract public function AdminIndex(Illuminate\\Http\\Request $request): Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator|array",
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "documentRelation": "abstract public function documentRelation(int $take = 6): Closure",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "get": "abstract public function get(array $params)",
+            "getAllWithRelationship": "abstract public function getAllWithRelationship(array $condition = array ()): Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator|array",
+            "getByUid": "abstract public function getByUid(string $uid, bool $freshCache = false): mixed",
+            "getCategoriesByType": "abstract public function getCategoriesByType(string $type = 'post'): mixed",
+            "getCategoryBySlugAndType": "abstract public function getCategoryBySlugAndType(string $slug, int $type = 0, bool $freshCache = false): mixed",
+            "getCategoryBySlugWithPosts": "abstract public function getCategoryBySlugWithPosts(string $slug, bool $freshCache = false): mixed",
+            "getChildrenIds": "abstract public function getChildrenIds(int $id): array",
+            "getChildrenIdsForMany": "abstract public function getChildrenIdsForMany(array $ids): array",
+            "getFeaturedCategories": "abstract public function getFeaturedCategories(int $type = 0, int $childLimit = 0): mixed",
+            "getFeaturedCategoriesWithLimitedArticles": "abstract public function getFeaturedCategoriesWithLimitedArticles(int $type = 0, int $articleLimit = 6, bool $freshCache = false, int $noPosts = 0): mixed",
+            "getIdByUid": "abstract public function getIdByUid(string $uid): ?int",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "getTreeBySlug": "abstract public function getTreeBySlug(string $slug, bool $freshCache = false): mixed",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Interfaces\\CategoryTargetInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "get": "abstract public function get(array $params)",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "getPostsByCategoryIds": "abstract public function getPostsByCategoryIds(array $ids = array (), int $limit = 12): Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator|array|null",
+            "getRelatedPosts": "abstract public function getRelatedPosts(int $category_id, int $post_id, int $limit = 6, string $type = 'post'): mixed",
+            "getUploadedByType": "abstract public function getUploadedByType(string $type = 'document', array $condition = array ()): mixed",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Interfaces\\LanguageInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "get": "abstract public function get(array $params)",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Interfaces\\UploadInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "findByCache": "abstract public function findByCache(array $condition): object|array|null",
+            "get": "abstract public function get(array $params)",
+            "getContent": "abstract public function getContent(?object $model = NULL)",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateAttach": "abstract public function updateAttach(array $data, ?object $model = NULL): void",
+            "updateContent": "abstract public function updateContent(?object $model = NULL)",
+            "updateImage": "abstract public function updateImage(?object $model = NULL)",
+            "updateLogo": "abstract public function updateLogo(?object $model = NULL)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Interfaces\\UserInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "findByUuid": "abstract public function findByUuid(string $uuid, array $select = array ( 0 => '*',)): ?Illuminate\\Database\\Eloquent\\Model",
+            "get": "abstract public function get(array $params)",
+            "getByEmailOrUsername": "abstract public function getByEmailOrUsername(string $emailOrUsername = '', array $with = array ()): Illuminate\\Database\\Eloquent\\Model|Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Database\\Eloquent\\Builder|array|null",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Models\\AbstractBaseModel": {
+        "kind": "abstract class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "methods": {
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "getHashtags": "public function getHashtags(): array",
+            "isValidSeoData": "protected function isValidSeoData(array $seo): bool",
+            "seo": "public function seo(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "seos": "public function seos(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "syncSeo": "public function syncSeo(array $data = array ()): void"
+        }
+    },
+    "Cms\\Core\\Models\\Agents\\AgentApproval": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "methods": {
+            "applier": "public function applier(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "artifact": "public function artifact(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "reviewer": "public function reviewer(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "run": "public function run(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
+        }
+    },
+    "Cms\\Core\\Models\\Agents\\AgentArtifact": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "methods": {
+            "approvals": "public function approvals(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "childArtifacts": "public function childArtifacts(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "parentArtifact": "public function parentArtifact(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "run": "public function run(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
+        }
+    },
+    "Cms\\Core\\Models\\AuditLog": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "creator": "public function creator(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "Cms\\Core\\Models\\Category": {
+        "kind": "class",
+        "extends": "Cms\\Core\\Models\\AbstractBaseModel",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "constants": {
+            "APPENDED_RELATIONS_SCOPE": "core.appended-relations",
+            "CATEGORY_ATTACHMENTS": "attachments",
+            "CATEGORY_AVATAR": "avatar",
+            "CATEGORY_IMAGES": "images",
+            "CATEGORY_LOGO": "logo",
+            "SLUG_PROJECTION_ALIAS": "slug_value"
+        },
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "attachments": "public function attachments(string $category = self::CATEGORY_ATTACHMENTS): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "audios": "public function audios(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "boot": "public static function boot(): void",
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "children": "public function children(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "documents": "public function documents(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "galleries": "public function galleries(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "getHashtags": "public function getHashtags(): array",
+            "getImageAttribute": "public function getImageAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getLogoAttribute": "public function getLogoAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getParentsAttribute": "public function getParentsAttribute()",
+            "getStatusAttribute": "public function getStatusAttribute(mixed $value): mixed",
+            "hasChildren": "public function hasChildren(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "image": "public function image(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "images": "public function images(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "initializeGetSlugTrait": "public function initializeGetSlugTrait(): void",
+            "initializeHasChildrenTrait": "public function initializeHasChildrenTrait(): void",
+            "language": "public function language(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "latestSlug": "public function latestSlug(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "logo": "public function logo(): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "mainImage": "public function mainImage(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "parent": "public function parent(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "places": "public function places(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "posts": "public function posts(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "public_children": "public function public_children(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "route": "public function route(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "scopeArchived": "public function scopeArchived(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeDraft": "public function scopeDraft(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePending": "public function scopePending(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePublished": "public function scopePublished(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWhereStatus": "public function scopeWhereStatus(Illuminate\\Database\\Eloquent\\Builder $query, App\\Enums\\StatusEnum|array|string|null $status): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithChildrenExists": "public function scopeWithChildrenExists(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithImage": "public function scopeWithImage(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithLogo": "public function scopeWithLogo(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithSlug": "public function scopeWithSlug(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "seo": "public function seo(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "seos": "public function seos(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "setStatusAttribute": "public function setStatusAttribute(mixed $value): void",
+            "slug": "public function slug(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "slugCategoryFor": "public static function slugCategoryFor(string|int|null $targetId): ?string",
+            "slugs": "public function slugs(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "syncAttachments": "public function syncAttachments(array $data = array (), string $category = self::CATEGORY_ATTACHMENTS): void",
+            "syncAvatar": "public function syncAvatar(array $data = array (), string $category = self::CATEGORY_AVATAR): void",
+            "syncImages": "public function syncImages(array $data = array (), string $category = self::CATEGORY_IMAGES): void",
+            "syncSeo": "public function syncSeo(array $data = array ()): void",
+            "syncSlug": "public function syncSlug(array $data = array ()): void",
+            "typeName": "public function typeName(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "uploaded": "public function uploaded(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany"
+        }
+    },
+    "Cms\\Core\\Models\\CategoryTarget": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "boot": "public static function boot(): void",
+            "post": "public function post(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "Cms\\Core\\Models\\Enumerate": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "enumerateType": "public function enumerateType(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
+        }
+    },
+    "Cms\\Core\\Models\\Language": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "boot": "public static function boot(): void",
+            "getCodeAttribute": "public function getCodeAttribute(mixed $value): ?string",
+            "getCurrencyAttribute": "public function getCurrencyAttribute(mixed $value): ?string",
+            "getPathAliasAttribute": "public function getPathAliasAttribute(mixed $value): ?string",
+            "getPathAttribute": "public function getPathAttribute(mixed $value): ?string",
+            "getStatusAttribute": "public function getStatusAttribute(mixed $value): mixed",
+            "scopeArchived": "public function scopeArchived(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeDraft": "public function scopeDraft(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePending": "public function scopePending(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePublished": "public function scopePublished(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWhereStatus": "public function scopeWhereStatus(Illuminate\\Database\\Eloquent\\Builder $query, App\\Enums\\StatusEnum|array|string|null $status): Illuminate\\Database\\Eloquent\\Builder",
+            "setStatusAttribute": "public function setStatusAttribute(mixed $value): void",
+            "status": "public function status(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
+        }
+    },
+    "Cms\\Core\\Models\\Tag": {
+        "kind": "class",
+        "extends": "Cms\\Core\\Models\\AbstractBaseModel",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "constants": {
+            "TYPE_POST": "post",
+            "TYPE_USER": "user"
+        },
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "data": "public function data(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "getHashtags": "public function getHashtags(): array",
+            "scopeOfType": "public function scopeOfType(Illuminate\\Database\\Eloquent\\Builder $query, string $type): Illuminate\\Database\\Eloquent\\Builder",
+            "seo": "public function seo(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "seos": "public function seos(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "syncSeo": "public function syncSeo(array $data = array ()): void",
+            "users": "public function users(): Illuminate\\Database\\Eloquent\\Relations\\MorphToMany"
+        }
+    },
+    "Cms\\Core\\Models\\TagData": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "tags": "public function tags(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "Cms\\Core\\Models\\Upload": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "boot": "public static function boot(): void",
+            "categories": "public function categories(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "categoryTarget": "public function categoryTarget(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "content": "public function content(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "contents": "public function contents(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "coverLg": "public function coverLg(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "coverMd": "public function coverMd(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "coverSm": "public function coverSm(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "coverXl": "public function coverXl(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "cropImage": "public function cropImage(string $type): string",
+            "ensureImageVariant": "public function ensureImageVariant(string $type): string",
+            "facebook": "public function facebook(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "getTargetFile": "public function getTargetFile(): string",
+            "getUrlAttribute": "public function getUrlAttribute(): string",
+            "increaseCustomKey": "public function increaseCustomKey(string $key = 'view'): int|bool",
+            "lg": "public function lg(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "md": "public function md(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "pivots": "public function pivots(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "publicUrlFor": "public function publicUrlFor(string $relativePath): string",
+            "servedFromR2": "public function servedFromR2(): bool",
+            "size": "public function size(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "sm": "public function sm(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo",
+            "targetCategory": "public function targetCategory(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "targetPost": "public function targetPost(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "targetProduct": "public function targetProduct(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "targetUser": "public function targetUser(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "temporaryUrl": "public function temporaryUrl(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "thumbnailLg": "public function thumbnailLg(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "thumbnailMd": "public function thumbnailMd(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "thumbnailSm": "public function thumbnailSm(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "thumbnailXl": "public function thumbnailXl(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "twitter": "public function twitter(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "uploader": "public function uploader(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "xl": "public function xl(): Illuminate\\Database\\Eloquent\\Casts\\Attribute"
+        }
+    },
+    "Cms\\Core\\Models\\Workflows\\WorkflowProject": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "connections": "public function connections(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "steps": "public function steps(): Illuminate\\Database\\Eloquent\\Relations\\HasMany"
+        }
+    },
+    "Cms\\Core\\Policies\\AbstractModelPolicy": {
+        "kind": "abstract class",
+        "methods": {
+            "before": "public function before(Illuminate\\Contracts\\Auth\\Authenticatable $user, string $ability): ?bool",
+            "checkPermission": "protected function checkPermission(Illuminate\\Contracts\\Auth\\Authenticatable $user, string $permission): bool",
+            "create": "public function create(Illuminate\\Contracts\\Auth\\Authenticatable $user): bool",
+            "delete": "public function delete(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
+            "forceDelete": "public function forceDelete(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
+            "isSuperUser": "protected function isSuperUser(Illuminate\\Contracts\\Auth\\Authenticatable $user): bool",
+            "ownershipKey": "protected function ownershipKey(): string",
+            "owns": "protected function owns(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
+            "perm": "protected function perm(string $action): string",
+            "prefix": "abstract protected function prefix(): string",
+            "restore": "public function restore(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
+            "update": "public function update(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
+            "view": "public function view(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
+            "viewAny": "public function viewAny(Illuminate\\Contracts\\Auth\\Authenticatable $user): bool"
+        }
+    },
+    "Cms\\Core\\Records\\RecordRegistry": {
+        "kind": "class",
+        "methods": {
+            "get": "public function get(string $key): ?Cms\\Core\\Records\\RecordType",
+            "keys": "public function keys(): array",
+            "register": "public function register(Cms\\Core\\Records\\RecordType $type): void"
+        }
+    },
+    "Cms\\Core\\Records\\RecordType": {
+        "kind": "final class",
+        "constants": {
+            "KEY_PATTERN": "/^[a-z0-9._-]+$/",
+            "UNKNOWN_ACTION_LABEL": "text.history.action.unknown"
+        },
+        "properties": {
+            "actionLabels": "public readonly array $actionLabels",
+            "historyFields": "public readonly array $historyFields",
+            "key": "public readonly string $key",
+            "manageAbility": "public readonly string $manageAbility",
+            "model": "public readonly string $model",
+            "resolver": "public readonly ?Closure $resolver",
+            "viewAbility": "public readonly string $viewAbility"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $key, string $model, string $viewAbility, string $manageAbility, ?callable $resolver = NULL, array $historyFields = array (), array $actionLabels = array ())",
+            "labelFor": "public function labelFor(string $action): string",
+            "resolve": "public function resolve(string $uuid, Illuminate\\Contracts\\Auth\\Authenticatable $user): ?Illuminate\\Database\\Eloquent\\Model",
+            "showsField": "public function showsField(string $field): bool"
+        }
+    },
+    "Cms\\Core\\Repositories\\Eloquent\\RepositoriesAbstract": {
+        "kind": "abstract class",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "properties": {
+            "inner": "protected Illuminate\\Database\\Eloquent\\Model|Illuminate\\Database\\Eloquent\\Builder $inner",
+            "modelClass": "protected string $modelClass"
+        },
+        "methods": {
+            "apply": "protected function apply(array $where, &$model = NULL): void",
+            "checkUnique": "public function checkUnique(string $column, string $value, int $except = 0): string",
+            "create": "public function create(array $data, ?string $relationName = NULL): Illuminate\\Database\\Eloquent\\Model|Illuminate\\Database\\Eloquent\\Builder",
+            "deleteBy": "public function deleteBy(array $where): ?bool",
+            "filter": "public function filter(mixed $model, array $data = array ()): mixed",
+            "find": "public function find(int $id, array $select = array ( 0 => '*',), array $with = array ()): Illuminate\\Database\\Eloquent\\Model|Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Database\\Eloquent\\Builder|array|null",
+            "findBy": "public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ()): ?object",
+            "firstOrCreate": "public function firstOrCreate(array $where = array (), array $data = array ()): Illuminate\\Database\\Eloquent\\Builder|array",
+            "get": "public function get(array $params): mixed",
+            "getModelClass": "public function getModelClass(): string",
+            "insert": "public function insert(array $data = array ()): int",
+            "model": "public function model(): Illuminate\\Database\\Eloquent\\Model|Illuminate\\Database\\Eloquent\\Builder",
+            "reset": "public function reset(): self",
+            "setModel": "public function setModel($model): self",
+            "table": "public function table(): string",
+            "update": "public function update(array $condition, array $data): bool",
+            "updateOrCreate": "public function updateOrCreate(array $where = array (), array $data = array ()): Illuminate\\Database\\Eloquent\\Builder|array",
+            "upsert": "public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ()): mixed",
+            "with": "protected function with(array $with = array ()): Illuminate\\Database\\Eloquent\\Model|Illuminate\\Database\\Eloquent\\Builder"
+        }
+    },
+    "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface": {
+        "kind": "interface",
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "get": "abstract public function get(array $params)",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "insert": "abstract public function insert(array $data = array ())",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Repositories\\Interfaces\\SlugInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "checkUnique": "abstract public function checkUnique(string $column, string $value, int $except = 0)",
+            "create": "abstract public function create(array $data)",
+            "deleteBy": "abstract public function deleteBy(array $where)",
+            "find": "abstract public function find(int $id, array $select = array ( 0 => '*',), array $with = array ())",
+            "findBy": "abstract public function findBy(array $where = array (), array $select = array ( 0 => '*',), array $with = array ())",
+            "get": "abstract public function get(array $params)",
+            "getBrandBySlug": "abstract public function getBrandBySlug(?string $slug, array $with = array (), string $suffix = ''): mixed",
+            "getCategoryBySlug": "abstract public function getCategoryBySlug(?string $slug, array $with = array (), string $suffix = ''): mixed",
+            "getModelClass": "abstract public function getModelClass(): string",
+            "getPostBySlug": "abstract public function getPostBySlug(string $slug): mixed",
+            "getProductBySlug": "abstract public function getProductBySlug(?string $slug, array $with = array (), string $suffix = ''): mixed",
+            "getSameSlug": "abstract public function getSameSlug(string $slug, ?string $target_type = NULL): object|array|null",
+            "glossary": "abstract public function glossary(string $slug, string $character = 'a'): mixed",
+            "insert": "abstract public function insert(array $data = array ())",
+            "latestGlossary": "abstract public function latestGlossary(int $limit = 4): mixed",
+            "model": "abstract public function model()",
+            "reset": "abstract public function reset()",
+            "setModel": "abstract public function setModel($model)",
+            "storeSlug": "abstract public function storeSlug($model, ?string $slug = NULL, ?int $language_id = NULL, ?string $category = NULL): mixed",
+            "table": "abstract public function table()",
+            "update": "abstract public function update(array $condition, array $data)",
+            "updateOrCreate": "abstract public function updateOrCreate(array $where = array (), array $data = array ())",
+            "upsert": "abstract public function upsert(array $data = array (), array $whereKey = array (), array $updateKey = array ())"
+        }
+    },
+    "Cms\\Core\\Responses\\AppResponse": {
+        "kind": "class",
+        "implements": [
+            "Illuminate\\Contracts\\Support\\Responsable"
+        ],
+        "constants": {
+            "STATUS_ERROR": "error",
+            "STATUS_INFO": "info",
+            "STATUS_SUCCESS": "success",
+            "STATUS_WARNING": "warning"
+        },
+        "methods": {
+            "accepted": "public function accepted(mixed $data = NULL, ?string $message = NULL): static",
+            "badRequest": "public function badRequest(?string $message = NULL): static",
+            "code": "public function code(int $code): static",
+            "conflict": "public function conflict(?string $message = NULL): static",
+            "created": "public function created(mixed $data = NULL, ?string $message = NULL): static",
+            "data": "public function data(mixed $data = NULL, bool $isCamel = false): static",
+            "error": "public function error(): static",
+            "errorCode": "public function errorCode(string $error_code = ''): static",
+            "failed": "public function failed(): static",
+            "forbidden": "public function forbidden(?string $message = NULL): static",
+            "fromPaginator": "public function fromPaginator(Illuminate\\Pagination\\Paginator|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator $paginator, bool $camel = true): static",
+            "fromResource": "public function fromResource(Illuminate\\Http\\Resources\\Json\\JsonResource $resource, ?string $message = NULL): Illuminate\\Http\\Resources\\Json\\JsonResource",
+            "getMessage": "public function getMessage(): string",
+            "headers": "public function headers(array $headers = array ()): static",
+            "info": "public function info(?string $message = NULL): static",
+            "make": "public static function make(): static",
+            "message": "public function message(?string $message): static",
+            "nextUrl": "public function nextUrl(string $next_url): static",
+            "noContent": "public function noContent(): static",
+            "notFound": "public function notFound(?string $message = NULL): static",
+            "ok": "public function ok(mixed $data = NULL, ?string $message = NULL): static",
+            "previousUrl": "public function previousUrl(string $previous_url): static",
+            "reset": "public function reset(): static",
+            "serverError": "public function serverError(?string $message = NULL): static",
+            "toApiResponse": "public function toApiResponse(): Illuminate\\Http\\JsonResponse|Illuminate\\Http\\Resources\\Json\\JsonResource",
+            "toResponse": "public function toResponse($request): Illuminate\\Http\\JsonResponse",
+            "tooManyRequests": "public function tooManyRequests(?string $message = NULL): static",
+            "unauthorized": "public function unauthorized(?string $message = NULL): static",
+            "warning": "public function warning(?string $message = NULL): static",
+            "withInput": "public function withInput(bool $with_input = true): static"
+        }
+    },
+    "Cms\\Core\\Services\\Agentic\\Exceptions\\ApprovalStaleException": {
+        "kind": "class",
+        "extends": "RuntimeException",
+        "implements": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Cms\\Core\\Services\\Agentic\\OpenAiAgenticAiProvider": {
+        "kind": "class",
+        "implements": [
+            "Cms\\Core\\Agents\\Contracts\\AgenticAiProviderInterface"
+        ],
+        "methods": {
+            "__construct": "public function __construct(App\\Clients\\OpenAIClient $client)",
+            "createCompletion": "public function createCompletion(array $payload = array ()): array",
+            "getContent": "public function getContent(array $response = array ()): string"
+        }
+    },
+    "Cms\\Core\\Services\\Ai\\AiRuntimeConfigResolver": {
+        "kind": "final class",
+        "constants": {
+            "BUDGET_KEY_PREFIX": "core.ai_runtime.budget.",
+            "DEFAULT_PROVIDER_KEY": "core.ai_runtime.default_provider",
+            "PRICING_KEY_PREFIX": "core.ai_runtime.pricing.",
+            "PROVIDER_KEY_PREFIX": "core.ai_runtime.providers.",
+            "SPIKE_KEY_PREFIX": "core.ai_runtime.spike.",
+            "TASK_KEY_PREFIX": "core.ai_runtime.tasks.",
+            "TRACE_SAMPLE_KEY": "core.ai_runtime.trace.sample_percent"
+        },
+        "methods": {
+            "applyProviderRuntimeOverrides": "public function applyProviderRuntimeOverrides(?string $driver): void",
+            "budget": "public function budget(): array",
+            "defaultProvider": "public function defaultProvider(): ?string",
+            "flushCache": "public function flushCache(): void",
+            "parseModelList": "public static function parseModelList(string $value): array",
+            "providerConfigKey": "public function providerConfigKey(string $driver): string",
+            "runtimeFor": "public function runtimeFor(string $taskKey, ?string $fallbackProvider = NULL, ?string $fallbackModel = NULL, ?float $fallbackTemperature = NULL): array",
+            "spike": "public function spike(): array",
+            "taskOverrides": "public function taskOverrides(?string $taskKey): array",
+            "traceSamplePercent": "public function traceSamplePercent(): int"
+        }
+    },
+    "Cms\\Core\\Services\\Ai\\AiTaskRuntime": {
+        "kind": "final class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Core\\Services\\Ai\\AiRuntimeConfigResolver $resolver, ?Cms\\Core\\Services\\Agentic\\AgenticAiProviderFactory $factory = NULL, ?Cms\\Core\\Agents\\Contracts\\AgenticAiProviderInterface $defaultProvider = NULL, ?Cms\\Core\\Services\\Ai\\Usage\\AiGateway $gateway = NULL)",
+            "run": "public function run(string $taskKey, array $payload, ?Cms\\Core\\Agents\\Contracts\\AgenticAiProviderInterface $legacyProvider = NULL): array"
+        }
+    },
+    "Cms\\Core\\Services\\Ai\\JsonSchemaShapeValidator": {
+        "kind": "final class",
+        "methods": {
+            "validate": "public function validate(array $schema, mixed $data): array"
+        }
+    },
+    "Cms\\Core\\Services\\Cache\\CacheVersionService": {
+        "kind": "class",
+        "methods": {
+            "bump": "public function bump(string $scope): int",
+            "bumpMany": "public function bumpMany(array|string $scopes): array",
+            "version": "public function version(string $scope): int",
+            "versionedKey": "public function versionedKey(string $baseKey, array|string $scopes): string"
+        }
+    },
+    "Cms\\Core\\Services\\Cache\\CategoryCacheInvalidationService": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Core\\Services\\Cache\\CacheVersionService $versions)",
+            "categoryChildrenScope": "public static function categoryChildrenScope(string|int $categoryId): string",
+            "categoryListScope": "public static function categoryListScope(string|int|null $type = NULL): string",
+            "categoryScope": "public static function categoryScope(string|int $categoryId): string",
+            "categorySlugScope": "public static function categorySlugScope(string $slug): string",
+            "categoryTreeScope": "public static function categoryTreeScope(): string",
+            "contentPostCategoryScope": "public static function contentPostCategoryScope(string|int $categoryId, string $type = 'post', string|int|null $languageId = NULL): string",
+            "invalidateSnapshots": "public function invalidateSnapshots(array $before, array $after): array",
+            "snapshot": "public function snapshot(?Cms\\Core\\Models\\Category $category): array",
+            "versionedKey": "public function versionedKey(string $baseKey, array|string $scopes): string"
+        }
+    },
+    "Cms\\Core\\Services\\ImageVariantService": {
+        "kind": "class",
+        "methods": {
+            "contextPresets": "public function contextPresets(string $context): array",
+            "contextsForUpload": "public function contextsForUpload(Cms\\Core\\Models\\Upload $upload): array",
+            "dimensions": "public function dimensions(string $presetName): array",
+            "ensureContext": "public function ensureContext(Cms\\Core\\Models\\Upload $upload, string $context): array",
+            "ensureVariant": "public function ensureVariant(Cms\\Core\\Models\\Upload $upload, string $presetName, bool $force = false): ?array",
+            "forget": "public function forget(Cms\\Core\\Models\\Upload $upload, string $presetName): bool",
+            "preset": "public function preset(string $presetName): ?array",
+            "readyUrl": "public function readyUrl(Cms\\Core\\Models\\Upload $upload, string $presetName): ?string",
+            "stripMetadata": "public function stripMetadata(Intervention\\Image\\Interfaces\\ImageInterface $image): void",
+            "url": "public function url(Cms\\Core\\Models\\Upload $upload, string $presetName, bool $generate = false): string",
+            "urlForContext": "public function urlForContext(Cms\\Core\\Models\\Upload $upload, string $context, string $presetName, bool $generate = true): string",
+            "warmReplicationLedger": "public function warmReplicationLedger(iterable $uploads): void"
+        }
+    },
+    "Cms\\Core\\Services\\OrphanUploadPurgeService": {
+        "kind": "final class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Core\\Services\\StorageReconciliationService $storage)",
+            "purgeIfOrphan": "public function purgeIfOrphan(Cms\\Core\\Models\\Upload $upload): bool"
+        }
+    },
+    "Cms\\Core\\Services\\Search\\OrderedKeywordSearch": {
+        "kind": "final class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Core\\Services\\Search\\OrderedKeywordSearchPatternBuilder $patterns = new Cms\\Core\\Services\\Search\\OrderedKeywordSearchPatternBuilder, Cms\\Core\\Services\\Search\\OrderedKeywordSearchCapabilities $capabilities = new Cms\\Core\\Services\\Search\\OrderedKeywordSearchCapabilities, Cms\\Core\\Services\\Search\\OrderedKeywordSearchSql $sql = new Cms\\Core\\Services\\Search\\OrderedKeywordSearchSql)",
+            "apply": "public function apply(Illuminate\\Database\\Eloquent\\Builder $query, ?string $keyword, array $columns, Closure $businessOrder, string $uniqueKey, string $direction, ?string $scoreAlias = NULL): Illuminate\\Database\\Eloquent\\Builder"
+        }
+    },
+    "Cms\\Core\\Services\\TranslationModuleSeederImporter": {
+        "kind": "class",
+        "methods": {
+            "describeDuplicates": "public static function describeDuplicates(array $result): array",
+            "describeRewords": "public static function describeRewords(array $result, int $width = 60): array",
+            "importFromFile": "public function importFromFile(string $moduleName, string $filePath, ?string $sidecarDirectory = NULL, bool $dryRun = false): array",
+            "importFromModule": "public function importFromModule(string $moduleName, ?string $modulePath = NULL, bool $dryRun = false): array",
+            "importRecords": "public function importRecords(string $moduleName, array $records, string $filePath, array $authoredRecords = array (), bool $dryRun = false): array"
+        }
+    },
+    "Cms\\Core\\Services\\Widget\\LegacyWidgetReferenceResolver": {
+        "kind": "final class",
+        "methods": {
+            "enrichBlocks": "public function enrichBlocks(array $content): array",
+            "resolve": "public function resolve(int $widgetId, int $themeId, string $widgetKey = '', string $themeKey = ''): ?array"
+        }
+    },
+    "Cms\\Core\\Services\\Workflow\\WorkflowExecutor": {
+        "kind": "class",
+        "properties": {
+            "isDiscovery": "public bool $isDiscovery"
+        },
+        "methods": {
+            "__construct": "public function __construct(Cms\\Core\\Models\\Workflows\\WorkflowProject $workflow, Illuminate\\Database\\Eloquent\\Model $target)",
+            "run": "public function run(): void"
+        }
+    },
+    "Cms\\Core\\Traits\\HasUuid": {
+        "kind": "trait",
+        "methods": {
+            "bootHasUuid": "public static function bootHasUuid(): void"
+        }
+    },
+    "Cms\\Core\\Traits\\ModelBoot": {
+        "kind": "trait",
+        "methods": {
+            "boot": "public static function boot(): void"
+        }
+    },
+    "Cms\\Core\\Traits\\Models\\GetSlugTrait": {
+        "kind": "trait",
+        "constants": {
+            "SLUG_PROJECTION_ALIAS": "slug_value"
+        },
+        "methods": {
+            "getCurrentLanguageId": "protected function getCurrentLanguageId(): ?int",
+            "initializeGetSlugTrait": "public function initializeGetSlugTrait(): void",
+            "latestSlug": "public function latestSlug(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "scopeWithSlug": "public function scopeWithSlug(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "slug": "public function slug(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "slugCategoryFor": "public static function slugCategoryFor(string|int|null $targetId): ?string",
+            "slugs": "public function slugs(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "syncSlug": "public function syncSlug(array $data = array ()): void"
+        }
+    },
+    "Cms\\Core\\Traits\\Models\\HasMediaTrait": {
+        "kind": "trait",
+        "constants": {
+            "CATEGORY_ATTACHMENTS": "attachments",
+            "CATEGORY_AVATAR": "avatar",
+            "CATEGORY_IMAGES": "images",
+            "CATEGORY_LOGO": "logo"
+        },
+        "methods": {
+            "attachments": "public function attachments(string $category = self::CATEGORY_ATTACHMENTS): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "getImageAttribute": "public function getImageAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getLogoAttribute": "public function getLogoAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getUploadPivotTable": "protected function getUploadPivotTable(): string",
+            "image": "public function image(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "images": "public function images(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "isValidImageData": "protected function isValidImageData(array $image): bool",
+            "logo": "public function logo(): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "mainImage": "public function mainImage(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "normalizeImageData": "protected function normalizeImageData(mixed $image): array",
+            "scopeWithImage": "public function scopeWithImage(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithLogo": "public function scopeWithLogo(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "singleImageRelation": "protected function singleImageRelation(string $category): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "syncAttachments": "public function syncAttachments(array $data = array (), string $category = self::CATEGORY_ATTACHMENTS): void",
+            "syncAvatar": "public function syncAvatar(array $data = array (), string $category = self::CATEGORY_AVATAR): void",
+            "syncImages": "public function syncImages(array $data = array (), string $category = self::CATEGORY_IMAGES): void"
+        }
+    },
+    "Cms\\Core\\Traits\\Models\\ResolvesAppendedRelations": {
+        "kind": "trait",
+        "constants": {
+            "APPENDED_RELATIONS_SCOPE": "core.appended-relations"
+        },
+        "methods": {
+            "bootResolvesAppendedRelations": "protected static function bootResolvesAppendedRelations(): void"
+        }
+    },
+    "Cms\\Core\\Traits\\Models\\SerializeDateTrait": {
+        "kind": "trait",
+        "methods": {
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "serializeDate": "protected function serializeDate(DateTimeInterface $date): string"
+        }
+    },
+    "Cms\\Core\\Traits\\Models\\StatusScope": {
+        "kind": "trait",
+        "methods": {
+            "getStatusAttribute": "public function getStatusAttribute(mixed $value): mixed",
+            "scopeArchived": "public function scopeArchived(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeDraft": "public function scopeDraft(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePending": "public function scopePending(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePublished": "public function scopePublished(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWhereStatus": "public function scopeWhereStatus(Illuminate\\Database\\Eloquent\\Builder $query, App\\Enums\\StatusEnum|array|string|null $status): Illuminate\\Database\\Eloquent\\Builder",
+            "setStatusAttribute": "public function setStatusAttribute(mixed $value): void"
+        }
+    }
+}

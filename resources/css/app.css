@@ -1,0 +1,91 @@
+/*
+ * Copyright (c) 2025 iSPA Team - team@ispa.io.
+ * SPDX-License-Identifier: AGPL-3.0-only
+ * This file is part of iSPA CMS, free software under the GNU Affero General Public License v3.0 only.
+ * See the LICENSE file in the project root. This program comes with ABSOLUTELY NO WARRANTY.
+ */
+
+@import "tailwindcss" important;
+@import "./data-chart.css";
+
+@source '../views/**/*.{html,vue,js,tsx,ts,php}';
+@source '../js/**/*.{html,vue,js,tsx,ts}';
+
+html, body {
+	@apply min-h-[100vh];
+}
+
+@layer components {
+    .skip-link {
+        position: absolute;
+        top: -3rem;
+        left: 1rem;
+        z-index: 10000;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        background-color: var(--color-gray-900);
+        color: var(--color-white);
+        box-shadow: 0 0.25rem 0.75rem rgb(0 0 0 / 0.2);
+    }
+
+    .skip-link:focus {
+        top: 1rem;
+    }
+
+    .skip-link:focus-visible {
+        outline: 3px solid var(--color-main-200);
+        outline-offset: 2px;
+    }
+
+    #content {
+        scroll-margin-top: 6rem;
+    }
+
+    header.main-header {
+        @apply fixed top-0 left-0 w-full z-50 transition;
+    }
+
+    body.search header.main-header, .sticky {
+        @apply bg-white border-b;
+    }
+
+    .container .container {
+        @apply px-0;
+    }
+
+    body.search header.main-header {
+        @apply relative;
+    }
+
+    .dropdown {
+        @apply relative;
+    }
+
+    .dropdown button {
+        @apply text-gray-500 bg-white rounded-md inline-flex items-center text-base font-medium hover:text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+    }
+
+    .dropdown .dropdown-menu {
+        @apply absolute z-10 right-0 transform mt-3 px-2 w-screen max-w-xs sm:px-0 hidden transition;
+    }
+
+    .dropdown.active .dropdown-menu {
+        @apply block;
+    }
+
+    [x-cloak] {
+        /* !important so a co-located display utility (e.g. `flex` on the mobile
+           menu) cannot win on equal specificity and flash the element open
+           before Alpine initialises and applies x-show. */
+        display: none !important;
+    }
+
+    .head-logo-text {
+        color: red;
+        text-shadow: 3px 3px 3px white;
+    }
+
+    .lSSlideWrapper.usingCss .lSPager {
+        @apply hidden!;
+    }
+}

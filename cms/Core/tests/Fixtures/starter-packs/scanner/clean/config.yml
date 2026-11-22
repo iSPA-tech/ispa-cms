@@ -1,0 +1,8 @@
+# Clean YAML settings
+max_tokens: 4096
+password_min_length: 8
+session_timeout: 120
+api_key: ${API_KEY}
+client_secret: <set-in-admin>
+smtp_password: "***"
+token_expires_in: 3600

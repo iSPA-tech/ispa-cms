@@ -1,0 +1,34 @@
+{
+    "id": "chatcmpl-Aajpv4vYH50nQCpuHnXE5jsuw2tJ2",
+    "object": "chat.completion",
+    "created": 1733319367,
+    "model": "gpt-4o-2024-08-06",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": "{\"key_4\":\"<p>Chevrolet Trailblazer 2025 nổi bật với hai đặc điểm liên quan đến thương hiệu lâu đời của mình: giá trị và phong cách. SUV cỡ nhỏ này là một trong những chiếc xe nhỏ nhất và có giá cả phải chăng nhất của GM. Trailblazer có bốn phiên bản: LS, LT, Activ và RS, với mức giá khởi điểm chỉ khoảng 622,000,000 VNĐ, đã bao gồm phí vận chuyển.</p>\\n<p>Với phần đầu xe nổi bật lấy cảm hứng từ ngoại thất của Chevy Blazer, trang bị tiêu chuẩn bao gồm hệ thống điều khiển hành trình, khởi động bằng nút bấm và camera lùi HD. Bên trong, hệ thống giải trí 11 inch mới và cụm đồng hồ đo kỹ thuật số 8 inch là tiêu chuẩn.</p>\\n<p>Bạn có hai tùy chọn động cơ cho Trailblazer: động cơ 3 xi-lanh tăng áp 1.2 lít với 137 mã lực hoặc động cơ 3 xi-lanh tăng áp 1.3 lít với 155 mã lực. Động cơ nhỏ hơn chấp nhận được cho một chiếc xe nhỏ như vậy, nhưng nếu bạn muốn cảm giác mạnh hơn, bạn cần chi thêm tiền để nâng cấp. Tuy nhiên, khi bạn nâng cấp, bạn cũng sẽ có hệ dẫn động 4 bánh. Nội thất cung cấp nhiều không gian cho người lớn ở cả ghế trước và ghế sau.</p>\\n<h3><strong>Những điểm nổi bật của Chevrolet Trailblazer</strong></h3>\\n<p><strong>Chevy Safety Assist:</strong> Tiêu chuẩn trên Trailblazer, gồm các tính năng hỗ trợ lái xe như phanh khẩn cấp tự động với phát hiện người đi bộ, hỗ trợ giữ làn đường với cảnh báo chệch làn đường, chỉ báo khoảng cách theo sau, cảnh báo va chạm phía trước và đèn pha tự động.</p>\\n<p><strong>Khả năng địa hình mạnh mẽ:</strong> Phiên bản Activ của Trailblazer mang lại vẻ ngoài mạnh mẽ, cùng với lốp xe phiêu lưu và hệ thống treo đặc biệt dành cho địa hình, đặc biệt hiệu quả khi có hệ dẫn động 4 bánh. Honda HR-V không có phiên bản ảnh hưởng từ địa hình.</p>\\n<p><strong>Hệ dẫn động 4 bánh:</strong> Hệ dẫn động 4 bánh có sẵn với bất kỳ phiên bản nào được trang bị động cơ 155 mã lực. Nếu bạn thêm hệ dẫn động 4 bánh, bạn cũng sẽ nhận được hộp số tự động 9 cấp thay vì CVT.</p>\\n<p><strong>Kiểm tra Giá Mua Công Bằng tuần này</strong> hoặc xem các mẫu Trailblazer có sẵn gần bạn.</p>\\n<h2><strong>Điểm tương đồng</strong></h2>\\n<p>Honda HR-V và Chevy Trailblazer đều mang lại giá trị tốt, cabin rộng rãi và vẻ ngoài hấp dẫn.</p>\\n<h2><strong>Kết luận</strong></h2>\\n<p>Honda HR-V có động cơ lớn hơn một chút nhưng giá cũng cao hơn một chút. Trong khi đó, Chevy Trailblazer lại rộng rãi hơn và tiết kiệm nhiên liệu hơn. Cả hai đều có ngoại hình hấp dẫn và tùy chọn hệ dẫn động 4 bánh. Đây là một lựa chọn khó trên giấy tờ, vì vậy bạn nên đến đại lý Honda và Chevrolet gần nhất để lái thử.</p>\\n<h4>Giá mới của Honda HR-V 2025</h4>\\n<table>\\n<tr><td></td><td></td><th>Giá bán lẻ</th><th>Giá Mua Công Bằng (92620)</th><td></td></tr>\\n<tr><td></td><th>LX</th><td>khoảng 678,375,000 VNĐ</td><td>Chưa xác định</td></tr>\\n<tr><td></td><th>Sport</th><td>khoảng 735,675,000 VNĐ</td><td>Chưa xác định</td></tr>\\n<tr><td></td><th>EX-L</th><td>khoảng 786,675,000 VNĐ</td><td>Chưa xác định</td></tr>\\n</table>\\n<h4>Giá đã qua sử dụng</h4>\\n<table>\\n<tr><td></td><td></td><th>Giá bán lẻ ban đầu</th><th>Giá Mua Công Bằng (92620)</th><td></td></tr>\\n<tr><td></td><th>Base Style</th><td>0 VNĐ</td><td>Chưa xác định</td></tr>\\n<tr><td></td><th>Base Style</th><td>0 VNĐ</td><td>Chưa xác định</td></tr>\\n<tr><td></td><th>Base Style</th><td>0 VNĐ</td><td>Chưa xác định</td></tr>\\n</table>\\n<p>Giá Mua Công Bằng của Kelley Blue Book cho bất kỳ xe đã qua sử dụng nào có thể thay đổi lớn tùy thuộc vào số dặm đã đi, điều kiện xe, địa điểm và các yếu tố khác. Giá ở đây phản ánh những gì người mua hiện đang trả cho xe mới Honda HR-V 2025 và các xe trong điều kiện điển hình khi mua từ đại lý. Những giá này được cập nhật hàng tuần. Giá bán lẻ đề xuất của nhà sản xuất (MSRP) đã bao gồm phí vận chuyển, nhưng không bao gồm thuế, phí giấy tờ và các tùy chọn.</p>\\n<table><tr><td></td><td><strong>Honda HR-V 2025</strong></td><td><strong>Chevrolet Trailblazer 2025</strong></td></tr><tr><td><strong>Động cơ phổ biến</strong></td><td></td><td></td></tr><tr><td>Động cơ</td><td>Động cơ 4 xi-lanh 2.0 lít</td><td>Động cơ 3 xi-lanh tăng áp 1.2 lít</td></tr><tr><td>Mã lực</td><td>158 mã lực @ 6,500 vòng/phút</td><td>137 mã lực @ 5,000 vòng/phút</td></tr><tr><td>Mô-men xoắn</td><td>138 lb-ft @ 4,200 vòng/phút</td><td>162 lb-ft @ 2,500 vòng/phút</td></tr><tr><td>Hộp số</td><td>CVT</td><td>CVT</td></tr><tr><td>Tiêu thụ nhiên liệu</td><td>9.0 l/100km thành phố/7.4 l/100km cao tốc/8.4 l/100km kết hợp</td><td>8.1 l/100km thành phố/7.1 l/100km cao tốc/7.6 l/100km kết hợp</td></tr><tr><td>Có sẵn</td><td>AWD</td><td>1.3 lít tăng áp, AWD</td></tr><tr><td><strong>Thông số kỹ thuật</strong></td><td></td><td></td></tr><tr><td>Bảo hành cơ bản</td><td>3 năm/57,936 km</td><td>3 năm/57,936 km</td></tr><tr><td>Bảo hành truyền động</td><td>5 năm/96,560 km</td><td>5 năm/96,560 km</td></tr><tr><td>Đánh giá an toàn tổng thể của NHTSA</td><td>5 Sao</td><td>5 Sao</td></tr><tr><td>Sức chứa tối đa</td><td>5</td><td>5</td></tr><tr><td>Chiều dài cơ sở</td><td>2,655 mm</td><td>2,640 mm</td></tr><tr><td>Chiều dài tổng thể</td><td>4,567 mm</td><td>4,406 mm</td></tr><tr><td>Chiều rộng</td><td>1,839 mm</td><td>1,808 mm</td></tr><tr><td>Chiều cao</td><td>1,610 mm</td><td>1,656 mm</td></tr><tr><td>Đường kính quay</td><td>10.7 m</td><td>11.2 m</td></tr><tr><td>Khoảng trống đầu, phía trước</td><td>1,000 mm</td><td>1,016 mm</td></tr><tr><td>Khoảng trống đầu, phía sau</td><td>965 mm</td><td>975 mm</td></tr><tr><td>Khoảng chân, phía trước</td><td>1,064 mm</td><td>1,039 mm</td></tr><tr><td>Khoảng chân, phía sau</td><td>957 mm</td><td>991 mm</td></tr><tr><td>Khoảng vai, phía trước</td><td>1,438 mm</td><td>1,407 mm</td></tr><tr><td>Khoảng vai, phía sau</td><td>1,402 mm</td><td>1,367 mm</td></tr><tr><td>Thể tích khoang hành lý</td><td>691 lít</td><td>716 lít</td></tr></table>\"}",
+                "refusal": null
+            },
+            "logprobs": null,
+            "finish_reason": "stop"
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 2500,
+        "completion_tokens": 2144,
+        "total_tokens": 4644,
+        "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+        }
+    },
+    "system_fingerprint": "fp_831e067d82"
+}

@@ -1,0 +1,17 @@
+[
+    {
+        "name": "Help center editor",
+        "label": {"vi": "Biên tập trung tâm trợ giúp", "en": "Help center editor"},
+        "permissions": ["helpdesk|kb_editor"]
+    },
+    {
+        "name": "Help center agent",
+        "label": {"vi": "Nhân viên hỗ trợ", "en": "Help center agent"},
+        "permissions": ["helpdesk|agent", "helpdesk|kb_editor"]
+    },
+    {
+        "name": "Help center admin",
+        "label": {"vi": "Quản trị trung tâm trợ giúp", "en": "Help center admin"},
+        "permissions": ["helpdesk|kb_editor", "helpdesk|agent", "helpdesk|admin"]
+    }
+]

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="55432"/>
+        <env name="DB_DATABASE" value="ispa_cms_pgsql_test"/>
+        <env name="DB_USERNAME" value="ispa"/>
+        <env name="DB_PASSWORD" value=""/>
+        <env name="PTG_HOST" value="127.0.0.1"/>
+        <env name="PTG_PORT" value="55432"/>
+        <env name="PTG_DATABASE" value="ispa_cms_pgsql_test"/>
+        <env name="PTG_USERNAME" value="ispa"/>
+        <env name="PTG_PASSWORD" value=""/>
+        <env name="GAME_DB_CONNECTION" value="pgsql"/>
+        <env name="GAME_CACHE_STORE" value="array"/>
+        <env name="GAME_QUEUE_CONNECTION" value="sync"/>
+        <env name="GAME_TICKET_SIGNING_KEY" value="game-test-signing-key"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="ISPA_API_AUTH_KEY" value="test-api-verify-key"/>
+        <env name="ISPA_ADMIN_AUTH_KEY" value="admin-test-key"/>
+    </php>
+</phpunit>

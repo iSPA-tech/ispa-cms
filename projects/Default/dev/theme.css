@@ -1,0 +1,111 @@
+/*
+ * Copyright (c) 2025 iSPA Team - team@ispa.io.
+ * SPDX-License-Identifier: AGPL-3.0-only
+ * This file is part of iSPA CMS, free software under the GNU Affero General Public License v3.0 only.
+ * See the LICENSE file in the project root. This program comes with ABSOLUTELY NO WARRANTY.
+ */
+
+@import "tailwindcss" important;
+
+@plugin '@tailwindcss/typography';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/aspect-ratio';
+@plugin '@tailwindcss/container-queries';
+
+@config "./tailwind.config.js";
+
+@source '../views/**/*.{html,vue,js,tsx,ts,php}';
+@source '../../../resources/**/*.{html,vue,js,tsx,ts,php}';
+
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
+}
+
+@utility container {
+    margin-inline: auto;
+    padding-inline: 1rem;
+
+    @media (width >= 48rem) {
+        padding-inline: 0;
+    }
+}
+
+@utility tab-4 {
+    tab-size: 4;
+}
+
+@layer components {
+    .lSPager {
+        @apply hidden md:block w-[232px] absolute z-20 bottom-[20px] right-0 text-right pr-6!;
+    }
+
+    .lSPager > li > a {
+        @apply w-4 h-4 text-xs text-center indent-0 text-white!;
+    }
+
+    .lSAction > a {
+        background-image: url('/images/controls.png');
+    }
+
+    /** Fly out menu */
+    .flyout {
+        @apply relative;
+    }
+
+    .flyout-btn {
+        @apply pt-3 pb-1.5 md:pb-3 text-gray-600 uppercase inline-flex items-center hover:text-gray-900 group-hover:text-gray-900 text-base font-medium dark:text-white;
+    }
+
+    .flyout .flyout-group {
+        @apply absolute z-10 left-1/2 transform bg-white border shadow-sm -translate-x-1/2 px-2
+        w-screen max-w-[22rem] sm:px-0 rounded-sm transition-all duration-200;
+    }
+
+    .fc-event-time {
+        @apply hidden;
+    }
+
+    .flyout .flyout-group .flyout-btn,
+    #mobileMenu .flyout-btn .flyout-btn {
+        @apply normal-case leading-8 py-0!;
+    }
+
+    .main-title {
+        @apply mt-2 block text-xl leading-6 md:leading-8 font-extrabold tracking-tight text-slate-800 sm:text-3xl;
+    }
+
+    .ql-editor {
+        @apply whitespace-normal px-0!;
+        user-select: none;
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+
+    .prose img {
+        @apply my-0!;
+    }
+
+    .prose figure.content-media {
+        @apply my-0!;
+    }
+
+    .main_footer_menu a {
+        @apply text-slate-600/90 hover:text-slate-900/90;
+    }
+
+    .main_footer_menu a.active {
+        @apply text-main-500/90;
+    }
+}

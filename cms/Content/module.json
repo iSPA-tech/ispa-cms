@@ -1,0 +1,32 @@
+{
+    "name": "Content",
+    "edition": "open",
+    "alias": "content",
+    "description": "Deliver articles, media pages, and storytelling blocks for the CMS front office.",
+    "version": "2026.11.08",
+    "keywords": [],
+    "admin": {
+        "custom_code": true
+    },
+    "priority": 0,
+    "providers": [
+        "Cms\\Content\\Providers\\ContentServiceProvider"
+    ],
+    "files": [],
+    "migrations": {
+        "irreversible": [
+            "2022_02_09_105541_create_contents_table.php",
+            "2022_02_09_105657_create_posts_table.php",
+            "2023_07_03_202525_update_content_table_custom_column.php",
+            "2023_11_18_170009_create_bookmark_table.php",
+            "2023_12_04_120758_update_post_descrition_data_length.php",
+            "2026_04_07_100000_add_review_pipeline_to_posts_table.php",
+            "2026_11_21_000001_add_posts_feed_and_dashboard_indexes.php",
+            "2026_11_21_200000_grant_tag_permissions_to_post_roles.php",
+            "2026_11_21_210000_fill_slug_category_from_target.php"
+        ]
+    },
+    "requires": {
+        "core": ">=2026.11.01,<2027.00.00"
+    }
+}

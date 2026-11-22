@@ -1,0 +1,49 @@
+{
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "admin:i18n:scan-usage": "node scripts/php-artisan.js i18n:scan-translates --dry-run=1 --update-db=0 --update-used-in=0",
+        "admin:i18n:hydrate": "node scripts/php-artisan.js db:seed --class=\"Cms\\\\Core\\\\Database\\\\Seeders\\\\TranslateTableSeed\" --force && node scripts/php-artisan.js cms:translation-sync --all",
+        "admin:i18n:audit": "node scripts/php-artisan.js cms:admin-i18n-audit --write-report=1",
+        "admin:i18n:audit:strict": "node scripts/php-artisan.js cms:admin-i18n-audit --write-report=1 --strict=1",
+        "admin:i18n:recover": "node scripts/php-artisan.js cms:admin-i18n-recover --write-report=1",
+        "admin:i18n:recover:sync": "node scripts/php-artisan.js cms:admin-i18n-recover --write-report=1 --sync-db=1",
+        "admin:build:safe": "pnpm admin:i18n:hydrate && node scripts/php-artisan.js cms:translation-generate && node scripts/php-artisan.js cms:admin-i18n-audit --write-report=1 && pnpm --dir admin build",
+        "admin:build:safe:strict": "pnpm admin:i18n:hydrate && node scripts/php-artisan.js cms:translation-generate && node scripts/php-artisan.js cms:admin-i18n-audit --write-report=1 --strict=1 && pnpm --dir admin build",
+        "admin:build:recover-safe": "pnpm admin:i18n:recover:sync && pnpm admin:i18n:hydrate && node scripts/php-artisan.js cms:translation-generate && node scripts/php-artisan.js cms:admin-i18n-audit --write-report=1 && pnpm --dir admin build",
+        "tw": "npx tailwindcss -i ./resources/css/app.css -o ./public/css/app.min.css --watch",
+        "dev:admin": "pnpm --dir admin dev",
+        "build:admin": "ADMIN_BUILD_OUTPUT_DIR=../public/iPanel pnpm --dir admin build",
+        "build:all": "pnpm build && pnpm build:admin"
+    },
+    "devDependencies": {
+        "@tailwindcss/aspect-ratio": "^0.4.2",
+        "@tailwindcss/container-queries": "^0.1.1",
+        "@tailwindcss/forms": "^0.5.11",
+        "@tailwindcss/postcss": "^4.2.4",
+        "@tailwindcss/typography": "^0.5.19",
+        "@tailwindcss/vite": "^4.2.4",
+        "@vitejs/plugin-vue": "^6.0.7",
+        "autoprefixer": "^10.5.0",
+        "axios": "^1.16.0",
+        "js-cookie": "^3.0.5",
+        "nprogress": "^0.2.0",
+        "sass-embedded": "^1.99.0",
+        "tailwindcss": "^4.2.4",
+        "vite": "8.0.0"
+    },
+    "dependencies": {
+        "@tiptap/extension-link": "^3.26.0",
+        "@tiptap/starter-kit": "^3.26.0",
+        "@tiptap/vue-3": "^3.26.0",
+        "concurrently": "^9.2.1",
+        "laravel-vite-plugin": "^2.1.0",
+        "lodash": "^4.18.1",
+        "playwright": "^1.60.0",
+        "prettier": "^3.8.3",
+        "process": "^0.11.10",
+        "vue": "3.5.35"
+    },
+    "license": "AGPL-3.0-only"
+}

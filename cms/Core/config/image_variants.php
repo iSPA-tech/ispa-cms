@@ -1,0 +1,36 @@
+<?php
+
+return [
+    'presets' => [
+        'sm' => ['width' => 300, 'height' => 0, 'mode' => 'scale'],
+        'md' => ['width' => 768, 'height' => 0, 'mode' => 'scale'],
+        'lg' => ['width' => 1200, 'height' => 0, 'mode' => 'scale'],
+        'xl' => ['width' => 1440, 'height' => 0, 'mode' => 'scale'],
+        'xxl' => ['width' => 2000, 'height' => 0, 'mode' => 'scale'],
+        'thumbnail_sm' => ['width' => 80, 'height' => 80, 'mode' => 'cover'],
+        'thumbnail_md' => ['width' => 300, 'height' => 300, 'mode' => 'cover'],
+        'thumbnail_lg' => ['width' => 600, 'height' => 600, 'mode' => 'cover'],
+        'thumbnail_xl' => ['width' => 1000, 'height' => 1000, 'mode' => 'cover'],
+        'cover_sm' => ['width' => 160, 'height' => 96, 'mode' => 'cover'],
+        'cover_md' => ['width' => 300, 'height' => 180, 'mode' => 'cover'],
+        'cover_card' => ['width' => 480, 'height' => 288, 'mode' => 'cover'],
+        'cover_lg' => ['width' => 600, 'height' => 360, 'mode' => 'cover'],
+        'cover_xl' => ['width' => 1200, 'height' => 720, 'mode' => 'cover'],
+        'facebook' => ['width' => 1200, 'height' => 630, 'mode' => 'cover'],
+        'twitter' => ['width' => 1024, 'height' => 512, 'mode' => 'cover'],
+    ],
+    'contexts' => [
+        'media.grid' => ['thumbnail_sm', 'cover_sm'],
+        'avatar' => ['thumbnail_sm', 'thumbnail_md'],
+        'post.card' => ['cover_card', 'cover_lg'],
+        'post.detail' => ['cover_xl'],
+        'post.cover' => ['cover_lg', 'cover_xl', 'facebook', 'twitter'],
+        'post.content' => ['md', 'lg', 'xl'],
+        'page.content' => ['md', 'lg', 'xl'],
+        'comment.image' => ['sm', 'md'],
+        'gallery.cover' => ['cover_lg', 'cover_xl', 'facebook', 'twitter'],
+        'gallery.item' => ['md', 'lg', 'xl'],
+        'banner' => ['md', 'lg', 'xl'],
+        'real_estate.asset' => ['thumbnail_md', 'thumbnail_lg', 'thumbnail_xl', 'md', 'lg', 'xl'],
+    ],
+];

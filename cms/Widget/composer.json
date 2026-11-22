@@ -1,0 +1,29 @@
+{
+    "name": "ispa-cms/widget",
+    "description": "Site Layout widget slots bounded context for iSPA CMS.",
+    "license": "AGPL-3.0-only",
+    "authors": [
+        {
+            "name": "Vuong Nguyen Minh",
+            "email": "malayvuong@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cms\\Widget\\": "app/",
+            "Cms\\Widget\\Database\\Factories\\": "database/factories/",
+            "Cms\\Widget\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cms\\Widget\\Tests\\": "tests/"
+        }
+    }
+}

@@ -1,0 +1,1 @@
+document.addEventListener(`alpine:init`,()=>{Alpine.data(`itsLanguageModal`,()=>({openModal:!1,error:!1,success:!1,loading:!1,toggle(){this.openModal=!this.openModal}}))});

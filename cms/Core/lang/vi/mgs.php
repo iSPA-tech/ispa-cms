@@ -1,0 +1,154 @@
+<?php
+/**
+ * Translate key auto generate
+ *
+ * @updated 2026-08-01 18:18:58
+ * @version 2026.03.0
+ * @author malayvuong
+ * @since 5.0.0
+ */
+return [
+    'advanced_setting' => 'Việc thay đổi các cài đặt nâng cao này có thể gây hại cho việc hiển thị trang web hoặc hiệu suất của trang web này. Bạn chỉ nên tiếp tục nếu bạn chắc chắn về những gì bạn đang thao tác.',
+    'article' => [
+        'required-login' => 'Bài viết này đã được đặt chế độ hạn chế người xem. Vui lòng đăng nhập để có thể xem nội dung bài viết. Xin cảm ơn.',
+    ],
+    'auth' => [
+        'email-not-verified' => 'Địa chỉ email của bạn chưa được kích hoạt. Vui lòng kích hoạt email trước khi đăng nhập.',
+        'error' => 'Bạn chưa đăng nhập. Vui lòng đăng nhập để thực hiện thao tác này. Xin cảm ơn.',
+        'failed' => 'Đăng nhập thất bại, tài khoản hoặc mật khẩu bạn cung cấp chưa đúng. Vui lòng thử lại.',
+        'failed-remaining' => 'Bạn đã đăng nhập sai :n lần. Sai 5 lần liên tiếp tài khoản sẽ tạm khóa.',
+        'invalid_code' => 'Không tồn tại mã xác minh hoặc mã xác minh không đúng. Vui lòng thử lại hoặc liên hệ với quản trị viên để được hỗ trợ.',
+        'level_not_meet' => 'Không thể thiết lập Cấp độ quản trị có giá trị thấp hơn cấp độ của bạn. Cấp độ của bạn là :level.',
+        'login-limited' => 'Bạn đã đăng nhập sai quá nhiều lần. Vui lòng thử lại sau :time.',
+    ],
+    'code' => [
+        'reset-code' => 'Mã khôi phục Mật khẩu',
+        'two_fa' => 'Mã xác thực hai bước',
+    ],
+    'comment' => [
+        'error' => 'Không thể lưu Đánh giá/Bình luận của bạn. Vui lòng thử lại sau.',
+        'success' => 'Bình luận/Đánh giá của bạn đã được lưu. Đội ngũ kiểm duyệt của chúng tôi sẽ xem qua nội dung trước khi Bình luận/Đánh giá này được đưa đến với công chúng.',
+    ],
+    'confirm' => [
+        'discard_confirm' => 'Các thay đổi chưa được lưu sẽ bị mất. Bạn có chắc chắn muốn tiếp tục?',
+        'leave_confirm' => 'Bạn có thay đổi chưa lưu. Bạn có muốn rời khỏi trang này không?',
+    ],
+    'content' => [
+        'audio-confirmed-required' => 'Nội dung này chưa được kiểm duyệt bởi quản trị viên. Không thể chuyển đổi audio.',
+        'convert-audio' => 'Chuyển đổi văn bản thành tệp âm thanh tự động cho ngôn ngữ này',
+        'convert-audio-override' => 'Chuyển đổi văn bản thành tệp âm thanh tự động cho ngôn ngữ này, tệp âm thanh mới sẽ được ghi đè vào tệp âm thanh hiện tại.',
+        'translate-confirmed-required' => 'Nội dung này chưa được kiểm duyệt bởi quản trị viên. Không thể xếp hàng dịch tự động.',
+        'translation-for-draft' => 'Hành động này chỉ dịch tự động từ tiếng Việt sang các ngôn ngữ khác đang có trạng thái "Nháp".',
+        'translation-override' => 'Hành động này sẽ dịch tự động từ tiếng Việt và ghi đè lên tất cả các bản dịch hiện có ở các ngôn ngữ khác và không áp dụng cho ngôn ngữ có trạng thái "Đã kiểm duyệt".',
+        'video_url_invalid' => 'Xin thứ lỗi. Website chỉ đang hỗ trợ cho đường dẫn video của Youtube và Vimeo.',
+    ],
+    'doesnot-work' => [
+        'desc' => 'Xin thứ lỗi. :name không thể hoạt động đúng do chưa được cài đặt reCaptcha. Vui lòng thử lại sau hoặc liên hệ với quản trị viên để được hỗ trợ.',
+        'title' => ':name không hoạt động.',
+    ],
+    'er' => [
+        'account-banned' => 'Tài khoản này đã bị khóa. Vui lòng liên hệ với quản trị viên nếu bạn nghĩ đây là một sự nhầm lẫn.',
+        'account-no-exists' => 'Không có tài khoản nào phù hợp với thông tin mà bạn cung cấp.',
+        'account-not-verified' => 'Địa chỉ email của bạn chưa được kích hoạt. Bạn không thể sử dụng tính năng này.',
+        'create' => 'Không thể tạo mới <b>:name</b>. Vui lòng thử lại.',
+        'delete' => 'Không thể xóa <b>:name</b>. Vui lòng thử lại sau.',
+        'email-limited' => 'Bạn đã vừa gửi một yêu cầu, vui lòng chờ cho đến :time để có thể tiếp tục gửi một yêu cầu mới.',
+        'no-password-provided' => 'Vui lòng cung cấp thông tin mật khẩu, mật khẩu xác minh và mã khóa xác minh.',
+        'password_must_different' => 'Mật khẩu cũ và mật khẩu mới không được trùng nhau. Vui lòng chọn mật khẩu khác.',
+        'password-not-save' => 'Không thể đặt mật khẩu mới. Vui lòng liên hệ với quản trị viên để được hỗ trợ. Mã lỗi: :error.',
+        'save' => 'Không thể lưu <b>:name</b>. Vui lòng thử lại sau.',
+        'sign-out' => 'Không thể đăng xuất. Vui lòng thử lại sau.',
+        'update' => 'Không thể cập nhật <b>:name</b>. Vui lòng thử lại sau.',
+        'update-account' => 'Không thể cập nhật tài khoản. Vui lòng thử lại.',
+        'user-not-valid' => 'Tài khoản người dùng không tồn tại.',
+        'verify-code-no-exists' => 'Mã xác minh của bạn không tồn tại hoặc đã hết hạn. Xin lưu ý rằng mỗi mã xác minh chỉ tồn tại 5 phút.',
+    ],
+    'err' => [
+        'not_found' => 'Không tìm thấy',
+        'server_error' => 'Lỗi máy chủ',
+        'service_unavailable' => 'Dịch vụ không khả dụng',
+    ],
+    'error' => [
+        'fields-empty' => 'Vui lòng điền đầy đủ các trường bắt buộc.',
+        'unknown' => 'Không thể tải dữ liệu',
+    ],
+    'failed' => [
+        'load' => 'Không thể tải :name',
+        'restore' => 'Không thể khôi phục :name. Vui lòng thử lại sau!',
+    ],
+    'form' => [
+        'error' => 'Xin thứ lỗi. Chức năng này chưa được thiết lập đúng với trang bạn đang xem.',
+        'required' => 'Xin vui lòng hoàn tất các thông tin được yêu cầu bên dưới trước khi gửi form.',
+        'success' => 'Cảm ơn bạn đã gửi thông tin. Một trong những nhân sự của chúng tôi sẽ liên hệ với bạn ngay khi nhận được thông tin.',
+    ],
+    'gallery' => [
+        'related-empty' => 'Chưa có thêm bộ sưu tập nào khác trong chuyên mục này.',
+    ],
+    'id' => [
+        '404' => 'ID yêu cầu không hợp lệ.',
+    ],
+    'list' => [
+        'empty' => 'Chưa có bài viết nào trong mục này.',
+    ],
+    'mail' => [
+        'cannot-view' => 'Không xem được email này?',
+        'contact-received-content' => 'Chúng tôi đã nhận được thông tin liên hệ của bạn. Chúng tôi sẽ phản hồi với bạn ngay khi truy cập. Cảm ơn vì sự đóng góp của bạn.',
+        'contact-received-hi' => 'Xin chào :name,',
+        'contact-received-subject' => 'Cảm ơn bạn đã liên hệ',
+        'default-recipient' => 'Quản trị viên',
+        'footer-received' => 'Bạn nhận được email này từ :brand.',
+        'footer-sent-at' => 'Email được gửi lúc :time.',
+        'two-fa-intro' => 'Xin chào :name, hãy sử dụng mã xác thực bên dưới để tiếp tục đăng nhập vào :brand. Mã này hết hạn sau 5 phút.',
+        'two-fa-security' => 'Nếu bạn không thực hiện lần đăng nhập này, đừng chia sẻ mã. Hãy đổi mật khẩu và liên hệ quản trị viên ngay nếu nghi ngờ có truy cập trái phép.',
+        'verification-code' => 'Mã xác thực',
+        'view-live' => 'Xem trực tuyến',
+    ],
+    'model' => [
+        '404' => 'Đối tượng yêu cầu không tồn tại.',
+    ],
+    'no' => [
+        'permission' => 'Bạn không có quyền được cấp để truy cập vào đường dẫn/tính năng này. Vui lòng liên hệ với Quản trị viên để được cấp quyền nếu bạn nghĩ đây là một sự nhầm lẫn.',
+        'permission_edit_sensitive' => 'Bạn không có quyền chỉnh sửa các nội dung nhạy cảm.',
+        'permission-download' => 'Bạn không được cấp quyền để tải tệp tin này. Vui lòng liên hệ quản trị viên để được cấp quyền.',
+        'result' => 'Không có kết quả nào phù hợp với giá trị tìm kiếm.',
+        'reviews' => 'Chưa có Đánh giá/Bình luận nào được đăng.',
+    ],
+    'ok' => [
+        'confirmed' => 'Đã kiểm duyệt :name thành công!',
+        'convert-request' => 'Đã yêu cầu chuyển đổi văn bản thành âm thanh.',
+        'create' => 'Đã tạo mới <b>:name</b> thành công!',
+        'delete' => 'Đã xóa <b>:name</b> thành công!',
+        'generate-file' => 'Đã cập nhật Khóa ngôn ngữ thành công!',
+        'password-changed' => 'Mật khẩu đã được đặt thành công! Bạn có thể đăng nhập ngay bây giờ.',
+        'rejected' => 'Đã từ chối nội dung của :name!',
+        'restore' => 'Đã khôi phục :name thành công!',
+        'save' => 'Đã lưu <b>:name</b> thành công!',
+        'sign-in' => 'Đã đăng nhập thành công! Vui lòng chờ trong giây lát.',
+        'sign-out' => 'Đã đăng xuất thành công! Vui lòng chờ trong giây lát.',
+        'update' => 'Đã cập nhật thông tin <b>:name</b> thành công.',
+        'update-account' => 'Đã cập nhật thông tin tài khoản thành công!',
+        'verify-code' => 'Đã xác minh thành công!',
+    ],
+    'post' => [
+        'related-empty' => 'Chưa có thêm bài viết nào khác trong chuyên mục này.',
+    ],
+    'product' => [
+        'empty' => 'Chưa có sản phẩm nào được thêm.',
+    ],
+    'register' => [
+        'error' => 'Có lỗi trong quá trình đăng ký tài khoản. Vui lòng thử lại.',
+        'success' => 'Tài khoản của bạn đã được khởi tạo thành công! Vui lòng kiểm tra email của bạn để hoàn tất bước xác minh cuối cùng. Xin cảm ơn.',
+    ],
+    'required-field' => 'Vui lòng hoàn tất các trường có đánh dấu sao',
+    'title' => [
+        'error' => 'Lỗi',
+    ],
+    'url' => [
+        '404' => 'Đường dẫn mà bạn yêu cầu không tồn tại.',
+    ],
+    'wholesale' => [
+        'price-different' => 'Giá bán phải khác với mức giá đã áp dụng trước đó.',
+        'price-over' => 'Giá sỉ phải thấp hơn giá bán của sản phẩm.',
+        'price-under-50' => 'Giá sản phẩm mà bạn đang thiết lập có mức giá dưới 50% so với giá bán.',
+    ],
+];

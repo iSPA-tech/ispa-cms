@@ -1,0 +1,24 @@
+{
+    "name": "Widget",
+    "edition": "open",
+    "alias": "widget",
+    "description": "Site Layout widget slots bounded context: instances, placements, drafts/releases, and rendering (scaffold only).",
+    "version": "2026.11.00",
+    "keywords": [
+        "widget",
+        "site-layout",
+        "slots"
+    ],
+    "admin": {
+        "custom_code": true
+    },
+    "priority": 0,
+    "providers": [
+        "Cms\\Widget\\Providers\\WidgetServiceProvider"
+    ],
+    "files": [],
+    "requires": {
+        "core": "*",
+        "content": ">=2026.11.00,<2027.00.00"
+    }
+}

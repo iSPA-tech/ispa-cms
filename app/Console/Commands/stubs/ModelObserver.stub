@@ -1,0 +1,138 @@
+<?php
+
+namespace App\Observers;
+
+use App\Models\{{ name }};
+
+use App\Events\AuditLog;
+use App\Helpers\AppHelpers;
+
+class {{ name }}Observer
+{
+  /**
+   * Observer Auto Generate
+   *
+   * @author malayvuong
+   * @since 1.0.0
+   */
+
+    /**
+     * @param {{ name }} $model
+     *
+     * @return {{ name }}
+     */
+    private function updateDateTime({{ name }} $model): {{ name }}
+    {
+        //  Generate date time by timezone
+
+        return $model;
+    }
+
+  /**
+   * Handle the {{ name }} "creating" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function creating({{ name }} $model): void
+  {
+     $this->updateDateTime($model);
+  }
+
+  /**
+   * Handle the {{ name }} "created" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function created({{ name }} $model): void
+  {
+    event(new AuditLog('create', $model->toArray(), get_class($model), $model->id, 'fa fa-plus-circle', 'success', auth()->id()));
+  }
+
+  /**
+   * Handle the {{ name }} "updating" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function updating({{ name }} $model): void
+  {
+     $this->updateDateTime($model);
+    //  Get changed data
+    $changed = AppHelpers::getChanges($model);
+    //  Fire AuditLog
+    if(!isset($changed['from']['deleted_at'])) {
+      event(new AuditLog('update', $changed, get_class($model), $model->id, 'fa fa-edit', 'primary', auth()->id()));
+    }
+  }
+
+  /**
+   * Handle the {{ name }} "updated" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function updated({{ name }} $model): void
+  {
+      //
+  }
+
+  /**
+   * Handle the {{ name }} "deleting" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function deleting({{ name }} $model): void
+  {
+
+  }
+
+  /**
+   * Handle the {{ name }} "deleted" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function deleted({{ name }} $model): void
+  {
+    //  Save AuditLog
+    event(new AuditLog('delete', [], get_class($model), $model->id, 'far fa-trash-alt', 'danger', auth()->id()));
+  }
+
+  /**
+   * Handle the {{ name }} "restoring" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function restoring({{ name }} $model): void
+  {
+
+  }
+
+  /**
+   * Handle the {{ name }} "restored" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function restored({{ name }} $model): void
+  {
+    //  Save AuditLog
+    event(new AuditLog('restore', [ ], get_class($model), $model->id, 'far fa-trash-undo-alt', 'info', auth()->id()));
+  }
+
+  /**
+   * Handle the {{ name }} "force deleted" event.
+   *
+   * @param  {{ name }} $model
+   * @return void
+   */
+  public function forceDeleted({{ name }} $model): void
+  {
+    //  Save AuditLog
+    event(new AuditLog('forceDelete', $model->toArray(), get_class($model), $model->id, 'fa fa-minus-circle', 'danger', auth()->id()));
+  }
+}

@@ -1,0 +1,52 @@
+<?php
+
+namespace $NAMESPACE$;
+
+use App\Providers\Abstracts\ModuleServiceProvider;
+
+final class $CLASS$ extends ModuleServiceProvider
+{
+    protected function getModuleName(): string
+    {
+        return '$MODULE$';
+    }
+
+    protected function getModuleNameLower(): string
+    {
+        return \Illuminate\Support\Str::kebab('$STUDLY_NAME$');
+    }
+
+    /**
+     * Register module-specific service providers.
+     */
+    protected function registerModuleProviders(): void
+    {
+        $this->app->register(EventServiceProvider::class);
+        $this->app->register(RouteServiceProvider::class);
+        // $this->app->register(RepositoriesServiceProvider::class);
+        // $this->app->register(AuthServiceProvider::class);
+    }
+
+    /**
+     * Register commands in the format of Command::class
+     */
+    protected function registerCommands(): void
+    {
+        $this->commands([
+            // Commands\YourCommand::class,
+        ]);
+    }
+
+    /**
+     * Register command Schedules.
+     *
+     * @return void
+     */
+    protected function registerCommandSchedules(): void
+    {
+        // $this->app->booted(function () {
+        //     $schedule = $this->app->make(Schedule::class);
+        //     $schedule->command('inspire')->hourly();
+        // });
+    }
+}

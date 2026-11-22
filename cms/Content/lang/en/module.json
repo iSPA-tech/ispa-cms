@@ -1,0 +1,53 @@
+{
+    "nav": {
+        "n": {
+            "b": {
+                "apply": "Apply"
+            }
+        },
+        "a": {
+            "cate-post": "Post\/Article's Category",
+            "comments": "Comments",
+            "crawled": "Crawled Article",
+            "pages": "Pages",
+            "podcast": "Podcast",
+            "post-crawl": "Crawl Post"
+        },
+        "b": {
+            "un-published": "Unpublished"
+        }
+    },
+    "text": {
+        "dashboard": {
+            "queue": "Queue",
+            "recents-posts": "Recents Posts"
+        },
+        "post": {
+            "bulk_category_failed": "Unable to update selected items.",
+            "bulk_category_load_failed": "Unable to load item details.",
+            "bulk_category_missing": "Please select categories to apply.",
+            "bulk_category_success": "Categories updated for selected items.",
+            "bulk_delete_failed": "Unable to delete selected items.",
+            "bulk_delete_success": "Selected items deleted.",
+            "bulk_publish_success": "Selected items published.",
+            "bulk_status_failed": "Unable to update selected items.",
+            "bulk_success": "Bulk action completed.",
+            "bulk_unpublish_success": "Selected items unpublished.",
+            "no_content": "No content",
+            "published_at_future": "Will become visible on",
+            "select-parent": "Select Parent Article",
+            "thumbnail": "Thumbnail",
+            "total_views_note": "Total page views (all time)"
+        },
+        "type": {
+            "admission": "Admission",
+            "audio": "Podcast",
+            "document": "Document",
+            "events": "Events",
+            "notification": "Notification",
+            "page": "Pages",
+            "post": "Article",
+            "video": "Video"
+        }
+    }
+}

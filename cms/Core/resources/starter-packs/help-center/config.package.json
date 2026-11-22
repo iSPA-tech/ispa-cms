@@ -1,0 +1,380 @@
+{
+    "format": "ispa-config-package",
+    "format_version": 1,
+    "created_at": "2026-11-12T00:00:00+00:00",
+    "sections": {
+        "settings": [
+            {
+                "key": "helpdesk.ai.chat_anonymous",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.chat_anonymous",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.ai.chat_member",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.chat_member",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.ai.daily_cap_usd",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.daily_cap_usd",
+                "language": null,
+                "value": "5"
+            },
+            {
+                "key": "helpdesk.ai.deflect",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.deflect",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.ai.draft",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.draft",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.ai.reindex",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.reindex",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.ai.triage",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.triage",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.ai.triage_min_confidence",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "ai.triage_min_confidence",
+                "language": null,
+                "value": "75"
+            },
+            {
+                "key": "helpdesk.chat.anonymous_per_ip_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.anonymous_per_ip_per_day",
+                "language": null,
+                "value": "20"
+            },
+            {
+                "key": "helpdesk.chat.anonymous_per_session",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.anonymous_per_session",
+                "language": null,
+                "value": "10"
+            },
+            {
+                "key": "helpdesk.chat.anonymous_sessions_per_ip_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.anonymous_sessions_per_ip_per_day",
+                "language": null,
+                "value": "5"
+            },
+            {
+                "key": "helpdesk.chat.anonymous_site_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.anonymous_site_per_day",
+                "language": null,
+                "value": "1000"
+            },
+            {
+                "key": "helpdesk.chat.endpoint_per_minute",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.endpoint_per_minute",
+                "language": null,
+                "value": "60"
+            },
+            {
+                "key": "helpdesk.chat.max_length_anonymous",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.max_length_anonymous",
+                "language": null,
+                "value": "500"
+            },
+            {
+                "key": "helpdesk.chat.max_length_member",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.max_length_member",
+                "language": null,
+                "value": "1000"
+            },
+            {
+                "key": "helpdesk.chat.member_escalations_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.member_escalations_per_day",
+                "language": null,
+                "value": "3"
+            },
+            {
+                "key": "helpdesk.chat.member_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.member_per_day",
+                "language": null,
+                "value": "100"
+            },
+            {
+                "key": "helpdesk.chat.member_sessions_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.member_sessions_per_day",
+                "language": null,
+                "value": "30"
+            },
+            {
+                "key": "helpdesk.chat.off_topic_floor_percent",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.off_topic_floor_percent",
+                "language": null,
+                "value": "30"
+            },
+            {
+                "key": "helpdesk.chat.relevance_threshold_percent",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.relevance_threshold_percent",
+                "language": null,
+                "value": "40"
+            },
+            {
+                "key": "helpdesk.chat.strikes_per_ip_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.strikes_per_ip_per_day",
+                "language": null,
+                "value": "5"
+            },
+            {
+                "key": "helpdesk.chat.strikes_per_member_per_day",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.strikes_per_member_per_day",
+                "language": null,
+                "value": "10"
+            },
+            {
+                "key": "helpdesk.chat.strikes_per_session",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "chat.strikes_per_session",
+                "language": null,
+                "value": "3"
+            },
+            {
+                "key": "helpdesk.holidays",
+                "type": "textarea",
+                "group_name": "helpdesk",
+                "name": "holidays",
+                "language": null,
+                "value": ""
+            },
+            {
+                "key": "helpdesk.hours.fri",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.fri",
+                "language": null,
+                "value": "08:30-17:30"
+            },
+            {
+                "key": "helpdesk.hours.mon",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.mon",
+                "language": null,
+                "value": "08:30-17:30"
+            },
+            {
+                "key": "helpdesk.hours.sat",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.sat",
+                "language": null,
+                "value": ""
+            },
+            {
+                "key": "helpdesk.hours.sun",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.sun",
+                "language": null,
+                "value": ""
+            },
+            {
+                "key": "helpdesk.hours.thu",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.thu",
+                "language": null,
+                "value": "08:30-17:30"
+            },
+            {
+                "key": "helpdesk.hours.tue",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.tue",
+                "language": null,
+                "value": "08:30-17:30"
+            },
+            {
+                "key": "helpdesk.hours.wed",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "hours.wed",
+                "language": null,
+                "value": "08:30-17:30"
+            },
+            {
+                "key": "helpdesk.inbound.per_sender_per_hour",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "inbound.per_sender_per_hour",
+                "language": null,
+                "value": "5"
+            },
+            {
+                "key": "helpdesk.inbound.site_per_hour",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "inbound.site_per_hour",
+                "language": null,
+                "value": "60"
+            },
+            {
+                "key": "helpdesk.jev.daily_calls",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "jev.daily_calls",
+                "language": null,
+                "value": "3000"
+            },
+            {
+                "key": "helpdesk.jev.mode",
+                "type": "text",
+                "group_name": "helpdesk",
+                "name": "jev.mode",
+                "language": null,
+                "value": "off"
+            },
+            {
+                "key": "helpdesk.jev.off_topic_max_percent",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "jev.off_topic_max_percent",
+                "language": null,
+                "value": "20"
+            },
+            {
+                "key": "helpdesk.jev.on_topic_min_percent",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "jev.on_topic_min_percent",
+                "language": null,
+                "value": "80"
+            },
+            {
+                "key": "helpdesk.lifecycle.auto_close_days",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "lifecycle.auto_close_days",
+                "language": null,
+                "value": "7"
+            },
+            {
+                "key": "helpdesk.lifecycle.auto_resolve_days",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "lifecycle.auto_resolve_days",
+                "language": null,
+                "value": "7"
+            },
+            {
+                "key": "helpdesk.lifecycle.reminder_days",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "lifecycle.reminder_days",
+                "language": null,
+                "value": "3"
+            },
+            {
+                "key": "helpdesk.portal.self_signup",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "portal.self_signup",
+                "language": null,
+                "value": "1"
+            },
+            {
+                "key": "helpdesk.portal.social_sign_in",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "portal.social_sign_in",
+                "language": null,
+                "value": "0"
+            },
+            {
+                "key": "helpdesk.sla.high_minutes",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "sla.high_minutes",
+                "language": null,
+                "value": "240"
+            },
+            {
+                "key": "helpdesk.sla.low_minutes",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "sla.low_minutes",
+                "language": null,
+                "value": "1080"
+            },
+            {
+                "key": "helpdesk.sla.normal_minutes",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "sla.normal_minutes",
+                "language": null,
+                "value": "540"
+            },
+            {
+                "key": "helpdesk.sla.urgent_minutes",
+                "type": "number",
+                "group_name": "helpdesk",
+                "name": "sla.urgent_minutes",
+                "language": null,
+                "value": "120"
+            }
+        ]
+    },
+    "required_secrets": [],
+    "skipped": [],
+    "checksum": "sha256:fa5f42687fbc3c50393dc8f931bf3278cd185a63636aaefe0bacb6ec7d65d534"
+}

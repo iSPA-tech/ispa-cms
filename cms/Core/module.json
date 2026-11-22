@@ -1,0 +1,27 @@
+{
+    "name": "Core",
+    "edition": "open",
+    "alias": "core",
+    "description": "Core module, providing essential functionalities for the CMS.",
+    "version": "2026.11.01",
+    "keywords": [],
+    "admin": {
+        "custom_code": true
+    },
+    "priority": 0,
+    "providers": [
+        "Cms\\Core\\Providers\\CoreServiceProvider"
+    ],
+    "files": [],
+    "requires": [],
+    "authors": [
+        {
+            "name": "CMS Team",
+            "email": "team@ispa.io",
+            "role": "Owner",
+            "homepage": "https://ispa.io",
+            "organization": "iSPA Team",
+            "organization_homepage": "https://ispa.io"
+        }
+    ]
+}

@@ -1,0 +1,61 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * iSPA CMS command line: short names for the development and maintenance commands.
+ *
+ *   ./ispa start    -> php artisan cms:dev
+ *   ./ispa build    -> php artisan cms:build
+ *   ./ispa upgrade  -> php artisan cms:core-upgrade
+ *
+ * Extra arguments are passed through (`./ispa build --admin`). On Windows run `php ispa ...`.
+ */
+
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Console\Output\ConsoleOutput;
+
+define('LARAVEL_START', microtime(true));
+
+require __DIR__.'/vendor/autoload.php';
+
+$commands = [
+    'start' => ['cms:dev', 'Run the PHP server, site Vite and admin Vite together (--port, --admin-port)'],
+    'build' => ['cms:build', 'Build the site assets and the admin on this machine (--site, --admin)'],
+    'upgrade' => ['cms:core-upgrade', 'Upgrade the iSPA CMS core (--to, --check, --dry-run)'],
+];
+
+$out = new ConsoleOutput();
+$name = $argv[1] ?? null;
+
+if ($name === null || ! isset($commands[$name])) {
+    if ($name !== null) {
+        $out->writeln("<error>Unknown command \"{$name}\".</error>");
+    }
+    $out->writeln('Usage: ispa <command> [options]');
+    $out->writeln('');
+    foreach ($commands as $short => [, $description]) {
+        $out->writeln(sprintf('  <info>%-9s</info> %s', $short, $description));
+    }
+
+    exit($name === null ? 0 : 1);
+}
+
+// Upgrade runner fast path (cron, every minute): write the heartbeat and boot Laravel only when the admin left a
+// request. No Laravel code runs before this point.
+if ($name === 'upgrade' && in_array('--run-requested', array_slice($argv, 2), true)
+    && (new Cms\Core\Services\CoreUpgrade\CoreRunnerTick(__DIR__))->preBoot() !== 'run') {
+    exit(0);
+}
+
+$app = require_once __DIR__.'/bootstrap/app.php';
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+[$artisanName] = $commands[$name];
+
+if (! array_key_exists($artisanName, $kernel->all())) {
+    $out->writeln("<error>{$name} is not available in this version.</error>");
+    exit(1);
+}
+
+$status = $app->handleCommand(new ArgvInput([$argv[0], $artisanName, ...array_slice($argv, 2)]));
+
+exit($status);

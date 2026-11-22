@@ -1,0 +1,29 @@
+packages:
+  - '.'
+  - admin
+
+allowBuilds:
+  '@parcel/watcher': false
+  core-js: true
+  msw: true
+  vue-demi: true
+
+overrides:
+  # Newer rolldown binaries crash (Illegal instruction) on older server CPUs; scoped to the admin's Vite so the site's
+  # own Vite keeps its rolldown in the release workspace.
+  'vite@8.0.16>rolldown': 1.0.3
+  vue: 3.5.35
+  '@vue/compiler-core': 3.5.35
+  '@vue/compiler-dom': 3.5.35
+  '@vue/compiler-sfc': 3.5.35
+  '@vue/compiler-ssr': 3.5.35
+  '@vue/reactivity': 3.5.35
+  '@vue/runtime-core': 3.5.35
+  '@vue/runtime-dom': 3.5.35
+  '@vue/server-renderer': 3.5.35
+  '@vue/shared': 3.5.35
+
+onlyBuiltDependencies:
+  - core-js
+  - msw
+  - vue-demi

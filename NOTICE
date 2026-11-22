@@ -1,0 +1,996 @@
+iSPA CMS
+Copyright (c) 2025 iSPA Team - team@ispa.io.
+
+Licensed under the GNU Affero General Public License v3.0 only (AGPL-3.0-only); see LICENSE.
+
+This product includes third-party software under the licences below.
+Source: composer.lock (runtime packages), the pnpm-lock.yaml of the site and of the admin, and installed package metadata. An UNKNOWN licence must be checked against the package before a release.
+
+- aws/aws-crt-php v1.2.7 - Apache-2.0
+- aws/aws-sdk-php 3.388.4 - Apache-2.0
+- bacon/bacon-qr-code 2.0.8 - BSD-2-Clause
+- barryvdh/laravel-dompdf v3.1.2 - MIT
+- brick/math 0.18.0 - MIT
+- carbonphp/carbon-doctrine-types 3.2.1 - MIT
+- composer/ca-bundle 1.5.12 - MIT
+- composer/pcre 3.4.0 - MIT
+- dasprid/enum 1.0.7 - BSD-2-Clause
+- dflydev/dot-access-data v3.0.3 - MIT
+- doctrine/deprecations 1.2.0 - MIT
+- doctrine/inflector 2.1.1 - MIT
+- doctrine/lexer 3.0.3 - MIT
+- dompdf/dompdf v3.1.6 - LGPL-2.1
+- dompdf/php-font-lib 1.0.2 - LGPL-2.1-or-later
+- dompdf/php-svg-lib 1.0.2 - LGPL-3.0-or-later
+- dragonmantank/cron-expression v3.6.1 - MIT
+- egulias/email-validator 4.0.4 - MIT
+- firebase/php-jwt v7.1.0 - BSD-3-Clause
+- fruitcake/php-cors v1.4.0 - MIT
+- geoip2/geoip2 v3.3.0 - Apache-2.0
+- graham-campbell/result-type v1.2.0 - MIT
+- guzzlehttp/guzzle 7.15.5 - MIT
+- guzzlehttp/promises 2.6.0 - MIT
+- guzzlehttp/psr7 2.13.4 - MIT
+- guzzlehttp/uri-template v2.0.1 - MIT
+- intervention/gif 4.2.4 - MIT
+- intervention/image 3.11.8 - MIT
+- jaybizzle/crawler-detect v1.4.0 - MIT
+- jenssegers/agent v2.6.4 - MIT
+- laravel/framework v13.43.0 - MIT
+- laravel/passkeys v0.2.1 - MIT
+- laravel/prompts v0.3.27 - MIT
+- laravel/sail v1.63.0 - MIT
+- laravel/sanctum v4.3.2 - MIT
+- laravel/sentinel v1.1.0 - MIT
+- laravel/serializable-closure v2.2.0 - MIT
+- laravel/socialite v5.28.0 - MIT
+- laravel/telescope v5.20.0 - MIT
+- laravel/tinker v3.0.2 - MIT
+- league/commonmark 2.10.7 - BSD-3-Clause
+- league/config v1.2.0 - BSD-3-Clause
+- league/flysystem 3.36.0 - MIT
+- league/flysystem-aws-s3-v3 3.35.2 - MIT
+- league/flysystem-local 3.35.3 - MIT
+- league/flysystem-sftp-v3 3.36.0 - MIT
+- league/flysystem-webdav 3.31.0 - MIT
+- league/mime-type-detection 1.17.0 - MIT
+- league/oauth1-client v1.11.0 - MIT
+- league/uri 7.10.0 - MIT
+- league/uri-interfaces 7.10.0 - MIT
+- maennchen/zipstream-php 3.2.2 - MIT
+- markbaker/complex 3.0.2 - MIT
+- markbaker/matrix 3.0.1 - MIT
+- masterminds/html5 2.12.0 - MIT
+- maxmind-db/reader v1.13.1 - Apache-2.0
+- maxmind/web-service-common v0.11.1 - Apache-2.0
+- mobiledetect/mobiledetectlib 2.8.47 - MIT
+- monolog/monolog 3.13.0 - MIT
+- mtdowling/jmespath.php 2.9.2 - MIT
+- nesbot/carbon 3.11.4 - MIT
+- nette/schema v1.4.0 - BSD-3-Clause, GPL-2.0-only, GPL-3.0-only
+- nette/utils v4.1.6 - BSD-3-Clause, GPL-2.0-only, GPL-3.0-only
+- nikic/php-parser v5.9.0 - BSD-3-Clause
+- nunomaduro/termwind v2.4.1 - MIT
+- nwidart/laravel-modules v13.0.0 - MIT
+- openai-php/client v0.19.2 - MIT
+- openai-php/laravel v0.19.1 - MIT
+- paragonie/constant_time_encoding v3.1.4 - MIT
+- paragonie/random_compat v9.99.100 - MIT
+- php-http/discovery 1.20.0 - MIT
+- php-http/multipart-stream-builder 1.4.2 - MIT
+- php-webdriver/webdriver 1.16.0 - MIT
+- phpdocumentor/reflection-common 2.2.1 - MIT
+- phpdocumentor/reflection-docblock 6.0.3 - MIT
+- phpdocumentor/type-resolver 2.1.0 - MIT
+- phpoffice/phpspreadsheet 5.11.0 - MIT
+- phpoffice/wmf 0.2.1 - MIT
+- phpoption/phpoption 1.10.0 - Apache-2.0
+- phpseclib/phpseclib 3.0.58 - MIT
+- phpstan/phpdoc-parser 2.4.1 - MIT
+- predis/predis v2.4.1 - MIT
+- psr/cache 3.0.0 - MIT
+- psr/clock 1.0.0 - MIT
+- psr/container 2.0.2 - MIT
+- psr/event-dispatcher 1.0.0 - MIT
+- psr/http-client 1.0.3 - MIT
+- psr/http-factory 1.1.0 - MIT
+- psr/http-message 2.0 - MIT
+- psr/log 3.0.2 - MIT
+- psr/simple-cache 3.0.0 - MIT
+- psy/psysh v0.12.24 - MIT
+- ralouphie/getallheaders 3.0.3 - MIT
+- ramsey/collection 2.1.1 - MIT
+- ramsey/uuid 4.10.0 - MIT
+- sabberworm/php-css-parser v9.5.0 - MIT
+- sabre/dav 4.7.1 - BSD-3-Clause
+- sabre/event 5.1.9 - BSD-3-Clause
+- sabre/http 5.1.13 - BSD-3-Clause
+- sabre/uri 2.3.4 - BSD-3-Clause
+- sabre/vobject 4.6.1 - BSD-3-Clause
+- sabre/xml 2.2.11 - BSD-3-Clause
+- simplesoftwareio/simple-qrcode 4.2.0 - MIT
+- spatie/backtrace 1.8.2 - MIT
+- spatie/error-solutions 1.1.3 - MIT
+- spatie/flare-client-php 1.11.1 - MIT
+- spatie/ignition 1.16.0 - MIT
+- spatie/laravel-ignition 2.12.0 - MIT
+- spomky-labs/cbor-php 3.3.0 - MIT
+- spomky-labs/pki-framework 1.6.0 - MIT
+- stevebauman/location v7.6.3 - MIT
+- stripe/stripe-php v12.8.0 - MIT
+- symfony/cache v7.4.23 - MIT
+- symfony/cache-contracts v3.8.1 - MIT
+- symfony/clock v7.4.21 - MIT
+- symfony/console v7.4.23 - MIT
+- symfony/css-selector v7.4.22 - MIT
+- symfony/deprecation-contracts v3.8.1 - MIT
+- symfony/dom-crawler v7.4.22 - MIT
+- symfony/error-handler v7.4.22 - MIT
+- symfony/event-dispatcher v7.4.17 - MIT
+- symfony/event-dispatcher-contracts v3.8.1 - MIT
+- symfony/expression-language v7.4.21 - MIT
+- symfony/filesystem v7.4.23 - MIT
+- symfony/finder v7.4.23 - MIT
+- symfony/http-foundation v7.4.23 - MIT
+- symfony/http-kernel v7.4.23 - MIT
+- symfony/mailer v7.4.22 - MIT
+- symfony/mime v7.4.22 - MIT
+- symfony/polyfill-ctype v1.37.0 - MIT
+- symfony/polyfill-intl-grapheme v1.43.3 - MIT
+- symfony/polyfill-intl-idn v1.43.0 - MIT
+- symfony/polyfill-intl-normalizer v1.43.0 - MIT
+- symfony/polyfill-mbstring v1.43.3 - MIT
+- symfony/polyfill-php80 v1.43.0 - MIT
+- symfony/polyfill-php83 v1.43.0 - MIT
+- symfony/polyfill-php84 v1.43.0 - MIT
+- symfony/polyfill-php85 v1.44.0 - MIT
+- symfony/polyfill-php86 v1.43.0 - MIT
+- symfony/polyfill-uuid v1.43.0 - MIT
+- symfony/process v7.4.22 - MIT
+- symfony/property-access v7.4.23 - MIT
+- symfony/property-info v7.4.23 - MIT
+- symfony/routing v7.4.23 - MIT
+- symfony/serializer v7.4.23 - MIT
+- symfony/service-contracts v3.8.1 - MIT
+- symfony/string v7.4.22 - MIT
+- symfony/translation v7.4.23 - MIT
+- symfony/translation-contracts v3.8.1 - MIT
+- symfony/type-info v7.4.23 - MIT
+- symfony/uid v7.4.21 - MIT
+- symfony/var-dumper v7.4.22 - MIT
+- symfony/var-exporter v7.4.22 - MIT
+- symfony/yaml v7.4.23 - MIT
+- tijsverkoyen/css-to-inline-styles v2.4.0 - BSD-3-Clause
+- vlucas/phpdotenv v5.8.0 - BSD-3-Clause
+- voku/portable-ascii 2.1.1 - MIT
+- web-auth/cose-lib 4.6.0 - MIT
+- web-auth/webauthn-lib 5.3.5 - MIT
+- webmozart/assert 2.5.1 - MIT
+- wikimedia/composer-merge-plugin v2.1.0 - MIT
+- @alloc/quick-lru 5.2.0 - MIT
+- @babel/helper-string-parser 7.29.11 - MIT
+- @babel/helper-validator-identifier 7.29.7 - MIT
+- @babel/parser 7.29.11 - MIT
+- @babel/types 7.29.11 - MIT
+- @bufbuild/protobuf 2.12.0 - (Apache-2.0 AND BSD-3-Clause)
+- @emnapi/core 1.10.0 - MIT
+- @emnapi/runtime 1.10.0 - MIT
+- @emnapi/wasi-threads 1.2.1 - MIT
+- @floating-ui/core 1.8.0 - MIT
+- @floating-ui/dom 1.8.0 - MIT
+- @floating-ui/utils 0.2.12 - MIT
+- @jridgewell/gen-mapping 0.3.13 - MIT
+- @jridgewell/remapping 2.3.5 - MIT
+- @jridgewell/resolve-uri 3.1.2 - MIT
+- @jridgewell/sourcemap-codec 1.5.5 - MIT
+- @jridgewell/trace-mapping 0.3.31 - MIT
+- @napi-rs/wasm-runtime 1.1.4 - MIT (checked by hand: npm registry)
+- @oxc-project/runtime 0.115.0 - MIT
+- @oxc-project/types 0.115.0 - MIT
+- @parcel/watcher 2.5.6 - MIT (checked by hand: npm registry)
+- @parcel/watcher-android-arm64 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-darwin-arm64 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-darwin-x64 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-freebsd-x64 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-linux-arm-glibc 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-linux-arm-musl 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-linux-arm64-glibc 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-linux-arm64-musl 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-linux-x64-glibc 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-linux-x64-musl 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-win32-arm64 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-win32-ia32 2.5.6 - MIT (same package family as @parcel/watcher)
+- @parcel/watcher-win32-x64 2.5.6 - MIT (same package family as @parcel/watcher)
+- @rolldown/binding-android-arm64 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-darwin-arm64 1.0.0-rc.9 - MIT
+- @rolldown/binding-darwin-x64 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-freebsd-x64 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-arm-gnueabihf 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-arm64-gnu 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-arm64-musl 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-ppc64-gnu 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-s390x-gnu 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-x64-gnu 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-x64-musl 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-openharmony-arm64 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-wasm32-wasi 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-win32-arm64-msvc 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-win32-x64-msvc 1.0.0-rc.9 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/pluginutils 1.0.0-rc.9 - MIT
+- @rolldown/pluginutils 1.0.1 - MIT
+- @tailwindcss/aspect-ratio 0.4.2 - MIT
+- @tailwindcss/container-queries 0.1.1 - MIT
+- @tailwindcss/forms 0.5.11 - MIT
+- @tailwindcss/node 4.2.4 - MIT
+- @tailwindcss/oxide 4.2.4 - MIT
+- @tailwindcss/oxide-android-arm64 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-darwin-arm64 4.2.4 - MIT
+- @tailwindcss/oxide-darwin-x64 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-freebsd-x64 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-arm-gnueabihf 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-arm64-gnu 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-arm64-musl 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-x64-gnu 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-x64-musl 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-wasm32-wasi 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-win32-arm64-msvc 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-win32-x64-msvc 4.2.4 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/postcss 4.2.4 - MIT
+- @tailwindcss/typography 0.5.19 - MIT
+- @tailwindcss/vite 4.2.4 - MIT
+- @tiptap/core 3.32.0 - MIT
+- @tiptap/extension-blockquote 3.32.0 - MIT
+- @tiptap/extension-bold 3.32.0 - MIT
+- @tiptap/extension-bubble-menu 3.32.0 - MIT
+- @tiptap/extension-bullet-list 3.32.0 - MIT
+- @tiptap/extension-code 3.32.0 - MIT
+- @tiptap/extension-code-block 3.32.0 - MIT
+- @tiptap/extension-document 3.32.0 - MIT
+- @tiptap/extension-dropcursor 3.32.0 - MIT
+- @tiptap/extension-floating-menu 3.32.0 - MIT
+- @tiptap/extension-gapcursor 3.32.0 - MIT
+- @tiptap/extension-hard-break 3.32.0 - MIT
+- @tiptap/extension-heading 3.32.0 - MIT
+- @tiptap/extension-horizontal-rule 3.32.0 - MIT
+- @tiptap/extension-italic 3.32.0 - MIT
+- @tiptap/extension-link 3.32.0 - MIT
+- @tiptap/extension-list 3.32.0 - MIT
+- @tiptap/extension-list-item 3.32.0 - MIT
+- @tiptap/extension-list-keymap 3.32.0 - MIT
+- @tiptap/extension-ordered-list 3.32.0 - MIT
+- @tiptap/extension-paragraph 3.32.0 - MIT
+- @tiptap/extension-strike 3.32.0 - MIT
+- @tiptap/extension-text 3.32.0 - MIT
+- @tiptap/extension-underline 3.32.0 - MIT
+- @tiptap/extensions 3.32.0 - MIT
+- @tiptap/pm 3.32.0 - MIT
+- @tiptap/starter-kit 3.32.0 - MIT
+- @tiptap/vue-3 3.32.0 - MIT
+- @tybys/wasm-util 0.10.1 - MIT (checked by hand: npm registry)
+- @vitejs/plugin-vue 6.0.10 - MIT
+- @vue/compiler-core 3.5.35 - MIT
+- @vue/compiler-dom 3.5.35 - MIT
+- @vue/compiler-sfc 3.5.35 - MIT
+- @vue/compiler-ssr 3.5.35 - MIT
+- @vue/reactivity 3.5.35 - MIT
+- @vue/runtime-core 3.5.35 - MIT
+- @vue/runtime-dom 3.5.35 - MIT
+- @vue/server-renderer 3.5.35 - MIT
+- @vue/shared 3.5.35 - MIT
+- ansi-regex 5.0.1 - MIT
+- ansi-styles 4.3.0 - MIT
+- asynckit 0.4.0 - MIT
+- autoprefixer 10.5.0 - MIT
+- axios 1.16.0 - MIT
+- baseline-browser-mapping 2.10.25 - Apache-2.0
+- browserslist 4.28.2 - MIT
+- call-bind-apply-helpers 1.0.2 - MIT
+- caniuse-lite 1.0.30001791 - CC-BY-4.0
+- chalk 4.1.2 - MIT
+- chokidar 4.0.3 - MIT (checked by hand: npm registry)
+- cliui 8.0.1 - ISC
+- color-convert 2.0.1 - MIT
+- color-name 1.1.4 - MIT
+- colorjs.io 0.5.2 - MIT
+- combined-stream 1.0.8 - MIT
+- concurrently 9.2.1 - MIT
+- cssesc 3.0.0 - MIT
+- csstype 3.2.3 - MIT
+- delayed-stream 1.0.0 - MIT
+- detect-libc 2.1.2 - Apache-2.0
+- dunder-proto 1.0.1 - MIT
+- electron-to-chromium 1.5.349 - ISC
+- emoji-regex 8.0.0 - MIT
+- enhanced-resolve 5.21.0 - MIT
+- entities 7.0.1 - BSD-2-Clause
+- es-define-property 1.0.1 - MIT
+- es-errors 1.3.0 - MIT
+- es-object-atoms 1.1.1 - MIT
+- es-set-tostringtag 2.1.0 - MIT
+- escalade 3.2.0 - MIT
+- estree-walker 2.0.2 - MIT
+- fdir 6.5.0 - MIT
+- follow-redirects 1.16.0 - MIT
+- form-data 4.0.5 - MIT
+- fraction.js 5.3.4 - MIT
+- fsevents 2.3.2 - MIT
+- fsevents 2.3.3 - MIT
+- function-bind 1.1.2 - MIT
+- get-caller-file 2.0.5 - ISC
+- get-intrinsic 1.3.0 - MIT
+- get-proto 1.0.1 - MIT
+- gopd 1.2.0 - MIT
+- graceful-fs 4.2.11 - ISC
+- has-flag 4.0.0 - MIT
+- has-symbols 1.1.0 - MIT
+- has-tostringtag 1.0.2 - MIT
+- hasown 2.0.3 - MIT
+- immutable 5.1.5 - MIT
+- is-extglob 2.1.1 - MIT
+- is-fullwidth-code-point 3.0.0 - MIT
+- is-glob 4.0.3 - MIT
+- jiti 2.6.1 - MIT
+- js-cookie 3.0.5 - MIT
+- laravel-vite-plugin 2.1.0 - MIT
+- lightningcss 1.32.0 - MPL-2.0
+- lightningcss-android-arm64 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-darwin-arm64 1.32.0 - MPL-2.0
+- lightningcss-darwin-x64 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-freebsd-x64 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-linux-arm-gnueabihf 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-linux-arm64-gnu 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-linux-arm64-musl 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-linux-x64-gnu 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-linux-x64-musl 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-win32-arm64-msvc 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- lightningcss-win32-x64-msvc 1.32.0 - MPL-2.0 (same package family as lightningcss)
+- linkifyjs 4.4.0 - MIT
+- lodash 4.18.1 - MIT
+- magic-string 0.30.21 - MIT
+- math-intrinsics 1.1.0 - MIT
+- mime-db 1.52.0 - MIT
+- mime-types 2.1.35 - MIT
+- mini-svg-data-uri 1.4.4 - MIT
+- nanoid 3.3.12 - MIT
+- nanoid 3.3.20 - MIT
+- node-addon-api 7.1.1 - MIT (checked by hand: npm registry)
+- node-releases 2.0.38 - MIT
+- nprogress 0.2.0 - MIT
+- orderedmap 2.1.1 - MIT
+- picocolors 1.1.1 - ISC
+- picomatch 2.3.2 - MIT
+- picomatch 4.0.4 - MIT
+- playwright 1.60.0 - Apache-2.0
+- playwright-core 1.60.0 - Apache-2.0
+- postcss 8.5.13 - MIT
+- postcss 8.5.31 - MIT
+- postcss-selector-parser 6.0.10 - MIT
+- postcss-value-parser 4.2.0 - MIT
+- prettier 3.8.3 - MIT
+- process 0.11.10 - MIT
+- prosemirror-changeset 2.4.4 - MIT
+- prosemirror-commands 1.7.2 - MIT
+- prosemirror-dropcursor 1.8.4 - MIT
+- prosemirror-gapcursor 1.4.1 - MIT
+- prosemirror-history 1.5.1 - MIT
+- prosemirror-inputrules 1.5.1 - MIT
+- prosemirror-keymap 1.2.3 - MIT
+- prosemirror-model 1.25.12 - MIT
+- prosemirror-schema-list 1.5.1 - MIT
+- prosemirror-state 1.4.4 - MIT
+- prosemirror-tables 1.8.5 - MIT
+- prosemirror-transform 1.12.4 - MIT
+- prosemirror-view 1.42.8 - MIT
+- proxy-from-env 2.1.0 - MIT
+- readdirp 4.1.2 - MIT (checked by hand: npm registry)
+- require-directory 2.1.1 - MIT
+- rolldown 1.0.0-rc.9 - MIT
+- rope-sequence 1.3.4 - MIT
+- rxjs 7.8.2 - Apache-2.0
+- sass 1.99.0 - MIT (checked by hand: npm registry)
+- sass-embedded 1.99.0 - MIT
+- sass-embedded-all-unknown 1.99.0 - MIT (checked by hand: npm registry)
+- sass-embedded-android-arm 1.99.0 - MIT (same package family as sass)
+- sass-embedded-android-arm64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-android-riscv64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-android-x64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-darwin-arm64 1.99.0 - MIT
+- sass-embedded-darwin-x64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-arm 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-arm64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-musl-arm 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-musl-arm64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-musl-riscv64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-musl-x64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-riscv64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-linux-x64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-unknown-all 1.99.0 - MIT (checked by hand: npm registry)
+- sass-embedded-win32-arm64 1.99.0 - MIT (same package family as sass)
+- sass-embedded-win32-x64 1.99.0 - MIT (same package family as sass)
+- shell-quote 1.8.3 - MIT
+- source-map-js 1.2.1 - BSD-3-Clause
+- source-map-js 1.2.2 - BSD-3-Clause
+- string-width 4.2.3 - MIT
+- strip-ansi 6.0.1 - MIT
+- supports-color 7.2.0 - MIT
+- supports-color 8.1.1 - MIT
+- sync-child-process 1.0.2 - MIT
+- sync-message-port 1.2.0 - MIT
+- tailwindcss 4.2.4 - MIT
+- tapable 2.3.3 - MIT
+- tinyglobby 0.2.16 - MIT
+- tree-kill 1.2.2 - MIT
+- tslib 2.8.1 - 0BSD
+- update-browserslist-db 1.2.3 - MIT
+- util-deprecate 1.0.2 - MIT
+- varint 6.0.0 - MIT
+- vite 8.0.0 - MIT
+- vite-plugin-full-reload 1.2.0 - MIT
+- vue 3.5.35 - MIT
+- w3c-keyname 2.2.8 - MIT
+- wrap-ansi 7.0.0 - MIT
+- y18n 5.0.8 - ISC
+- yaml 2.7.0 - ISC
+- yargs 17.7.2 - MIT
+- yargs-parser 21.1.1 - ISC
+- @acemir/cssom 0.9.31 - MIT
+- @adobe/css-tools 4.5.0 - MIT
+- @ant-design/colors 6.0.0 - MIT
+- @ant-design/icons-svg 4.4.2 - MIT
+- @ant-design/icons-vue 7.0.1 - MIT
+- @asamuzakjp/css-color 5.1.11 - MIT
+- @asamuzakjp/dom-selector 6.8.1 - MIT
+- @asamuzakjp/generational-cache 1.0.1 - MIT
+- @asamuzakjp/nwsapi 2.3.9 - MIT
+- @babel/code-frame 7.29.7 - MIT
+- @babel/generator 8.0.0-rc.6 - MIT
+- @babel/helper-string-parser 7.29.7 - MIT
+- @babel/helper-string-parser 8.0.0-rc.6 - MIT
+- @babel/helper-validator-identifier 8.0.0-rc.6 - MIT
+- @babel/parser 7.29.7 - MIT
+- @babel/parser 8.0.0-rc.6 - MIT
+- @babel/runtime 7.29.7 - MIT
+- @babel/types 7.29.7 - MIT
+- @babel/types 8.0.0-rc.6 - MIT
+- @bcoe/v8-coverage 1.0.2 - MIT
+- @bramus/specificity 2.4.2 - MIT
+- @codemirror/autocomplete 6.20.3 - MIT
+- @codemirror/commands 6.10.3 - MIT
+- @codemirror/language 6.12.3 - MIT
+- @codemirror/lint 6.9.7 - MIT
+- @codemirror/search 6.7.0 - MIT
+- @codemirror/state 6.6.0 - MIT
+- @codemirror/view 6.43.1 - MIT
+- @csstools/color-helpers 6.0.2 - MIT-0
+- @csstools/css-calc 3.2.1 - MIT
+- @csstools/css-color-parser 4.1.1 - MIT
+- @csstools/css-parser-algorithms 4.0.0 - MIT
+- @csstools/css-syntax-patches-for-csstree 1.1.5 - MIT-0
+- @csstools/css-tokenizer 4.0.0 - MIT
+- @ctrl/tinycolor 3.6.1 - MIT
+- @emotion/hash 0.9.2 - MIT
+- @emotion/unitless 0.8.1 - MIT
+- @eslint-community/eslint-utils 4.9.1 - MIT
+- @eslint-community/regexpp 4.12.2 - MIT
+- @eslint/config-array 0.23.5 - Apache-2.0
+- @eslint/config-helpers 0.6.0 - Apache-2.0
+- @eslint/core 1.2.1 - Apache-2.0
+- @eslint/object-schema 3.0.5 - Apache-2.0
+- @eslint/plugin-kit 0.7.2 - Apache-2.0
+- @exodus/bytes 1.15.1 - MIT
+- @floating-ui/core 1.7.5 - MIT
+- @floating-ui/dom 1.7.6 - MIT
+- @floating-ui/utils 0.2.11 - MIT
+- @googlemaps/markerclustererplus 1.2.10 - Apache-2.0
+- @headlessui/vue 1.7.23 - MIT
+- @heroicons/vue 2.2.0 - MIT
+- @humanfs/core 0.19.2 - Apache-2.0
+- @humanfs/node 0.16.8 - Apache-2.0
+- @humanfs/types 0.15.0 - Apache-2.0
+- @humanwhocodes/module-importer 1.0.1 - Apache-2.0
+- @humanwhocodes/retry 0.4.3 - Apache-2.0
+- @inquirer/ansi 2.0.7 - MIT
+- @inquirer/confirm 6.1.1 - MIT
+- @inquirer/core 11.2.1 - MIT
+- @inquirer/figures 2.0.7 - MIT
+- @inquirer/type 4.0.7 - MIT
+- @intlify/core-base 11.4.5 - MIT
+- @intlify/devtools-types 11.4.5 - MIT
+- @intlify/message-compiler 11.4.5 - MIT
+- @intlify/shared 11.4.5 - MIT
+- @isaacs/cliui 8.0.2 - ISC
+- @jamescoyle/vue-icon 0.1.2 - MIT
+- @lezer/common 1.5.2 - MIT
+- @lezer/highlight 1.2.3 - MIT
+- @lezer/lr 1.4.10 - MIT
+- @marijn/find-cluster-break 1.0.2 - MIT
+- @mdi/js 7.4.47 - Apache-2.0
+- @mswjs/interceptors 0.41.9 - MIT
+- @one-ini/wasm 0.1.1 - MIT
+- @open-draft/deferred-promise 2.2.0 - MIT
+- @open-draft/deferred-promise 3.0.0 - MIT
+- @open-draft/logger 0.3.0 - MIT
+- @open-draft/until 2.1.0 - MIT
+- @oxc-project/types 0.133.0 - MIT
+- @pkgjs/parseargs 0.11.0 - MIT
+- @pkgr/core 0.3.6 - MIT
+- @playwright/test 1.60.0 - Apache-2.0
+- @polka/url 1.0.0-next.29 - MIT
+- @popperjs/core 2.11.8 - MIT
+- @rolldown/binding-android-arm64 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-darwin-arm64 1.0.3 - MIT
+- @rolldown/binding-darwin-x64 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-freebsd-x64 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-arm-gnueabihf 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-arm64-gnu 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-arm64-musl 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-ppc64-gnu 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-s390x-gnu 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-x64-gnu 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-linux-x64-musl 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-openharmony-arm64 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-wasm32-wasi 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-win32-arm64-msvc 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @rolldown/binding-win32-x64-msvc 1.0.3 - MIT (same package family as @rolldown/binding-darwin-arm64)
+- @simonwep/pickr 1.8.2 - MIT
+- @standard-schema/spec 1.1.0 - MIT
+- @tailwindcss/line-clamp 0.4.4 - MIT
+- @tailwindcss/node 4.3.0 - MIT
+- @tailwindcss/oxide 4.3.0 - MIT
+- @tailwindcss/oxide-android-arm64 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-darwin-arm64 4.3.0 - MIT
+- @tailwindcss/oxide-darwin-x64 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-freebsd-x64 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-arm-gnueabihf 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-arm64-gnu 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-arm64-musl 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-x64-gnu 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-linux-x64-musl 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-wasm32-wasi 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-win32-arm64-msvc 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/oxide-win32-x64-msvc 4.3.0 - MIT (same package family as @tailwindcss/oxide)
+- @tailwindcss/postcss 4.3.0 - MIT
+- @tailwindcss/typography 0.5.20 - MIT
+- @tanstack/match-sorter-utils 8.19.4 - MIT
+- @tanstack/query-core 5.101.0 - MIT
+- @tanstack/virtual-core 3.17.0 - MIT
+- @tanstack/vue-query 5.101.0 - MIT
+- @tanstack/vue-virtual 3.13.28 - MIT
+- @testing-library/dom 9.3.4 - MIT
+- @testing-library/jest-dom 6.9.1 - MIT
+- @testing-library/user-event 14.6.1 - MIT
+- @testing-library/vue 8.1.0 - MIT
+- @tiptap/core 3.26.0 - MIT
+- @tiptap/extension-blockquote 3.26.0 - MIT
+- @tiptap/extension-bold 3.26.0 - MIT
+- @tiptap/extension-bubble-menu 3.26.0 - MIT
+- @tiptap/extension-bullet-list 3.26.0 - MIT
+- @tiptap/extension-code 3.26.0 - MIT
+- @tiptap/extension-code-block 3.26.0 - MIT
+- @tiptap/extension-color 3.26.0 - MIT
+- @tiptap/extension-document 3.26.0 - MIT
+- @tiptap/extension-dropcursor 3.26.0 - MIT
+- @tiptap/extension-floating-menu 3.26.0 - MIT
+- @tiptap/extension-font-family 3.26.0 - MIT
+- @tiptap/extension-gapcursor 3.26.0 - MIT
+- @tiptap/extension-hard-break 3.26.0 - MIT
+- @tiptap/extension-heading 3.26.0 - MIT
+- @tiptap/extension-highlight 3.26.0 - MIT
+- @tiptap/extension-horizontal-rule 3.26.0 - MIT
+- @tiptap/extension-italic 3.26.0 - MIT
+- @tiptap/extension-link 3.26.0 - MIT
+- @tiptap/extension-list 3.26.0 - MIT
+- @tiptap/extension-list-item 3.26.0 - MIT
+- @tiptap/extension-list-keymap 3.26.0 - MIT
+- @tiptap/extension-ordered-list 3.26.0 - MIT
+- @tiptap/extension-paragraph 3.26.0 - MIT
+- @tiptap/extension-placeholder 3.26.0 - MIT
+- @tiptap/extension-strike 3.26.0 - MIT
+- @tiptap/extension-subscript 3.26.0 - MIT
+- @tiptap/extension-superscript 3.26.0 - MIT
+- @tiptap/extension-table 3.26.0 - MIT
+- @tiptap/extension-table-cell 3.26.0 - MIT
+- @tiptap/extension-table-header 3.26.0 - MIT
+- @tiptap/extension-table-row 3.26.0 - MIT
+- @tiptap/extension-text 3.26.0 - MIT
+- @tiptap/extension-text-align 3.26.0 - MIT
+- @tiptap/extension-text-style 3.26.0 - MIT
+- @tiptap/extension-underline 3.26.0 - MIT
+- @tiptap/extensions 3.26.0 - MIT
+- @tiptap/pm 3.26.0 - MIT
+- @tiptap/starter-kit 3.26.0 - MIT
+- @tiptap/vue-3 3.26.0 - MIT
+- @tybys/wasm-util 0.10.2 - MIT (checked by hand: npm registry)
+- @types/aria-query 5.0.4 - MIT
+- @types/chai 5.2.3 - MIT
+- @types/deep-eql 4.0.2 - MIT
+- @types/esrecurse 4.3.1 - MIT
+- @types/estree 1.0.9 - MIT
+- @types/jsesc 2.5.1 - MIT
+- @types/json-schema 7.0.15 - MIT
+- @types/lodash 4.17.24 - MIT
+- @types/lodash-es 4.17.12 - MIT
+- @types/node 25.9.2 - MIT
+- @types/set-cookie-parser 2.4.10 - MIT
+- @types/statuses 2.0.6 - MIT
+- @types/web-bluetooth 0.0.20 - MIT
+- @types/web-bluetooth 0.0.21 - MIT
+- @typescript-eslint/eslint-plugin 8.61.0 - MIT
+- @typescript-eslint/parser 8.61.0 - MIT
+- @typescript-eslint/project-service 8.61.0 - MIT
+- @typescript-eslint/scope-manager 8.61.0 - MIT
+- @typescript-eslint/tsconfig-utils 8.61.0 - MIT
+- @typescript-eslint/type-utils 8.61.0 - MIT
+- @typescript-eslint/types 8.61.0 - MIT
+- @typescript-eslint/typescript-estree 8.61.0 - MIT
+- @typescript-eslint/utils 8.61.0 - MIT
+- @typescript-eslint/visitor-keys 8.61.0 - MIT
+- @vitejs/plugin-vue 6.0.7 - MIT
+- @vitest/coverage-v8 4.1.8 - MIT
+- @vitest/expect 4.1.8 - MIT
+- @vitest/mocker 4.1.8 - MIT
+- @vitest/pretty-format 4.1.8 - MIT
+- @vitest/runner 4.1.8 - MIT
+- @vitest/snapshot 4.1.8 - MIT
+- @vitest/spy 4.1.8 - MIT
+- @vitest/ui 4.1.8 - MIT
+- @vitest/utils 4.1.8 - MIT
+- @vue-flow/background 1.3.2 - MIT
+- @vue-flow/core 1.48.2 - MIT
+- @vue-macros/common 3.1.2 - MIT
+- @vue/devtools-api 6.6.4 - MIT
+- @vue/devtools-api 8.1.2 - MIT
+- @vue/devtools-kit 8.1.2 - MIT
+- @vue/devtools-shared 8.1.2 - MIT
+- @vue/test-utils 2.4.11 - MIT
+- @vueuse/core 10.11.1 - MIT
+- @vueuse/core 14.3.0 - MIT
+- @vueuse/integrations 14.3.0 - MIT
+- @vueuse/metadata 10.11.1 - MIT
+- @vueuse/metadata 14.3.0 - MIT
+- @vueuse/shared 10.11.1 - MIT
+- @vueuse/shared 14.3.0 - MIT
+- abbrev 2.0.0 - ISC
+- acorn 8.16.0 - MIT
+- acorn-jsx 5.3.2 - MIT
+- agent-base 6.0.2 - MIT
+- agent-base 7.1.4 - MIT
+- ajv 6.15.0 - MIT
+- ansi-regex 6.2.2 - MIT
+- ansi-styles 5.2.0 - MIT
+- ansi-styles 6.2.3 - MIT
+- ant-design-vue 4.2.6 - MIT
+- apexcharts 5.14.0 - SEE LICENSE IN LICENSE
+- aria-query 5.1.3 - Apache-2.0
+- aria-query 5.3.2 - Apache-2.0
+- array-buffer-byte-length 1.0.2 - MIT
+- array-tree-filter 2.1.0 - MIT
+- assertion-error 2.0.1 - MIT
+- ast-kit 2.2.0 - MIT
+- ast-v8-to-istanbul 1.0.3 - MIT
+- ast-walker-scope 0.9.0 - MIT
+- async-validator 3.5.2 - MIT
+- async-validator 4.2.5 - MIT
+- available-typed-arrays 1.0.7 - MIT
+- axios 1.17.0 - MIT
+- balanced-match 1.0.2 - MIT
+- balanced-match 4.0.4 - MIT
+- baseline-browser-mapping 2.10.35 - Apache-2.0
+- bidi-js 1.0.3 - MIT
+- birpc 2.9.0 - MIT
+- boolbase 1.0.0 - ISC
+- brace-expansion 2.1.1 - MIT
+- brace-expansion 5.0.6 - MIT
+- call-bind 1.0.9 - MIT
+- call-bound 1.0.4 - MIT
+- caniuse-lite 1.0.30001797 - CC-BY-4.0
+- chai 6.2.2 - MIT
+- chokidar 5.0.0 - MIT
+- cli-width 4.1.0 - ISC
+- clsx 2.1.1 - MIT
+- codemirror 6.0.2 - MIT
+- commander 10.0.1 - MIT
+- compute-scroll-into-view 1.0.20 - MIT
+- confbox 0.1.8 - MIT
+- confbox 0.2.4 - MIT
+- config-chain 1.1.13 - MIT
+- convert-source-map 2.0.0 - MIT
+- cookie 1.1.1 - MIT
+- core-js 3.49.0 - MIT
+- crelt 1.0.6 - MIT
+- cross-spawn 7.0.6 - MIT
+- css-tree 3.2.1 - MIT
+- css.escape 1.5.1 - MIT
+- cssstyle 6.2.0 - MIT
+- d3-color 3.1.0 - ISC
+- d3-dispatch 3.0.1 - ISC
+- d3-drag 3.0.0 - ISC
+- d3-ease 3.0.1 - BSD-3-Clause
+- d3-interpolate 3.0.1 - ISC
+- d3-selection 3.0.0 - ISC
+- d3-timer 3.0.1 - ISC
+- d3-transition 3.0.1 - ISC
+- d3-zoom 3.0.0 - ISC
+- data-urls 7.0.0 - MIT
+- dayjs 1.11.21 - MIT
+- debug 4.4.3 - MIT
+- decimal.js 10.6.0 - MIT
+- deep-equal 2.2.3 - MIT
+- deep-is 0.1.4 - MIT
+- define-data-property 1.1.4 - MIT
+- define-properties 1.2.1 - MIT
+- dom-accessibility-api 0.5.16 - MIT
+- dom-accessibility-api 0.6.3 - MIT
+- dom-align 1.12.4 - MIT
+- dom-scroll-into-view 2.0.1 - MIT
+- eastasianwidth 0.2.0 - MIT
+- editorconfig 1.0.7 - MIT
+- electron-to-chromium 1.5.371 - ISC
+- emoji-regex 9.2.2 - MIT
+- enhanced-resolve 5.23.0 - MIT
+- entities 8.0.0 - BSD-2-Clause
+- es-get-iterator 1.1.3 - MIT
+- es-module-lexer 2.1.0 - MIT
+- es-object-atoms 1.1.2 - MIT
+- escape-string-regexp 4.0.0 - MIT
+- eslint 10.4.1 - MIT
+- eslint-config-prettier 10.1.8 - MIT
+- eslint-plugin-prettier 5.5.6 - MIT
+- eslint-plugin-vue 10.9.2 - MIT
+- eslint-scope 7.2.2 - BSD-2-Clause
+- eslint-scope 9.1.2 - BSD-2-Clause
+- eslint-visitor-keys 3.4.3 - Apache-2.0
+- eslint-visitor-keys 5.0.1 - Apache-2.0
+- espree 11.2.0 - BSD-2-Clause
+- espree 9.6.1 - BSD-2-Clause
+- esquery 1.7.0 - BSD-3-Clause
+- esrecurse 4.3.0 - BSD-2-Clause
+- estraverse 5.3.0 - BSD-2-Clause
+- estree-walker 3.0.3 - MIT
+- esutils 2.0.3 - BSD-2-Clause
+- expect-type 1.3.0 - Apache-2.0
+- exsolve 1.0.8 - MIT
+- fast-deep-equal 3.1.3 - MIT
+- fast-diff 1.3.0 - Apache-2.0
+- fast-json-stable-stringify 2.1.0 - MIT
+- fast-levenshtein 2.0.6 - MIT
+- fast-string-truncated-width 3.0.3 - MIT
+- fast-string-width 3.0.2 - MIT
+- fast-wrap-ansi 0.2.2 - MIT
+- fflate 0.8.3 - MIT
+- file-entry-cache 8.0.0 - MIT
+- filepond 4.32.12 - MIT
+- filepond-plugin-file-metadata 1.0.8 - MIT
+- filepond-plugin-file-validate-type 1.2.9 - MIT
+- filepond-plugin-image-exif-orientation 1.0.11 - MIT
+- filepond-plugin-image-preview 4.6.12 - MIT
+- find-up 5.0.0 - MIT
+- flat-cache 4.0.1 - MIT
+- flatted 3.4.2 - ISC
+- for-each 0.3.5 - MIT
+- foreground-child 3.3.1 - ISC
+- functions-have-names 1.2.3 - MIT
+- glob 10.5.0 - ISC
+- glob-parent 6.0.2 - ISC
+- graphql 16.14.2 - MIT
+- has-bigints 1.1.0 - MIT
+- has-property-descriptors 1.0.2 - MIT
+- hasown 2.0.4 - MIT
+- headers-polyfill 5.0.1 - MIT
+- hookable 5.5.3 - MIT
+- html-encoding-sniffer 6.0.0 - MIT
+- html-escaper 2.0.2 - MIT
+- html-to-image 1.11.13 - MIT
+- http-proxy-agent 7.0.2 - MIT
+- https-proxy-agent 5.0.1 - MIT
+- https-proxy-agent 7.0.6 - MIT
+- ignore 5.3.2 - MIT
+- ignore 7.0.5 - MIT
+- imurmurhash 0.1.4 - MIT
+- indent-string 4.0.0 - MIT
+- ini 1.3.8 - ISC
+- internal-slot 1.1.0 - MIT
+- is-arguments 1.2.0 - MIT
+- is-array-buffer 3.0.5 - MIT
+- is-bigint 1.1.0 - MIT
+- is-boolean-object 1.2.2 - MIT
+- is-callable 1.2.7 - MIT
+- is-date-object 1.1.0 - MIT
+- is-map 2.0.3 - MIT
+- is-node-process 1.2.0 - MIT
+- is-number-object 1.1.1 - MIT
+- is-plain-object 3.0.1 - MIT
+- is-potential-custom-element-name 1.0.1 - MIT
+- is-regex 1.2.1 - MIT
+- is-set 2.0.3 - MIT
+- is-shared-array-buffer 1.0.4 - MIT
+- is-string 1.1.1 - MIT
+- is-symbol 1.1.1 - MIT
+- is-weakmap 2.0.2 - MIT
+- is-weakset 2.0.4 - MIT
+- isarray 2.0.5 - MIT
+- isexe 2.0.0 - ISC
+- ispa-element 0.7.2 - MIT
+- istanbul-lib-coverage 3.2.2 - BSD-3-Clause
+- istanbul-lib-report 3.0.1 - BSD-3-Clause
+- istanbul-reports 3.2.0 - BSD-3-Clause
+- jackspeak 3.4.3 - BlueOak-1.0.0
+- jiti 2.7.0 - MIT
+- js-beautify 1.15.4 - MIT
+- js-cookie 3.0.8 - MIT
+- js-tokens 10.0.0 - MIT
+- js-tokens 4.0.0 - MIT
+- jsdom 28.1.0 - MIT
+- jsesc 3.1.0 - MIT
+- json-buffer 3.0.1 - MIT
+- json-schema-traverse 0.4.1 - MIT
+- json-stable-stringify-without-jsonify 1.0.1 - MIT
+- json5 2.2.3 - MIT
+- keyv 4.5.4 - MIT
+- levn 0.4.1 - MIT
+- linkifyjs 4.3.3 - MIT
+- local-pkg 1.2.1 - MIT
+- locate-path 6.0.0 - MIT
+- lodash-es 4.18.1 - MIT
+- loose-envify 1.4.0 - MIT
+- lru-cache 10.4.3 - ISC
+- lru-cache 11.5.1 - BlueOak-1.0.0
+- lz-string 1.5.0 - MIT
+- magic-string-ast 1.0.3 - MIT
+- magicast 0.5.3 - MIT
+- make-dir 4.0.0 - MIT
+- mdn-data 2.27.1 - CC0-1.0
+- min-indent 1.0.1 - MIT
+- minimatch 10.2.5 - BlueOak-1.0.0
+- minimatch 9.0.9 - ISC
+- minipass 7.1.3 - BlueOak-1.0.0
+- mlly 1.8.2 - MIT
+- mrmime 2.0.1 - MIT
+- ms 2.1.3 - MIT
+- msw 2.14.6 - MIT
+- muggle-string 0.4.1 - MIT
+- mute-stream 3.0.0 - ISC
+- nanoid 6.0.0 - MIT
+- nanopop 2.4.2 - MIT
+- natural-compare 1.4.0 - MIT
+- node-releases 2.0.47 - MIT
+- nopt 7.2.1 - ISC
+- normalize-wheel 1.0.1 - BSD-3-Clause
+- nth-check 2.1.1 - BSD-2-Clause
+- numeral 2.0.6 - MIT
+- object-inspect 1.13.4 - MIT
+- object-is 1.1.6 - MIT
+- object-keys 1.1.1 - MIT
+- object.assign 4.1.7 - MIT
+- obug 2.1.2 - MIT
+- optionator 0.9.4 - MIT
+- outvariant 1.4.3 - MIT
+- p-limit 3.1.0 - MIT
+- p-locate 5.0.0 - MIT
+- package-json-from-dist 1.0.1 - BlueOak-1.0.0
+- parse5 8.0.1 - MIT
+- path-exists 4.0.0 - MIT
+- path-key 3.1.1 - MIT
+- path-scurry 1.11.1 - BlueOak-1.0.0
+- path-to-regexp 6.3.0 - MIT
+- pathe 2.0.3 - MIT
+- perfect-debounce 2.1.0 - MIT
+- pkg-types 1.3.1 - MIT
+- pkg-types 2.3.1 - MIT
+- possible-typed-array-names 1.1.0 - MIT
+- postcss 8.5.15 - MIT
+- postcss-selector-parser 7.1.2 - MIT
+- prelude-ls 1.2.1 - MIT
+- prettier 3.8.4 - MIT
+- prettier-linter-helpers 1.0.1 - MIT
+- pretty-format 27.5.1 - MIT
+- prosemirror-changeset 2.4.1 - MIT
+- prosemirror-commands 1.7.1 - MIT
+- prosemirror-dropcursor 1.8.2 - MIT
+- prosemirror-history 1.5.0 - MIT
+- prosemirror-model 1.25.7 - MIT
+- prosemirror-transform 1.12.0 - MIT
+- prosemirror-view 1.41.8 - MIT
+- proto-list 1.2.4 - ISC
+- punycode 2.3.1 - MIT
+- pusher-js 8.5.0 - MIT
+- quansync 0.2.11 - MIT
+- react-is 17.0.2 - MIT
+- readdirp 5.0.0 - MIT
+- redent 3.0.0 - MIT
+- regexp.prototype.flags 1.5.4 - MIT
+- remove-accents 0.5.0 - MIT
+- require-from-string 2.0.2 - MIT
+- resize-observer-polyfill 1.5.1 - MIT
+- rettime 0.11.11 - MIT
+- rolldown 1.0.3 - MIT
+- safe-regex-test 1.1.0 - MIT
+- saxes 6.0.0 - ISC
+- scroll-into-view-if-needed 2.2.31 - MIT
+- scule 1.3.0 - MIT
+- semver 7.8.4 - ISC
+- set-cookie-parser 3.1.0 - MIT
+- set-function-length 1.2.2 - MIT
+- set-function-name 2.0.2 - MIT
+- shallow-equal 1.2.1 - MIT
+- shebang-command 2.0.0 - MIT
+- shebang-regex 3.0.0 - MIT
+- side-channel 1.1.1 - MIT
+- side-channel-list 1.0.1 - MIT
+- side-channel-map 1.0.1 - MIT
+- side-channel-weakmap 1.0.2 - MIT
+- siginfo 2.0.0 - ISC
+- signal-exit 4.1.0 - ISC
+- sirv 3.0.2 - MIT
+- sortablejs 1.14.0 - MIT
+- stackback 0.0.2 - MIT
+- statuses 2.0.2 - MIT
+- std-env 4.1.0 - MIT
+- stop-iteration-iterator 1.1.0 - MIT
+- strict-event-emitter 0.5.1 - MIT
+- string-width 5.1.2 - MIT
+- strip-ansi 7.2.0 - MIT
+- strip-indent 3.0.0 - MIT
+- style-mod 4.1.3 - MIT
+- stylis 4.4.0 - MIT
+- symbol-tree 3.2.4 - MIT
+- synckit 0.11.13 - MIT
+- tagged-tag 1.0.0 - MIT
+- tailwindcss 4.3.0 - MIT
+- temml 0.14.0 - MIT
+- throttle-debounce 5.0.2 - MIT
+- tinybench 2.9.0 - MIT
+- tinyexec 1.2.4 - MIT
+- tinyglobby 0.2.17 - MIT
+- tinyrainbow 3.1.0 - MIT
+- tldts 7.4.2 - MIT
+- tldts-core 7.4.2 - MIT
+- totalist 3.0.1 - MIT
+- tough-cookie 6.0.1 - BSD-3-Clause
+- tr46 6.0.0 - MIT
+- ts-api-utils 2.5.0 - MIT
+- tweetnacl 1.0.3 - Unlicense
+- type-check 0.4.0 - MIT
+- type-fest 5.7.0 - (MIT OR CC0-1.0)
+- typescript 5.9.3 - Apache-2.0
+- ufo 1.6.4 - MIT
+- undici 7.27.2 - MIT
+- undici-types 7.24.6 - MIT
+- universal-cookie 8.1.2 - MIT
+- unplugin 2.3.11 - MIT
+- unplugin 3.0.0 - MIT
+- unplugin-utils 0.3.1 - MIT
+- unplugin-vue-components 31.1.0 - MIT
+- until-async 3.0.2 - MIT
+- uri-js 4.4.1 - BSD-2-Clause
+- vite 8.0.16 - MIT
+- vitest 4.1.8 - MIT
+- vue-cal 4.10.2 - MIT
+- vue-codemirror 6.1.1 - MIT
+- vue-component-type-helpers 3.3.4 - MIT
+- vue-demi 0.14.10 - MIT
+- vue-eslint-parser 8.3.0 - MIT
+- vue-filepond 7.0.4 - MIT
+- vue-i18n 11.4.5 - MIT
+- vue-router 5.1.0 - MIT
+- vue-types 3.0.2 - MIT
+- vue3-apexcharts 1.11.1 - see LICENSE in LICENSE
+- vuedraggable 4.1.0 - MIT
+- w3c-xmlserializer 5.0.0 - MIT
+- warning 4.0.3 - MIT
+- webidl-conversions 8.0.1 - BSD-2-Clause
+- webpack-virtual-modules 0.6.2 - MIT
+- whatwg-mimetype 5.0.0 - MIT
+- whatwg-url 16.0.1 - MIT
+- which 2.0.2 - ISC
+- which-boxed-primitive 1.1.1 - MIT
+- which-collection 1.0.2 - MIT
+- which-typed-array 1.1.22 - MIT
+- why-is-node-running 2.3.0 - MIT
+- word-wrap 1.2.5 - MIT
+- wrap-ansi 8.1.0 - MIT
+- xml-name-validator 4.0.0 - Apache-2.0
+- xml-name-validator 5.0.0 - Apache-2.0
+- xmlchars 2.2.0 - MIT
+- yaml 2.9.0 - ISC
+- yocto-queue 0.1.0 - MIT

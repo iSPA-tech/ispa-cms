@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3306"/>
+        <env name="DB_DATABASE" value="testing"/>
+        <env name="DB_USERNAME" value="team"/>
+        <!-- Empty for the local passwordless `team` user. In CI the matrix
+             job threads WIDGET_MATRIX_MYSQL_PASSWORD=team through
+             scripts/widget-site-layout-db-matrix.sh, which exports
+             DB_PASSWORD before phpunit runs; that exported value wins here
+             because PHPUnit env entries without force="true" never override
+             an already-set real environment variable
+             (vendor/phpunit/.../TextUI/Configuration/PhpHandler.php,
+             handleEnvVariables). -->
+        <env name="DB_PASSWORD" value=""/>
+        <env name="GAME_DB_CONNECTION" value="mysql"/>
+        <env name="GAME_CACHE_STORE" value="array"/>
+        <env name="GAME_QUEUE_CONNECTION" value="sync"/>
+        <env name="GAME_TICKET_SIGNING_KEY" value="game-test-signing-key"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="ISPA_API_AUTH_KEY" value="test-api-verify-key"/>
+        <env name="ISPA_ADMIN_AUTH_KEY" value="admin-test-key"/>
+    </php>
+</phpunit>

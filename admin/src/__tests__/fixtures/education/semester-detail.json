@@ -1,0 +1,9 @@
+{
+  "id": 11,
+  "name": "Summer 2026",
+  "description": "Summer intensive",
+  "start_date": "2026-05-01",
+  "end_date": "2026-08-15",
+  "status": "planned",
+  "is_current": false
+}

@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Repositories\Eloquent;
+
+use App\Repositories\Interfaces\{{ name }}Interface;
+use Cms\Core\Repositories\Eloquent\RepositoriesAbstract;
+use App\Models\{{ name }};
+
+class {{ name }}Repository extends RepositoriesAbstract implements {{ name }}Interface
+{
+    public function __construct() {
+        $this->setModel({{ name }}::class);
+    }
+}

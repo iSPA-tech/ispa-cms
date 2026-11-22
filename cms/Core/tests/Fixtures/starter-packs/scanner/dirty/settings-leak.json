@@ -1,0 +1,7 @@
+{
+    "settings": {
+        "site_name": "Demo",
+        "mail_hub_relay_code": "redacted-but-present",
+        "maps_embed_code": "public"
+    }
+}

@@ -1,0 +1,84 @@
+.form-workspace-modal .ant-modal-body { padding-top: 0; }
+.form-workspace { color: #334155; max-width: 1440px; margin-inline: auto; }
+.fw-header { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0 16px; border-bottom: 1px solid #e2e8f0; background: white; }
+.fw-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.fw-header p { margin: 4px 0 0; font-size: 13px; color: #64748b; }
+.fw-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fw-actions .ant-btn, .fw-item-actions .ant-btn { display: inline-flex; align-items: center; gap: 5px; }
+.fw-dirty { font-size: 12px; color: #64748b; }
+.fw-dirty.changed { color: #92400e; }
+.fw-meta { display: grid; grid-template-columns: minmax(280px, 520px) 1fr; align-items: start; gap: 20px; padding: 16px 0 0; }
+.fw-meta .ant-form-item { margin-bottom: 16px; }
+.fw-advanced { padding-top: 4px; font-size: 13px; }
+.fw-advanced summary { cursor: pointer; }
+.fw-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; gap: 20px; }
+.fw-outline, .fw-details { min-width: 0; border: 1px solid #e2e8f0; border-radius: 8px; background: white; padding: 16px; }
+.fw-outline { position: sticky; top: 90px; max-height: calc(100dvh - 190px); overflow-y: auto; }
+.fw-details { min-height: 420px; }
+.fw-details .items-form { padding: 0; }
+.fw-details .ant-form-item { margin-bottom: 16px; }
+.fw-settings-grid { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 12px; }
+.fw-settings-grid > .fw-field-span-full,
+.fw-settings-grid > .pick-color,
+.fw-settings-grid > [data-field-setting],
+.fw-settings-grid > details { grid-column: 1 / -1; }
+.form-option-source-grid { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 12px; }
+.form-option-source-full { grid-column: 1 / -1; }
+.fw-details details[data-field-section] > summary { padding-block: 8px; }
+.fw-additional-groups { display: grid; gap: 14px; padding-block: 8px; }
+.fw-additional-card { border: 1px solid #e2e8f0; border-radius: 7px; padding: 14px; background: #f8fafc; }
+.fw-additional-card h4 { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+.fw-additional-help { font-size: 13px; color: #64748b; margin: 0 0 14px; line-height: 1.6; }
+.fw-additional-card .ant-form-item:last-child { margin-bottom: 0; }
+.fw-panel-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.fw-panel-title h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.fw-panel-title small, .fw-panel-title > span { font-size: 12px; color: #64748b; }
+.fw-group { margin-top: 16px; }
+.fw-group-heading { display: flex; align-items: center; gap: 4px; width: 100%; padding: 6px 0; font-size: 12px; font-weight: 600; color: #475569; text-align: left; }
+.fw-group-heading small { margin-left: auto; font-weight: 400; }
+.fw-row { display: flex; align-items: center; border: 1px solid transparent; border-radius: 6px; margin: 3px 0; }
+.fw-row:hover { background: #f8fafc; }
+.fw-row.selected { background: #eff6ff; border-color: #bfdbfe; }
+.fw-row > button { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; padding: 9px 6px 9px 0; text-align: left; }
+.fw-row > button > span:first-of-type { min-width: 0; flex: 1; }
+.fw-row strong { display: block; font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.fw-row small { display: block; font-size: 11px; color: #64748b; }
+.fw-drag { color: #94a3b8; cursor: grab; margin: 0 4px; flex-shrink: 0; }
+.fw-badge { font-size: 11px; background: #f1f5f9; border-radius: 4px; padding: 2px 4px; white-space: nowrap; }
+.fw-invalid { color: #991b1b; background: #fee2e2; }
+.fw-item-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px; }
+.fw-outline-help, .fw-preview-note { font-size: 12px; color: #64748b; margin-top: 14px; }
+.fw-empty { text-align: center; color: #64748b; font-size: 13px; padding: 28px 10px; }
+.fw-errors { border: 1px solid #fecaca; background: #fff7f7; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; max-height: 180px; overflow-y: auto; }
+.fw-errors strong { color: #991b1b; }
+.fw-errors p { margin: 4px 0; }
+.fw-errors ul { list-style: none; padding: 0; margin: 0; }
+.fw-errors button { text-align: left; text-decoration: underline; color: #991b1b; padding: 4px 0; }
+.fw-preview-controls { display: flex; gap: 8px; }
+.fw-preview { overflow: auto; }
+.fw-preview iframe { max-width: 100%; min-height: 65vh; border: 1px solid #e2e8f0; background: white; }
+.fw-drop { padding: 5px 8px; border: 1px dashed #94a3b8; font-size: 11px; color: #475569; border-radius: 4px; }
+.fw-drop.over { background: #dbeafe; border-color: #2563eb; }
+.form-workspace button:focus-visible, .fw-errors:focus { outline: 2px solid #2563eb; outline-offset: 2px; }
+.form-workspace[data-saving='true'] .fw-grid { pointer-events: none; opacity: .7; }
+@media (min-width: 1500px) { .fw-grid { grid-template-columns: 320px minmax(0, 1fr); } }
+@media (min-width: 1024px) {
+    .fw-settings-grid, .form-option-source-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 850px) {
+    .fw-header { flex-direction: column; align-items: stretch; }
+    .fw-header { gap: 8px; padding-block: 8px 12px; }
+    .fw-header h2 { font-size: 16px; }
+    .fw-header p { display: none; }
+    .fw-actions { justify-content: flex-end; }
+    .fw-meta { grid-template-columns: 1fr; gap: 0; }
+    .fw-advanced { margin-bottom: 16px; }
+    .fw-grid { grid-template-columns: 1fr; gap: 16px; }
+    .fw-outline { position: static; max-height: 280px; }
+    .fw-details { min-height: 0; }
+    .fw-row > button { min-height: 44px; }
+    .fw-dirty { flex-basis: 100%; margin-right: 0; }
+    .form-workspace .ant-btn, .fw-group-heading { min-height: 44px; }
+    .fw-details input, .fw-details textarea, .fw-meta input, .fw-outline input { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .form-workspace * { transition: none !important; scroll-behavior: auto !important; } }

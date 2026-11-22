@@ -1,0 +1,15 @@
+{
+    "pack_format": 1,
+    "key": "minimal",
+    "version": "1.0.0",
+    "name": {"vi": "Gói tối thiểu", "en": "Minimal pack"},
+    "description": {"vi": "Gói mẫu dùng cho kiểm thử.", "en": "Sample pack used for tests."},
+    "modules": {"Core": "*"},
+    "config": "config.package.json",
+    "roles": null,
+    "workflows": null,
+    "content": [
+        {"module": "Core", "importer": "sample", "file": "content/core/sample.json"}
+    ],
+    "post_apply": ["cache-clear"]
+}

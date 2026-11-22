@@ -1,0 +1,164 @@
+/*
+ * Copyright (c) 2025 iSPA Team - team@ispa.io.
+ * SPDX-License-Identifier: AGPL-3.0-only
+ * This file is part of iSPA CMS, free software under the GNU Affero General Public License v3.0 only.
+ * See the LICENSE file in the project root. This program comes with ABSOLUTELY NO WARRANTY.
+ */
+
+/*
+ * Admin design tokens (adoption step 1 of docs/design-system/admin-dashboard in the workspace).
+ *
+ * Three layers inside one Tailwind 4 `@theme` block:
+ *   1. Primitive  — brand (iSPA cyan), neutral (slate), status hues, chart hues, type, shadow
+ *   2. Semantic   — surface / ink / primary / success … ; the only layer `.dark` changes
+ *   3. Component  — knobs for i-stat-tile, i-attention-strip, i-box, i-button, i-chart
+ *
+ * Step 1 deliberately does not override Tailwind's `--radius-*` scale (226 `rounded-lg` uses would shift);
+ * component radius tokens carry the target values until the dashboards migrate.
+ * `src/config/antd-theme.js` mirrors the primary / status / font values for Ant Design.
+ */
+
+@theme {
+  /* ---------- 1. PRIMITIVE ---------- */
+
+  /* Brand: iSPA cyan. 500 = #17a2b8 (ispa.io `--text-main`); other steps are an OKLCH ladder on that hue. */
+  --color-brand-50:  #e3fcff;
+  --color-brand-100: #c6f5ff;
+  --color-brand-200: #a3e8f7;
+  --color-brand-300: #72d1e4;  /* primary text on dark surfaces, 8.33:1 on neutral-800 */
+  --color-brand-400: #3ab7cd;  /* focus ring on dark */
+  --color-brand-500: #17a2b8;  /* identity, chart slot 1, large text only (3.04:1 on white) */
+  --color-brand-600: #00859a;  /* focus ring on light (4.36:1, non-text) */
+  --color-brand-700: #006f83;  /* fill with white text 5.83:1; links and text on light */
+  --color-brand-800: #00596b;  /* hover, 7.95:1 */
+  --color-brand-900: #004452;
+  --color-brand-950: #002b35;
+
+  /* Neutral: slate values, so `neutral-*` utilities match the `slate-*` ones already used on most pages. */
+  --color-neutral-50:  #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
+
+  /* Chart hues: categorical, fixed order, never cycled. Validated on light and dark surfaces. */
+  --color-chart-1: #17a2b8;
+  --color-chart-2: #df5930;
+  --color-chart-3: #7c3aed;
+  --color-chart-4: #65a30d;
+  --color-chart-5: #c026d3;
+  --color-chart-other: var(--color-neutral-400);
+
+  /* Type: system stack, no webfont. */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Shadow: three levels, slate-tinted. */
+  --shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px -2px rgb(15 23 42 / 0.12), 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --shadow-lg: 0 16px 40px -8px rgb(15 23 42 / 0.24), 0 2px 6px 0 rgb(15 23 42 / 0.08);
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  /* ---------- 2. SEMANTIC (light) ---------- */
+  --color-bg:             var(--color-neutral-50);
+  --color-surface:        #ffffff;
+  --color-surface-hover:  var(--color-neutral-50);
+  --color-surface-sunken: var(--color-neutral-100);
+  --color-border:         var(--color-neutral-200);
+  --color-border-strong:  var(--color-neutral-300);
+  --color-ink:            var(--color-neutral-900);
+  --color-ink-muted:      var(--color-neutral-600);  /* 7.58:1 */
+  --color-ink-faint:      var(--color-neutral-500);  /* 4.76:1, the floor for text */
+
+  --color-primary:        var(--color-brand-700);
+  --color-primary-hover:  var(--color-brand-800);
+  --color-primary-ink:    var(--color-brand-700);
+  --color-primary-soft:   var(--color-brand-50);
+  --color-on-primary:     #ffffff;
+  --color-focus:          var(--color-brand-600);
+
+  --color-success:        #15803d;  --color-success-soft: #dcfce7;  --color-success-ink: #166534;
+  --color-warning:        #b45309;  --color-warning-soft: #fef3c7;  --color-warning-ink: #92400e;
+  --color-danger:         #dc2626;  --color-danger-soft:  #fee2e2;  --color-danger-ink:  #991b1b;
+  --color-info:           #4f46e5;  --color-info-soft:    #e0e7ff;  --color-info-ink:    #3730a3;
+
+  --color-chart-grid:     var(--color-neutral-200);
+  --color-chart-axis:     var(--color-neutral-500);
+
+  /* ---------- 3. COMPONENT ---------- */
+  --tile-radius:   0.5rem;
+  --tile-stripe:   3px;
+  --tile-padding:  1rem;
+  --tile-shadow:   var(--shadow-xs);
+
+  --chip-radius:   0.25rem;
+
+  --card-radius:   0.75rem;
+  --card-padding:  1rem;
+  --card-shadow:   var(--shadow-xs);
+
+  --button-radius: 0.5rem;
+  --button-h-sm:   2rem;
+  --button-h-md:   2.5rem;
+
+  --chart-h-trend: 260px;
+  --chart-h-donut: 280px;
+  --chart-h-spark: 32px;
+  --chart-stroke:  2px;
+
+  /* Dashboard hub band: status dots on the brand gradient, which stays dark in both themes, so `.dark` keeps them. */
+  --color-band-ok:   #4ade80;
+  --color-band-wait: #fbbf24;
+
+  --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-focus);
+}
+
+/* Dark mode: `.dark` on <html> (toggled in App.vue). Only semantic tokens change. */
+.dark {
+  --color-bg:             var(--color-neutral-900);
+  --color-surface:        var(--color-neutral-800);
+  --color-surface-hover:  var(--color-neutral-700);
+  --color-surface-sunken: var(--color-neutral-900);
+  --color-border:         var(--color-neutral-700);
+  --color-border-strong:  var(--color-neutral-600);
+  --color-ink:            var(--color-neutral-100);
+  --color-ink-muted:      var(--color-neutral-300);
+  --color-ink-faint:      var(--color-neutral-400);
+
+  --color-primary-ink:    var(--color-brand-300);
+  --color-primary-soft:   rgb(23 162 184 / 0.18);
+  --color-focus:          var(--color-brand-400);
+
+  --color-success-soft:   rgb(74 222 128 / 0.14);   --color-success-ink: #4ade80;
+  --color-warning-soft:   rgb(251 191 36 / 0.14);   --color-warning-ink: #fbbf24;
+  --color-danger-soft:    rgb(248 113 113 / 0.14);  --color-danger-ink:  #f87171;
+  --color-info-soft:      rgb(165 180 252 / 0.16);  --color-info-ink:    #a5b4fc;
+
+  --color-chart-3: #8b5cf6;
+  --color-chart-5: #d946ef;
+  --color-chart-grid: var(--color-neutral-700);
+  --color-chart-axis: var(--color-neutral-400);
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 16px 40px -8px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
+}
+
+/* One focus rule for the whole admin; replaces the ad hoc focus-visible rings and focus:ring-0 resets. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}

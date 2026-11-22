@@ -1,0 +1,306 @@
+{
+    "Cms\\Content\\Constants\\ContentTableConstant": {
+        "kind": "class",
+        "constants": {
+            "BOOKMARK": "\"bookmarks\"",
+            "CONTENTS": "\"contents\"",
+            "POSTS": "\"posts\"",
+            "TAGS": "\"tags\"",
+            "TAGS_DATA": "\"tags_data\""
+        }
+    },
+    "Cms\\Content\\Events\\AdminPostSaving": {
+        "kind": "class",
+        "properties": {
+            "post": "Cms\\Content\\Models\\Post"
+        },
+        "methods": {
+            "__construct": "public function __construct(Cms\\Content\\Models\\Post $post)"
+        }
+    },
+    "Cms\\Content\\Events\\PostCrawlDataSubmitted": {
+        "kind": "class",
+        "properties": {
+            "data": "array"
+        },
+        "methods": {
+            "__construct": "public function __construct(array $data)",
+            "broadcast": "public static function broadcast(...$arguments)",
+            "dispatch": "public static function dispatch(...$arguments)",
+            "dispatchIf": "public static function dispatchIf($boolean, ...$arguments)",
+            "dispatchUnless": "public static function dispatchUnless($boolean, ...$arguments)"
+        }
+    },
+    "Cms\\Content\\Events\\PostPublished": {
+        "kind": "class",
+        "properties": {
+            "postId": "int"
+        },
+        "methods": {
+            "__construct": "public function __construct(int $postId)",
+            "broadcast": "public static function broadcast(...$arguments)",
+            "dispatch": "public static function dispatch(...$arguments)",
+            "dispatchIf": "public static function dispatchIf($boolean, ...$arguments)",
+            "dispatchUnless": "public static function dispatchUnless($boolean, ...$arguments)"
+        }
+    },
+    "Cms\\Content\\Interfaces\\BookmarkInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "getBookmarkByTarget": "abstract public function getBookmarkByTarget(string $type, int $userId, bool $freshCache = false): mixed",
+            "getBookmarkListByTarget": "abstract public function getBookmarkListByTarget(string $type, int $page, int $pageSize, int $userId, bool $freshCache = false): mixed",
+            "getLatestBookmark": "abstract public function getLatestBookmark(string $type, int $userId, int $limit = 10, bool $freshCache = false): mixed"
+        }
+    },
+    "Cms\\Content\\Interfaces\\ContentInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "getContents": "abstract public function getContents(Illuminate\\Support\\Facades\\Request|Illuminate\\Foundation\\Http\\FormRequest $request, array $targetIds = array (), string $targetType = ''): Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator|array|null",
+            "getWhenCondition": "abstract public function getWhenCondition(Illuminate\\Support\\Facades\\Request|Illuminate\\Foundation\\Http\\FormRequest $request): array"
+        }
+    },
+    "Cms\\Content\\Interfaces\\PostInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ],
+        "methods": {
+            "advancedSearch": "abstract public function advancedSearch(array $filter = array (), bool $freshCache = false): mixed",
+            "getAllCategoriesByType": "abstract public function getAllCategoriesByType(string $type = 'post', bool $freshCache = false): mixed",
+            "getByUserId": "abstract public function getByUserId(int $userId, array $params = array (), int $languageId = 1): mixed",
+            "getFeaturedPostByType": "abstract public function getFeaturedPostByType(string $type = 'post', int $limit = 10, bool $freshCache = false): mixed",
+            "getFeaturedPosts": "abstract public function getFeaturedPosts(int $limit = 5, bool $freshCache = false): mixed",
+            "getGlossaryPostList": "abstract public function getGlossaryPostList(string $glossarySlug, string $character = 'a', string $type = 'post', int $pageSize = 12, int $page = 1, bool $freshCache = false): mixed",
+            "getLatestPostByCategorySlugAndType": "abstract public function getLatestPostByCategorySlugAndType(string $slug, int $limit = 6, bool $freshCache = false, array $optional = array ()): mixed",
+            "getLatestPostByType": "abstract public function getLatestPostByType(string $type = 'post', int $limit = 6, bool $freshCache = false): mixed",
+            "getLatestPostRequiredLoginByType": "abstract public function getLatestPostRequiredLoginByType(string $type = 'post', int $pageSize = 12, int $page = 1, bool $freshCache = false): mixed",
+            "getLatestPosts": "abstract public function getLatestPosts(int $limit = 5, bool $freshCache = false): mixed",
+            "getLatestVideo": "abstract public function getLatestVideo(int $limit = 6): mixed",
+            "getPostByTypeAndConfig": "abstract public function getPostByTypeAndConfig(string $type = 'post', string $custom = 'featured', int $limit = 5, bool $freshCache = false): mixed",
+            "getPostByTypeAndDateRange": "abstract public function getPostByTypeAndDateRange(string $type = 'post', ?string $startDate = NULL, ?string $endDate = NULL, bool $freshCache = false): mixed",
+            "getPostDetailBySlug": "abstract public function getPostDetailBySlug(string $slug, bool $freshCache = false): mixed",
+            "getPostDetailBySlugAndCategorySlug": "abstract public function getPostDetailBySlugAndCategorySlug(string $slug, string $categorySlug, string $type, bool $freshCache = false): mixed",
+            "getPostDetailBySlugAndType": "abstract public function getPostDetailBySlugAndType(string $slug, string $type, bool $freshCache = false): mixed",
+            "getPostDetailByUuid": "abstract public function getPostDetailByUuid(string $uuid, bool $freshCache = false): mixed",
+            "getPostListByType": "abstract public function getPostListByType(string $type = 'post', int $pageSize = 12, int $page = 1, bool $freshCache = false): mixed",
+            "getPostListByTypeAndCategorySlug": "abstract public function getPostListByTypeAndCategorySlug(string $type = 'post', ?string $categorySlug = NULL, int $pageSize = 10, bool $freshCache = false): mixed",
+            "getPostsByCategoriesIds": "abstract public function getPostsByCategoriesIds(array $categoriesIds = array (), int $page = 1, int $pageSize = 12, string $type = 'post', bool $freshCache = false): mixed",
+            "getRelatedPosts": "abstract public function getRelatedPosts(int $categoryId, int $postId, int $limit = 6, string $type = 'post', bool $freshCache = false): mixed",
+            "index": "abstract public function index(string $type = 'post', mixed $category = NULL): Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator|array",
+            "search": "abstract public function search(string $type, ?string $categorySlug = NULL, ?string $keywords = NULL, int $pageSize = 10, int $page = 1, bool $freshCache = false): Illuminate\\Database\\Eloquent\\Collection|Illuminate\\Contracts\\Pagination\\LengthAwarePaginator|array",
+            "searchAgentEligible": "abstract public function searchAgentEligible(string $keywords, Carbon\\CarbonInterface $asOf, int $limit = 5): Illuminate\\Database\\Eloquent\\Collection",
+            "searchByType": "abstract public function searchByType(?string $keywords = NULL, int $pageSize = 12, int $page = 1, string $articleType = 'post', bool $freshCache = false): mixed"
+        }
+    },
+    "Cms\\Content\\Interfaces\\TagInterface": {
+        "kind": "interface",
+        "implements": [
+            "Cms\\Core\\Repositories\\Interfaces\\RepositoryInterface"
+        ]
+    },
+    "Cms\\Content\\Models\\BookMark": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "mixed"
+        },
+        "methods": {
+            "factory": "public static function factory($count = NULL, $state = array ())",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
+        }
+    },
+    "Cms\\Content\\Models\\Content": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "mixed"
+        },
+        "methods": {
+            "audios": "public function audios(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "author": "public function author(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "boot": "public static function boot(): void",
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "bootSoftDeletes": "public static function bootSoftDeletes()",
+            "contentStatus": "public function contentStatus()",
+            "contents": "public function contents(): Illuminate\\Support\\Collection",
+            "factory": "public static function factory($count = NULL, $state = array ())",
+            "forceDelete": "public function forceDelete()",
+            "forceDeleteQuietly": "public function forceDeleteQuietly()",
+            "forceDeleted": "public static function forceDeleted($callback)",
+            "forceDeleting": "public static function forceDeleting($callback)",
+            "forceDestroy": "public static function forceDestroy($ids)",
+            "getDeletedAtColumn": "public function getDeletedAtColumn()",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "getQualifiedDeletedAtColumn": "public function getQualifiedDeletedAtColumn()",
+            "initializeSoftDeletes": "public function initializeSoftDeletes()",
+            "isForceDeleting": "public function isForceDeleting()",
+            "language": "public function language(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "restore": "public function restore()",
+            "restoreQuietly": "public function restoreQuietly()",
+            "restored": "public static function restored($callback)",
+            "restoring": "public static function restoring($callback)",
+            "softDeleted": "public static function softDeleted($callback)",
+            "syncAudios": "public function syncAudios(array $data = array ()): void",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo",
+            "trashed": "public function trashed()"
+        }
+    },
+    "Cms\\Content\\Models\\Post": {
+        "kind": "class",
+        "extends": "Cms\\Core\\Models\\AbstractBaseModel",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "constants": {
+            "APPENDED_RELATIONS_SCOPE": "\"core.appended-relations\"",
+            "CATEGORY_ATTACHMENTS": "\"attachments\"",
+            "CATEGORY_AVATAR": "\"avatar\"",
+            "CATEGORY_IMAGES": "\"images\"",
+            "CATEGORY_LOGO": "\"logo\"",
+            "SLUG_PROJECTION_ALIAS": "\"slug_value\""
+        },
+        "properties": {
+            "table": "mixed"
+        },
+        "methods": {
+            "attachments": "public function attachments(string $category = self::CATEGORY_ATTACHMENTS): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "attachs": "public function attachs(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "author": "public function author(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "boot": "public static function boot(): void",
+            "bootSoftDeletes": "public static function bootSoftDeletes()",
+            "categories": "public function categories(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "category": "public function category(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "children": "public function children(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "editableCategories": "public function editableCategories(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "factory": "public static function factory($count = NULL, $state = array ())",
+            "flushTotalViewMemo": "public static function flushTotalViewMemo(): void",
+            "forceDelete": "public function forceDelete()",
+            "forceDeleteQuietly": "public function forceDeleteQuietly()",
+            "forceDeleted": "public static function forceDeleted($callback)",
+            "forceDeleting": "public static function forceDeleting($callback)",
+            "forceDestroy": "public static function forceDestroy($ids)",
+            "getDeletedAtColumn": "public function getDeletedAtColumn()",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string",
+            "getImageAttribute": "public function getImageAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getLogoAttribute": "public function getLogoAttribute(): ?Illuminate\\Database\\Eloquent\\Model",
+            "getQualifiedDeletedAtColumn": "public function getQualifiedDeletedAtColumn()",
+            "getStatusAttribute": "public function getStatusAttribute(mixed $value): mixed",
+            "hasVideo": "public function hasVideo(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "image": "public function image(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "images": "public function images(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "initializeGetSlugTrait": "public function initializeGetSlugTrait(): void",
+            "initializeSoftDeletes": "public function initializeSoftDeletes()",
+            "isForceDeleting": "public function isForceDeleting()",
+            "language": "public function language(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "latestSlug": "public function latestSlug(): Illuminate\\Database\\Eloquent\\Relations\\MorphOne",
+            "logo": "public function logo(): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "mainImage": "public function mainImage(string $category = self::CATEGORY_IMAGES): Illuminate\\Database\\Eloquent\\Relations\\HasOneThrough",
+            "parent": "public function parent(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "publishedDate": "public function publishedDate(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "restore": "public function restore()",
+            "restoreQuietly": "public function restoreQuietly()",
+            "restored": "public static function restored($callback)",
+            "restoring": "public static function restoring($callback)",
+            "scopeArchived": "public function scopeArchived(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeDraft": "public function scopeDraft(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePending": "public function scopePending(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePublicAt": "public function scopePublicAt(Illuminate\\Database\\Eloquent\\Builder $query, Carbon\\CarbonInterface $asOf): Illuminate\\Database\\Eloquent\\Builder",
+            "scopePublished": "public function scopePublished(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWhereStatus": "public function scopeWhereStatus(Illuminate\\Database\\Eloquent\\Builder $query, App\\Enums\\StatusEnum|array|string|null $status): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithImage": "public function scopeWithImage(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithLogo": "public function scopeWithLogo(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithSlug": "public function scopeWithSlug(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "scopeWithTotalView": "public function scopeWithTotalView(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
+            "setStatusAttribute": "public function setStatusAttribute(mixed $value): void",
+            "slug": "public function slug(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "slugCategoryFor": "public static function slugCategoryFor(string|int|null $targetId): ?string",
+            "slugs": "public function slugs(): Illuminate\\Database\\Eloquent\\Relations\\MorphMany",
+            "softDeleted": "public static function softDeleted($callback)",
+            "syncAttachments": "public function syncAttachments(array $data = array (), string $category = self::CATEGORY_ATTACHMENTS): void",
+            "syncAvatar": "public function syncAvatar(array $data = array (), string $category = self::CATEGORY_AVATAR): void",
+            "syncImages": "public function syncImages(array $data = array (), string $category = self::CATEGORY_IMAGES): void",
+            "syncSlug": "public function syncSlug(array $data = array ()): void",
+            "tags": "public function tags(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "totalView": "public function totalView(): Illuminate\\Database\\Eloquent\\Casts\\Attribute",
+            "trashed": "public function trashed()",
+            "uploaded": "public function uploaded(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "warmTotalViews": "public static function warmTotalViews(iterable $models): void"
+        }
+    },
+    "Cms\\Content\\Services\\Cache\\ContentPostCacheInvalidationService": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Content\\Services\\Cache\\ContentCacheVersionService $versions)",
+            "categoryScope": "public static function categoryScope(string|int $categoryId, string $type, string|int|null $languageId): string",
+            "configScope": "public static function configScope(string $type, string $configKey, string|int|null $languageId): string",
+            "featuredScope": "public static function featuredScope(string $type, string|int|null $languageId): string",
+            "invalidateSnapshots": "public function invalidateSnapshots(array $before, array $after): array",
+            "latestScope": "public static function latestScope(string $type, string|int|null $languageId): string",
+            "listScope": "public static function listScope(string $type, string|int|null $languageId): string",
+            "postScope": "public static function postScope(string|int $postId): string",
+            "publicListScope": "public static function publicListScope(string|int|null $languageId): string",
+            "searchScope": "public static function searchScope(string $type, string|int|null $languageId): string",
+            "slugScope": "public static function slugScope(string $slug, string|int|null $languageId): string",
+            "snapshot": "public function snapshot(?Cms\\Content\\Models\\Post $post): array",
+            "uuidScope": "public static function uuidScope(string $uuid): string",
+            "versionedKey": "public function versionedKey(string $baseKey, array|string $scopes): string"
+        }
+    },
+    "Cms\\Content\\Services\\Cache\\ContentPublicTagCacheService": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Content\\Services\\Cache\\ContentCacheVersionService $versions)",
+            "indexKey": "public function indexKey(): string",
+            "invalidatePosts": "public function invalidatePosts(array $tagIds): void",
+            "invalidateTags": "public function invalidateTags(array $slugs): void",
+            "rememberIndex": "public function rememberIndex(callable $loader): mixed",
+            "rememberPosts": "public function rememberPosts(int $tagId, int $page, int $pageSize): Illuminate\\Contracts\\Pagination\\LengthAwarePaginator",
+            "rememberTag": "public function rememberTag(string $slug, callable $loader): mixed"
+        }
+    },
+    "Cms\\Content\\Services\\DeletedPostPurgeService": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct(Cms\\Core\\Services\\OrphanUploadPurgeService $uploads)",
+            "purge": "public function purge(int $days = 30, int $limit = 500, bool $apply = false, ?Illuminate\\Support\\Carbon $now = NULL, bool $deferImages = false): array",
+            "purgeSelected": "public function purgeSelected(array $postIds, bool $apply = false, bool $deferImages = false): array"
+        }
+    }
+}

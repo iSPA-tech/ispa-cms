@@ -1,0 +1,293 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Repositories\Interfaces\{{ name }}Interface;
+use App\Http\Requests\{{ name }}\Store{{ name }}Request;
+use App\Http\Requests\{{ name }}\Update{{ name }}Request;
+use App\Http\Requests\{{ name }}\MultiDelete{{ name }}Request;
+use App\Http\Controllers\{{ type }}Controller;
+
+class {{ name }}Controller extends {{ type }}Controller
+{
+    /**
+     * Controller constructor
+     *
+     * @param {{ name }}Interface $model
+     *
+     * @author malayvuong
+     * @since 1.0.0
+     * @added {{ date }}
+     */
+    public function __construct(
+        protected {{ name }}Interface $model
+    ) {
+        parent::__construct();
+    }
+
+  /**
+   * Quick Update resource.
+   *
+   * @param Integer $id
+   * @param AppResponse $res
+   * @return AppResponse $res
+   *
+   * @author malayvuong
+   */
+  public function quickUpdate(int $id)
+  {
+    if ($id < 1) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    $model = $this->model->find($id);
+
+    if (!$model) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    if (!user()?->can('update', $model)) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    /** Todo: Make your change here */
+    if (!$model->save()) {
+      return ires()->error()->message(__('mgs.failed.update', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    return ires()->message(__('mgs.ok.update', ['name' => __('nav.a.{{ lang }}')]));
+  }
+
+  /**
+   * Switch a status of resource.
+   *
+   * @param Integer $id
+   * @param AppResponse $res
+   * @return AppResponse $res
+   *
+   * @author malayvuong
+   */
+  public function switch(int $id)
+  {
+    if ($id < 1) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    $model = $this->model->find($id);
+
+    if (!$model) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    if (!user()?->can('update', $model)) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    /** Todo: Make your change here */
+    if (!$model->save()) {
+      return ires()->error()->message(__('mgs.failed.update', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    return ires()->message(__('mgs.ok.update', ['name' => __('nav.a.{{ lang }}')]));
+  }
+
+  /**
+   * Display a listing of the resource.
+   *
+   * @param AppResponse $res
+   * @return AppResponse $res
+   *
+   * @author malayvuong
+   */
+  public function index()
+  {
+    if (!user()?->can('viewAny', $this->model->model())) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    $model = $this->model->get([
+
+    ]);
+
+    return ires()->data($model);
+  }
+
+  /**
+   * Show the form for creating a new resource
+   *
+   * @param AppResponse $res
+   * @return AppResponse $res
+   *
+   * @author malayvuong
+   */
+  public function create()
+  {
+    return $res;
+  }
+
+  /**
+   * Store a newly created resource in storage.
+   *
+   * @param Stote{{ name }}Request $request
+   * @param AppResponse $res
+   * @return AppResponse $res
+   *
+   * @author malayvuong
+   * @since 1.0.0
+   */
+  public function store(Store{{ name }}Request $request)
+  {
+    $model = $this->fill();
+
+    if (!user()?->can('create', $model)) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    if (!$model->save()) {
+      return ires()->error()->message(__('mgs.failed.create', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    return ires()->message(__('mgs.ok.create', ['name' => __('nav.a.{{ lang }}')]));
+  }
+
+  /**
+   * Display the specified resource.
+   *
+   * @author malayvuong
+   * @param {{ name }}Interface  $model
+   * @param AppResponse $res
+   * @return AppResponse $res
+   */
+  public function show({{ name }}Interface $model)
+  {
+    return $res;
+  }
+
+  /**
+   * Show the form for editing the specified resource.
+   *
+   * @author malayvuong
+   * @param {{ name }}Interface  $model
+   * @param AppResponse $res
+   * @return AppResponse $res
+   */
+  public function edit({{ name }}Interface $model)
+  {
+    if ($id < 1) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    $model = $this->model->find($id);
+
+    if (!$model) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    if (!user()?->can('update', $model)) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    return ires()->data($model);
+  }
+
+  /**
+   * Update the specified resource in storage.
+   *
+   * @author malayvuong
+   * @param Request $request
+   * @param {{ name }} $model
+   * @param AppResponse $res
+   * @return AppResponse $res
+   */
+  public function update(Request $request, {{ name }}Interface $model)
+  {
+    if ($id < 1) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    $model = $this->model->find($id);
+
+    if (!$model) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    if (!user()?->can('update', $model)) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    $model = $this->fill($model);
+
+    if (!$model->save()) {
+      return ires()->error()->message(__('mgs.failed.update', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    return ires()->message(__('mgs.ok.update', ['name' => __('nav.a.{{ lang }}')]));
+  }
+
+  /**
+   * Remove the specified resource from storage.
+   *
+   * @author malayvuong
+   * @param {{ name }}Interface  $model
+   * @param AppResponse $res
+   * @return AppResponse $res
+   */
+  public function destroy({{ name }}Interface $model)
+  {
+    if ($id < 1) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    $model = $this->model->find($id);
+
+    if (!$model) {
+      return ires()->error()->message(__('mgs.model.404'));
+    }
+
+    if (!user()?->can('delete', $model)) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    if (!$model->delete()) {
+      return ires()->error()->message(__('mgs.failed.delete', ['name' => __('nav.a.{{ lang }}')]));
+    }
+
+    return ires()->message(__('mgs.ok.delete', ['name' => __('nav.a.{{ lang }}')]));
+  }
+
+  /**
+   * Remove the multiple specified resource from storage.
+   *
+   * @author malayvuong
+   * @param MultiDelete{{ name }}Request $request
+   * @param AppResponse $res
+   * @return AppResponse $res
+   */
+  public function massDestroy(MultiDelete{{ name }}Request $request)
+  {
+    if (!user()?->can('delete', $this->model->model())) {
+      return ires()->error()->message(__('mgs.no.permission'));
+    }
+
+    return ires()->message(__('mgs.ok.delete', ['name' => __('nav.a.{{ lang }}')]));
+  }
+
+  /**
+   * Fill table
+   *-------------------
+   * @param null $model
+   * @return Mixed $model
+   *
+   **@author malayvuong
+  */
+  protected function fill($model = null)
+  {
+    if (!$model) {
+      $model = $this->model->model();
+    }
+
+    $model->fill(request()->only($model->getFillable()));
+
+    return $model;
+  }
+}

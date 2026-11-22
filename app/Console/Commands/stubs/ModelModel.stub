@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Models;
+
+use App\Constants\Tables;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * Class {{ name }}
+ * -- About the {{ name }} Entity
+ * @package App\Models
+ * @author malayvuong
+ * @since 1.0.0
+ *
+ * @property integer id
+ * @property string status
+ * @property string created_at
+ * @property string updated_at
+ */
+class {{ name }} extends Model
+{
+    use HasFactory;
+
+    /** @var string */
+    public $table = '{{ name_lower }}s';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [];
+
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = [];
+}

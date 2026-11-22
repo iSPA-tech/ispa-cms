@@ -1,0 +1,18 @@
+{
+    "name": "Skeleton",
+    "alias": "skeleton",
+    "description": "Skeleton module, built with cms:make-module.",
+    "version": "__MODULE_VERSION__",
+    "edition": "client",
+    "distribution": "deploy",
+    "distribution_reason": "built with cms:make-module; ships with its site",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Cms\\Skeleton\\Providers\\SkeletonServiceProvider"
+    ],
+    "files": [],
+    "requires": {
+        "core": "__CORE_REQUIREMENT__"
+    }
+}
