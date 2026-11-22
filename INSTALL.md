@@ -39,7 +39,7 @@ screens cannot be rebuilt on this site"); the module's admin screens appear afte
 1. Create the site.
 
    ```bash
-   composer create-project ispa-io/ispa-cms my-site
+   composer create-project ispa-tech/ispa-cms my-site
    cd my-site
    ```
 

@@ -1,1 +1,0 @@
-import{$ as e,N as t,t as n,w as r}from"./vue.runtime.esm-bundler-PwCfIGoq.js";import{k as i}from"./index-DTgDRQ-3.js";n();var a={__name:`report`,setup(n){return t({name:`Report`}),(t,n)=>{let a=i;return e(),r(a,{type:t.Place},null,8,[`type`])}}};export{a as default};

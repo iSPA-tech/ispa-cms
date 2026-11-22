@@ -32,7 +32,7 @@ work without the hub.
 ## Quick start
 
 ```bash
-composer create-project ispa-io/ispa-cms my-site
+composer create-project ispa-tech/ispa-cms my-site
 cd my-site
 # set DB_CONNECTION, DB_DATABASE, ... and APP_URL in .env
 php artisan cms:install --admin-email=you@example.com

@@ -16,7 +16,7 @@ Thank you for helping. This page says how to report a problem, set up the projec
 You need PHP 8.3 or newer, Composer 2, Node.js 20 or newer and pnpm 10 (`corepack enable`).
 
 ```bash
-git clone https://github.com/iSPA-io/ispa-cms.git
+git clone https://github.com/iSPA-tech/ispa-cms.git
 cd ispa-cms
 composer install
 cp .env.example .env    # set the database; SQLite is enough for development

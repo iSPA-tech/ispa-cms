@@ -2830,6 +2830,10 @@ return [
             'state_ready' => 'Sẵn sàng',
         ],
     ],
+    'utils' => [
+        'unit_b' => 'tỷ',
+        'unit_m' => 'tr',
+    ],
     'yes' => 'Có',
     'youtubeUrl' => 'Đường dẫn Kênh Youtube',
 ];

@@ -2830,6 +2830,10 @@ return [
             'state_ready' => 'Ready',
         ],
     ],
+    'utils' => [
+        'unit_b' => 'b',
+        'unit_m' => 'm',
+    ],
     'yes' => 'Yes',
     'youtubeUrl' => 'Youtube Channel URL',
 ];
