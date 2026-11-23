@@ -2,6 +2,21 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.03
+
+- **Security updates**: the npm dependencies of the site and the admin are updated past every open advisory: Vite 8.1.6,
+  Axios 1.21, Vue 3.5.46, Vue I18n 11.4.23, Vitest 4.1.12 and Tiptap 3.35, plus minimum versions for transitive packages
+  (undici, follow-redirects, form-data, shell-quote, brace-expansion, postcss, immutable, nanoid, glob, minimatch and
+  others). The unused `cms/Core/package.json` is removed.
+- **Core module 2026.11.02**: carries the Core changes below.
+- **Branded mail**: a shared mail layout with an optional logo and a `[Brand] - ` subject prefix; the verify-email,
+  new-device and admin notice mails are translated.
+- **Admin sign-in**: Admin accounts can sign in to the admin with their password.
+- **Modules**: an uninstall is refused when the module refuses to be switched off.
+- **Starter packs**: the translation-sync step writes only the public translation files.
+- **Fixes**: the queued new-device notice can be restored by the queue worker; the tracking buffer flush skips Redis
+  while its counter gate is closed; shared breadcrumb links have a 44 px touch target on phones.
+
 ## 2026.11.02
 
 - **Package name**: the Composer package is `ispa-tech/ispa-cms` (`composer create-project ispa-tech/ispa-cms my-site`),
