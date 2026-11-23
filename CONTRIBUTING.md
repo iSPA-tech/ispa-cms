@@ -59,6 +59,12 @@ Add a test with every fix and feature: a fix comes with a test that fails withou
   [Developer Certificate of Origin](https://developercertificate.org/): you wrote the change or have the right to submit
   it under the project's licence.
 
+## Working with an AI coding agent
+
+Point your agent at `the module notes` first. It maps the tree, the request flow and
+the hard rules in one file and says which deeper page under `docs/agents/` to open for each kind of change, so the
+agent does not have to read the whole codebase to start. Each bundled module has its own `cms/<Module>/the module notes`.
+
 ## Licence
 
 iSPA CMS is licensed under the GNU Affero General Public License v3.0 only. By contributing, you agree that your

@@ -54,6 +54,12 @@ class CoreUpgradeCommand extends Command
 
                 return self::FAILURE;
             }
+            // Nothing to do when the target is the installed version, or the hub offers nothing newer.
+            if (version_compare($latest, $installed->version, '==') || ($to === '' && version_compare($latest, $installed->version, '<'))) {
+                $this->components->info("The core is already on {$installed->version}; nothing to upgrade.");
+
+                return self::SUCCESS;
+            }
             if ((bool) $this->option('dry-run')) {
                 return $this->dryRun($upgrader, $latest);
             }

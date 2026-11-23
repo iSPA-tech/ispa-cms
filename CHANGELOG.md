@@ -2,6 +2,16 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.04
+
+- **Core module 2026.11.03**: `./ispa upgrade` (and `php artisan cms:core-upgrade`) does nothing when the core is
+  already on the newest version, and says so, instead of starting an upgrade to the same version.
+- **Guide for coding agents**: `the module notes`, `the module notes`, `docs/agents/` and an `the module notes` for Core, Content and Widget
+  describe the layout, the request flow, the rules and the test commands, for contributors who work with a coding
+  agent. `CONTRIBUTING.md` points to them.
+- **Download**: each release also carries `ispa-cms.zip`, so
+  `https://github.com/iSPA-tech/ispa-cms/releases/latest/download/ispa-cms.zip` always gives the newest release.
+
 ## 2026.11.03
 
 - **Security updates**: the npm dependencies of the site and the admin are updated past every open advisory: Vite 8.1.6,

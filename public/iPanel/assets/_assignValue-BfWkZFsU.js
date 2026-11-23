@@ -1,0 +1,1 @@
+import{_ as e}from"./isEqual-DP5q5SGu.js";import{t}from"./_baseAssignValue-DETI7GOu.js";var n=Object.prototype.hasOwnProperty;function r(r,i,a){var o=r[i];(!(n.call(r,i)&&e(o,a))||a===void 0&&!(i in r))&&t(r,i,a)}export{r as t};

@@ -1,1 +1,0 @@
-import{$ as e,N as t,t as n,w as r}from"./vue.runtime.esm-bundler-DJ1r71e2.js";import{t as i}from"./quick-report-P_uUdoVj.js";n();var a={__name:`report`,setup(n){return t({name:`Report`}),(t,n)=>{let a=i;return e(),r(a,{type:t.Place},null,8,[`type`])}}};export{a as default};

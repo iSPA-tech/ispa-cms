@@ -1,0 +1,1 @@
+import{As as e}from"./config-DK2AR_tV.js";var t=e(Object.getPrototypeOf,Object);export{t};

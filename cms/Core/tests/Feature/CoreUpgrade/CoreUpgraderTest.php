@@ -657,6 +657,24 @@ test('dry run downloads and verifies but changes nothing', function () {
         ->and($gate->calls)->toBe(0)->and($runner->commands)->toBe([]);
 });
 
+test('upgrade to the installed version does nothing and reports the core is up to date', function () {
+    $upgrader = new class($this->tree) extends CoreUpgrader {
+        public int $runs = 0;
+
+        public function run(string $targetVersion, bool $overwriteModified, ?\Cms\Core\Models\BackgroundTask $task = null, ?int $userId = null, array $extraPhpVersions = []): void
+        {
+            $this->runs++;
+        }
+    };
+    app()->instance(CoreUpgrader::class, $upgrader);
+
+    $this->artisan('cms:core-upgrade', ['--to' => '2026.12.0'])
+        ->expectsOutputToContain('already on 2026.12.0')
+        ->doesntExpectOutputToContain('Upgrading the core')
+        ->assertExitCode(0);
+    expect($upgrader->runs)->toBe(0);
+});
+
 test('git checkout guard refuses a real swap unless allowed', function () {
     mkdir($this->tree.'/.git');
     $upgrader = new class($this->tree) extends CoreUpgrader {
