@@ -11,17 +11,38 @@ allowBuilds:
 overrides:
   # Newer rolldown binaries crash (Illegal instruction) on older server CPUs; scoped to the admin's Vite so the site's
   # own Vite keeps its rolldown in the release workspace.
-  'vite@8.0.16>rolldown': 1.0.3
-  vue: 3.5.35
-  '@vue/compiler-core': 3.5.35
-  '@vue/compiler-dom': 3.5.35
-  '@vue/compiler-sfc': 3.5.35
-  '@vue/compiler-ssr': 3.5.35
-  '@vue/reactivity': 3.5.35
-  '@vue/runtime-core': 3.5.35
-  '@vue/runtime-dom': 3.5.35
-  '@vue/server-renderer': 3.5.35
-  '@vue/shared': 3.5.35
+  'vite@8.1.6>rolldown': 1.1.5
+  # Security floors for transitive packages (Dependabot, 2026-11-23).
+  undici@7: ^7.30.1
+  follow-redirects: ^1.16.3
+  form-data@4: ^4.0.6
+  shell-quote: ^1.12.0
+  immutable@5: ^5.2.1
+  nanoid@3: ^3.3.18
+  browserslist: ^4.29.6
+  prosemirror-view: ^1.43.0
+  source-map-js: ^1.2.4
+  yaml@2: ^2.9.1
+  baseline-browser-mapping: ^2.11.39
+  postcss-selector-parser@6: ^6.1.5
+  postcss-selector-parser@7: ^7.1.6
+  postcss: ^8.5.31
+  brace-expansion@2: ^2.1.7
+  brace-expansion@5: ^5.0.12
+  js-cookie: ^3.0.8
+  # Major-only fixes; the callers (js-beautify, editorconfig, eslint) use globSync / Minimatch, unchanged in these majors.
+  glob: ^14.0.6
+  minimatch: ^11.0.9
+  vue: 3.5.46
+  '@vue/compiler-core': 3.5.46
+  '@vue/compiler-dom': 3.5.46
+  '@vue/compiler-sfc': 3.5.46
+  '@vue/compiler-ssr': 3.5.46
+  '@vue/reactivity': 3.5.46
+  '@vue/runtime-core': 3.5.46
+  '@vue/runtime-dom': 3.5.46
+  '@vue/server-renderer': 3.5.46
+  '@vue/shared': 3.5.46
 
 onlyBuiltDependencies:
   - core-js

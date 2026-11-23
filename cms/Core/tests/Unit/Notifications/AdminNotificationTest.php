@@ -48,5 +48,5 @@ test('the mail channel is added only when the site setting is on', function () {
     $n = new AdminNotification('backup.failed', ['a' => 1]);
 
     expect($n->via(new stdClass()))->toBe(['database', 'mail'])
-        ->and($n->toMail(new stdClass())->subject)->toBe('backup.failed');
+        ->and($n->toMail(new stdClass())->subject)->toBe(__('mgs.mail.admin-notice-subject'));
 });

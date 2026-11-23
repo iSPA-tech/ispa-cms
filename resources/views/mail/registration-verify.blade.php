@@ -2,93 +2,20 @@
 
 @section('content')
     <tr>
-        <td align="center" style="background-color: white; padding-top: 25px; padding-bottom: 0;">
-            <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td style="padding: 0; margin: 0">
-                        <h1 style="font-size: 22px; line-height: 28px; letter-spacing: -.20px; margin: 10px 0 16px 0; font-family: Helvetica Neue, Arial, sans-serif; color: #ae006d; text-align: left;">
-                            {{ $subTitle ?? $subject ?? '' }}
-                        </h1>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 0; margin: 0">
-                        <div style="margin: 0 0 15px 0; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 24px;">
-                            {{ __('mgs.register.verify_greeting', ['name' => $contactName ?? '']) }}
-                        </div>
-                        <div style="margin: 0 0 15px 0; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 24px;">
-                            {{ __('mgs.register.verify_intro') }}
-                        </div>
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-
-    {{-- Verification Code --}}
-    @if (!empty($code))
-    <tr>
-        <td align="center" style="background-color: white; padding-top: 10px; padding-bottom: 10px;">
-            <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td style="font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #969696;">
-                        {{ __('mgs.register.verify_code_label') }}:
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding-top: 8px; padding-bottom: 8px; font-size: 32px; font-family: Helvetica Neue, Arial, sans-serif; color: #111; text-align: center; line-height: 1.2em; font-weight: 700; letter-spacing: 8px;">
-                        {{ $code }}
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    @endif
-
-    {{-- Verify Button --}}
-    @if (!empty($url))
-    <tr>
-        <td align="center" style="background-color: white; padding-top: 10px; padding-bottom: 5px;">
-            <table border="0" align="center" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td align="center" style="background-color: rgba(6,182,212,1); border-radius: 6px;">
-                        <a href="{{ $url }}" target="_blank"
-                           style="display: inline-block; padding: 12px 32px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #ffffff; text-decoration: none; font-weight: 600;">
-                            {{ __('mgs.register.verify_link_label') }}
-                        </a>
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <tr>
-        <td align="center" style="background-color: white; padding-top: 10px; padding-bottom: 10px;">
-            <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td style="font-size: 12px; font-family: Helvetica Neue, Arial, sans-serif; color: #969696; word-break: break-all;">
-                        {{ $url }}
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    @endif
-
-    {{-- Ignore Notice + Expiry --}}
-    <tr>
-        <td align="center" style="background-color: white; padding-top: 10px; padding-bottom: 10px;">
-            <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td style="font-size: 13px; font-family: Helvetica Neue, Arial, sans-serif; color: #969696; text-align: left; padding-bottom: 5px;">
-                        {{ __('mgs.register.verify_ignore') }}
-                    </td>
-                </tr>
-                <tr>
-                    <td style="font-size: 13px; font-family: Helvetica Neue, Arial, sans-serif; color: #969696; text-align: left; font-weight: bold; padding-bottom: 5px;">
-                        {{ __('mgs.register.verify_expires') }}
-                    </td>
-                </tr>
-            </table>
+        <td>
+            <h1 style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:28px;font-weight:bold;color:#111827;">{{ $subTitle ?? '' }}</h1>
+            <p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#1f2937;">{{ __('mgs.register.verify_greeting', ['name' => $contactName ?? '']) }}</p>
+            <p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#1f2937;">{{ __('mgs.register.verify_intro') }}</p>
+            @if (! empty($code))
+                <p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#1f2937;">{{ __('mgs.register.verify_code_label') }}:</p>
+                <div style="margin:0 0 16px;padding:14px 16px;background-color:#f3f4f6;border-radius:6px;font-family:Consolas,Menlo,monospace;font-size:26px;line-height:32px;font-weight:bold;letter-spacing:4px;color:#111827;text-align:center;">{{ $code }}</div>
+            @endif
+            @if (! empty($url))
+                <p style="margin:8px 0 12px;text-align:center;"><a href="{{ $url }}" target="_blank" rel="noopener" style="display:inline-block;background-color:#1f2937;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;">{{ __('mgs.register.verify_link_label') }}</a></p>
+                <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6b7280;word-break:break-all;">{{ $url }}</p>
+            @endif
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#6b7280;">{{ __('mgs.register.verify_ignore') }}</p>
+            <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#6b7280;">{{ __('mgs.register.verify_expires') }}</p>
         </td>
     </tr>
 @endsection

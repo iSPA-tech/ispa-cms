@@ -26,6 +26,18 @@ class FlushTrackingCounterBucketsCommand extends Command
     ): int {
         try {
             $runtime = TrackingCounterRuntime::query()->findOrFail(1);
+            // With the capability gate off, Redis holds buckets only while it still owns the counters or drains
+            // after a switch back to receipts. Otherwise there is nothing to flush, and a site without Redis
+            // (or without its password) must not need a connection.
+            if (
+                !config('tracking.buffer.enabled', false)
+                && $runtime->active_driver !== TrackingCounterRuntime::DRIVER_REDIS
+                && $runtime->transition_state !== TrackingCounterRuntime::TRANSITION_DRAINING_REDIS
+            ) {
+                $this->line('Flushed tracking buckets: 0');
+
+                return self::SUCCESS;
+            }
             if ($runtime->active_driver === TrackingCounterRuntime::DRIVER_REDIS) {
                 $generation = (int) TrackingRuntimeState::query()->whereKey(1)->value('write_generation');
                 if (!$store->usesDedicatedDatabase()) {

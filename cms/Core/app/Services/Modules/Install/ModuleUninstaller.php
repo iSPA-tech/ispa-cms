@@ -14,6 +14,7 @@ use App\Jobs\Modules\RefreshRuntimeCachesJob;
 use App\Models\User;
 use App\Support\Modules\ArtisanSubprocess;
 use App\Support\Modules\DatabaseActivator;
+use App\Support\Modules\ModuleDisableGuardRegistry;
 use App\Support\Modules\ModuleStatusService;
 use App\Support\Modules\RuntimeModules;
 use Cms\Core\Events\AuditLogEvent;
@@ -175,13 +176,21 @@ class ModuleUninstaller
      *
      * @return array{name: string, version: ?string, enabled: bool, dir: string, tables: list<string>, dependents: list<string>}
      *
-     * @throws PackageVerificationException a refusal code of {@see self::inspect()}, MODULE_HAS_DEPENDENTS, MODULE_HAS_DATA, MODULE_UNINSTALL_NO_TABLES or MODULE_TABLE_NOT_OWNED
+     * @throws PackageVerificationException a refusal code of {@see self::inspect()}, MODULE_HAS_DEPENDENTS, MODULE_UNINSTALL_DISABLE_FAILED (a disable guard refuses), MODULE_HAS_DATA, MODULE_UNINSTALL_NO_TABLES or MODULE_TABLE_NOT_OWNED
      */
     public function check(string $name, bool $dropData): array
     {
         $facts = $this->inspect($name);
         if ($facts['dependents'] !== []) {
             throw new PackageVerificationException(self::ERROR_HAS_DEPENDENTS, 'enabled modules require this module: ' . implode(', ', $facts['dependents']));
+        }
+        // An uninstall switches the module off first, so a module that refuses to be switched off (a registered disable
+        // guard, e.g. Demo while the site is a demo) refuses the uninstall too, before anything is queued or backed up.
+        if ($facts['enabled']) {
+            $blocking = app(ModuleDisableGuardRegistry::class)->evaluate($name);
+            if ($blocking !== []) {
+                throw new PackageVerificationException(self::ERROR_DISABLE, 'the module refuses to be switched off: ' . implode(', ', $blocking));
+            }
         }
         $this->refuseWhileRows($facts['dir']);
         if ($dropData && $facts['tables'] === []) {

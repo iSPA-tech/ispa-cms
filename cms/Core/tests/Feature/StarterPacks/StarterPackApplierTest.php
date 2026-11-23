@@ -433,6 +433,18 @@ it('runs every step in order after the backup and records the ledger, the task a
         && $e->changed['pack_key'] === 'demo' && $e->changed['pack_version'] === '1.0.0' && $e->user_id === 1);
 });
 
+it('regenerates only the public language packs in the translation-sync final step', function (): void {
+    $application = spaApplier()->apply(spaPack(['translation-sync', 'cache-clear']), 1);
+
+    // A release install keeps the code tree read-only for the web user: a full generate would fail on lang/ files.
+    expect($application->status)->toBe(StarterPackApplication::STATUS_SUCCEEDED)
+        ->and(array_values(array_filter(SpaState::$log, fn (string $entry): bool => str_starts_with($entry, 'artisan:'))))->toBe([
+            'artisan:cms:translation-sync',
+            'artisan:cms:translation-generate --public-only',
+            'artisan:cache:clear',
+        ]);
+});
+
 it('hands the content status option to the importers as status', function (): void {
     SpaImporter::$options = ['untouched'];
 

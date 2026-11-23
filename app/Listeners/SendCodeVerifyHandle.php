@@ -44,9 +44,11 @@ class SendCodeVerifyHandle implements ShouldQueue
             : config('app.locale');
 
         $this->withLocale($locale, function () use ($event, $locale): void {
+            $title = (string) __('mgs.code.' . $event->type);
             $mail = [
-                'subject' => '[' . iSeo('brand') . '] ' . __('mgs.code.' . $event->type),
-                'brand' => iSeo('brand'),
+                // The `[Brand] - ` prefix comes from MailBrand; a password reset code also carries the date-time.
+                'subject' => \App\Support\Mail\MailBrand::subject($event->type === 'reset-code' ? \App\Support\Mail\MailBrand::stamped($title) : $title),
+                'brand' => \App\Support\Mail\MailBrand::name(),
                 'subTitle' => __('mgs.code.' . $event->type),
                 'code' => $event->code,
                 'user' => $event->user,

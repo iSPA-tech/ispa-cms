@@ -1,0 +1,1 @@
+import{i as e}from"./config-BBn_lAPa.js";var t=[`queued`,`running`],n=async()=>{let t=(await e.get(`background-tasks`,{silent:!0}))?.data?.data;return Array.isArray(t)?t:[]},r=e=>t.includes(e?.status),i=(e,t)=>(e||[]).find(e=>e.type===t)?.text||null;export{r as n,i as r,n as t};

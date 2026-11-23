@@ -2,6 +2,12 @@
     "name": "ispa-tech/ispa-cms",
     "type": "project",
     "description": "iSPA CMS - iSPA Team",
+    "homepage": "https://ispa.tech",
+    "support": {
+        "docs": "https://docs.ispa.tech",
+        "issues": "https://github.com/iSPA-tech/ispa-cms/issues",
+        "source": "https://github.com/iSPA-tech/ispa-cms"
+    },
     "keywords": [
         "cms",
         "ispa",

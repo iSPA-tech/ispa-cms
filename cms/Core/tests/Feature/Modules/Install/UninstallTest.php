@@ -449,6 +449,30 @@ test('a dependent that names the module in lower case still blocks the uninstall
         ->and(is_link($this->runtimeDir.'/'.UN_NAME))->toBeTrue();
 });
 
+test('a module whose disable guard refuses can not be uninstalled while it is on, and nothing is queued', function () {
+    unInstall($this, UN_NAME, '1.0.0');
+    app(\App\Support\Modules\ModuleDisableGuardRegistry::class)->register(new class implements \App\Contracts\Modules\ModuleDisableGuard
+    {
+        public function moduleName(): string
+        {
+            return UN_NAME;
+        }
+
+        public function evaluate(): ?string
+        {
+            return 'PROBE_LOCKED';
+        }
+    });
+    Sanctum::actingAs(unAdmin('un-wm-guard@test.local', true));
+
+    [$response] = unUninstall($this, UN_NAME, ['confirm_name' => UN_NAME]);
+
+    $response->assertStatus(422)->assertJsonPath('error_code', ModuleUninstaller::ERROR_DISABLE);
+    expect($response->json('message'))->toContain('PROBE_LOCKED')
+        ->and(is_link($this->runtimeDir.'/'.UN_NAME))->toBeTrue()
+        ->and(ModuleInstall::query()->count())->toBe(0);
+});
+
 test('a disabled dependent does not block', function () {
     unInstall($this, UN_NAME, '1.0.0');
     unInstall($this, 'Sleeper', '1.0.0', false, null, [UN_NAME]);

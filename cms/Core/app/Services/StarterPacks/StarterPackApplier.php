@@ -84,9 +84,13 @@ class StarterPackApplier
     /** Steps that have a plan and may be skipped on a re-run. */
     private const PLANNED_STEPS = ['modules', 'config', 'roles', 'workflows', 'content'];
 
-    /** Post-apply step => artisan commands run in fresh processes. */
+    /**
+     * Post-apply step => artisan commands run in fresh processes. The generate writes only the public language packs:
+     * on a release install the code tree (`lang/`, `cms/<Module>/lang`) is read-only for the web user, as in
+     * {@see ModuleInstaller}.
+     */
     private const POST_APPLY_COMMANDS = [
-        'translation-sync' => [['cms:translation-sync'], ['cms:translation-generate']],
+        'translation-sync' => [['cms:translation-sync'], ['cms:translation-generate', '--public-only']],
         'cache-clear' => [['cache:clear']],
     ];
 

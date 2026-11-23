@@ -35,8 +35,9 @@ class SendEmailPasswordAutoResetListener implements ShouldQueue
     public function handle(SendEmailPasswordAutoResetEvent $event): void
     {
         $mail = $event->data;
-        $mail['subject'] = $event->data['subject'] ?? 'Auto generated Password for account: ' . $event->data['email'];
-        $mail['brand'] = config('app.name', env('APP_NAME'));
+        // A new password is a password reset: the date-time keeps each such mail its own inbox thread.
+        $mail['subject'] = $event->data['subject'] ?? \App\Support\Mail\MailBrand::stamped(__('mgs.mail.auto-password-subject', ['email' => $event->data['email']]));
+        $mail['brand'] = \App\Support\Mail\MailBrand::name();
 
         //  Process to save Mail logs for live view
         $model = $this->log->model();

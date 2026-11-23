@@ -42,12 +42,12 @@ class PasswordChangeNotificationHandler implements ShouldQueue
         $agent->setUserAgent($event->agent);
 
         $mail = [
-            'subject' => '['.config('app.name', env('APP_NAME')).'] Account password has been changed',
-            'brand' => config('app.name', env('APP_NAME')),
-            'subTitle' => 'Password Changed',
+            'subject' => __('mgs.mail.password-changed-subject'),
+            'brand' => \App\Support\Mail\MailBrand::name(),
+            'subTitle' => __('mgs.mail.password-changed-subject'),
             'platform' => $agent->platform().' '.$agent->version($agent->platform()),
             'device' => $agent->device().' - '.$agent->browser().' '.$agent->version($agent->browser()),
-            'time' => now()->format('Y-m-d H:i:s'),
+            'time' => now()->setTimezone(\App\Support\Mail\MailBrand::timezone())->format('d/m/Y H:i'),
             'ipAddress' => $event->ip,
             'support' => config('mail.reply'),
         ];

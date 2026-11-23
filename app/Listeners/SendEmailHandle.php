@@ -41,7 +41,7 @@ class SendEmailHandle implements ShouldQueue
     public function handle(SendEmail $event): void
     {
         $mail = $event->data;
-        $mail['subject'] = $event->data['subject'] ?? 'Re: Contact from ' . $event->data['email'];
+        $mail['subject'] = $event->data['subject'] ?? __('mgs.mail.contact-reply-subject');
         $mail['brand'] = config('app.name', env('APP_NAME'));
         [$targetType, $targetId] = $this->resolveEmailTarget($mail);
 

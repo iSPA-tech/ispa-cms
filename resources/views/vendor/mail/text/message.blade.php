@@ -2,7 +2,7 @@
     {{-- Header --}}
     <x-slot:header>
         <x-mail::header :url="config('app.url')">
-            {{ config('app.name') }}
+            {{ \App\Support\Mail\MailBrand::name() }}
         </x-mail::header>
     </x-slot:header>
 
@@ -21,7 +21,7 @@
     {{-- Footer --}}
     <x-slot:footer>
         <x-mail::footer>
-            © {{ date('Y') }} {{ config('app.name') }}. @lang('All rights reserved.')
+            {{ __('mgs.mail.footer-copyright', ['year' => now()->year, 'brand' => \App\Support\Mail\MailBrand::name()]) }}
         </x-mail::footer>
     </x-slot:footer>
 </x-mail::layout>

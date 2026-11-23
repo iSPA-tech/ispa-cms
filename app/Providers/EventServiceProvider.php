@@ -28,6 +28,8 @@ use App\Listeners\PasswordChangeNotificationHandler;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use App\Listeners\SendEmailPasswordAutoResetListener;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
+use Illuminate\Mail\Events\MessageSending;
+use App\Listeners\BrandMailSubject;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -67,6 +69,10 @@ class EventServiceProvider extends ServiceProvider
         OrderCreatedEvent::class => [
             AdminOnOrderCreatedListener::class,
             UserOnOrderCreatedListener::class,
+        ],
+        // Every outgoing mail gets the `[Brand] - ` subject prefix.
+        MessageSending::class => [
+            BrandMailSubject::class,
         ],
     ];
 

@@ -20,10 +20,14 @@ class AdminNotification extends Notification
     public const int MAX_PAYLOAD_BYTES = 1024;
 
     /**
+     * The properties are not `readonly`: a queued subclass (NewDeviceSignInNotification) is restored by Laravel's
+     * SerializesModels from the subclass scope, and PHP refuses to initialize a parent's readonly property from there,
+     * so the queued notice was never sent (cms.ispa.io, 2026-11-13 and 2026-11-23). Treat them as read-only anyway.
+     *
      * @param string $type Short notification type key, for example `backup.failed`.
      * @param array<string, mixed> $payload Flat map of scalar values.
      */
-    public function __construct(public readonly string $type, public readonly array $payload = [])
+    public function __construct(public string $type, public array $payload = [])
     {
     }
 
@@ -83,7 +87,7 @@ class AdminNotification extends Notification
     }
 
     /**
-     * Minimal mail version: the subject is the type and the body carries no payload values.
+     * Minimal mail version: a translated notice; the body carries no payload values.
      *
      * @param mixed $notifiable Notification recipient.
      * @return MailMessage
@@ -91,7 +95,7 @@ class AdminNotification extends Notification
     public function toMail(mixed $notifiable): MailMessage
     {
         return (new MailMessage())
-            ->subject($this->type)
-            ->line('You have a new notification in the admin panel.');
+            ->subject(__('mgs.mail.admin-notice-subject'))
+            ->line(__('mgs.mail.admin-notice-line'));
     }
 }

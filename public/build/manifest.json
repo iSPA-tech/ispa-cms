@@ -1,17 +1,10 @@
 {
-  "_bootstrap-BGiqBO2y.js": {
-    "file": "assets/bootstrap-BGiqBO2y.js",
-    "name": "bootstrap",
-    "imports": [
-      "_chunk-Cte6qgjF.js"
-    ]
-  },
-  "_chunk-Cte6qgjF.js": {
-    "file": "assets/chunk-Cte6qgjF.js",
-    "name": "chunk"
+  "_bootstrap-DQPxi_qz.js": {
+    "file": "assets/bootstrap-DQPxi_qz.js",
+    "name": "bootstrap"
   },
   "projects/Default/dev/theme.css": {
-    "file": "assets/theme-C_jCONju.css",
+    "file": "assets/theme-DI7KfCG6.css",
     "name": "theme",
     "names": [
       "theme.css"
@@ -20,7 +13,7 @@
     "isEntry": true
   },
   "resources/css/app.css": {
-    "file": "assets/app-CihZcRqk.css",
+    "file": "assets/app-DYJPdh-I.css",
     "name": "app",
     "names": [
       "app.css"
@@ -29,37 +22,37 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-CcBSGqN9.js",
+    "file": "assets/app-DaobKETJ.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_bootstrap-BGiqBO2y.js"
+      "_bootstrap-DQPxi_qz.js"
     ]
   },
   "resources/js/comment.js": {
-    "file": "assets/comment-CwNJ7iKf.js",
+    "file": "assets/comment-BvRk9kiK.js",
     "name": "comment",
     "src": "resources/js/comment.js",
     "isEntry": true
   },
   "resources/js/home.search.js": {
-    "file": "assets/home.search-spBro59k.js",
+    "file": "assets/home.search-DtlBcyyU.js",
     "name": "home.search",
     "src": "resources/js/home.search.js",
     "isEntry": true,
     "dynamicImports": [
-      "_bootstrap-BGiqBO2y.js"
+      "_bootstrap-DQPxi_qz.js"
     ]
   },
   "resources/js/iSpa.js": {
-    "file": "assets/iSpa-BBK-MUbd.js",
+    "file": "assets/iSpa-B0FTnQ8c.js",
     "name": "iSpa",
     "src": "resources/js/iSpa.js",
     "isEntry": true
   },
   "resources/js/language.js": {
-    "file": "assets/language-CUAPA-8t.js",
+    "file": "assets/language-YjV0t-Og.js",
     "name": "language",
     "src": "resources/js/language.js",
     "isEntry": true
@@ -74,13 +67,10 @@
     "isEntry": true
   },
   "resources/plugins/calendar.min.js": {
-    "file": "assets/calendar.min-D5KptmeZ.js",
+    "file": "assets/calendar.min-BV35dETY.js",
     "name": "calendar.min",
     "src": "resources/plugins/calendar.min.js",
-    "isEntry": true,
-    "imports": [
-      "_chunk-Cte6qgjF.js"
-    ]
+    "isEntry": true
   },
   "resources/plugins/fancybox.min.css": {
     "file": "assets/fancybox-CYesjhip.css",
@@ -92,13 +82,10 @@
     "isEntry": true
   },
   "resources/plugins/fancybox.min.js": {
-    "file": "assets/fancybox.min-DWmipR0l.js",
+    "file": "assets/fancybox.min-D2Bq3lTP.js",
     "name": "fancybox.min",
     "src": "resources/plugins/fancybox.min.js",
-    "isEntry": true,
-    "imports": [
-      "_chunk-Cte6qgjF.js"
-    ]
+    "isEntry": true
   },
   "resources/plugins/lightslider.min.css": {
     "file": "assets/lightslider-D7CC4WV3.css",
@@ -110,7 +97,7 @@
     "isEntry": true
   },
   "resources/plugins/lightslider.min.js": {
-    "file": "assets/lightslider.min-D_4cKLuk.js",
+    "file": "assets/lightslider.min-CMkYlK3d.js",
     "name": "lightslider.min",
     "src": "resources/plugins/lightslider.min.js",
     "isEntry": true
@@ -134,12 +121,9 @@
     "isEntry": true
   },
   "resources/plugins/swiper-bundle.min.js": {
-    "file": "assets/swiper-bundle.min-fUqz7A4O.js",
+    "file": "assets/swiper-bundle.min-DnwFs7dU.js",
     "name": "swiper-bundle.min",
     "src": "resources/plugins/swiper-bundle.min.js",
-    "isEntry": true,
-    "imports": [
-      "_chunk-Cte6qgjF.js"
-    ]
+    "isEntry": true
   }
 }

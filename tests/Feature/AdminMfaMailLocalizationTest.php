@@ -139,7 +139,7 @@ test('shared mail layout keeps narrow clients responsive', function (): void {
         ->and($html)
         ->not->toContain('min-width: 512px')
         ->not->toContain('width="512"')
-        ->toContain('max-width: 512px')
+        ->toContain('max-width:600px')
         ->not->toContain('class="padding: 0; margin: 0"')
         ->not->toContain('color: #22222;');
 });

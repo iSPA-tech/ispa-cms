@@ -493,7 +493,8 @@ class AuthController extends Controller
             'roles.permissions', 'settings', 'mfaFactors.recoveryCodes',
         ]);
 
-        if (!$user || $user->type !== 0 || !Hash::check($request->input('password'), $user->password)) {
+        // Webmaster and Admin, the same staff types every other admin gate accepts (ApiAdminVerifyMiddleware, passkey sign-in).
+        if (!$user || !in_array($user->type, [UserType::WEBMASTER, UserType::ADMIN], true) || !Hash::check($request->input('password'), $user->password)) {
             /** Audit log sign in */
             if ($user) {
                 event(new AuditLogEvent('admin-signIn-failed', [], User::class, $user->id, 'fa fa-sign-in', 'danger'));

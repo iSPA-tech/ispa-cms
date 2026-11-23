@@ -53,9 +53,9 @@ class SendNotifyNewContactToAdminHandle implements ShouldQueue
 
         $brand = iSeo('brand') ?: config('setting.brand');
         $mail = [
-            'subject' => '['.$brand.'] New Contact Received',
+            'subject' => __('mgs.mail.new-contact-subject'),
             'brand' => $brand,
-            'subTitle' => 'New Contact Received',
+            'subTitle' => __('mgs.mail.new-contact-subject'),
             'email' => $event->data,
         ];
 

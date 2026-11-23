@@ -1,93 +1,21 @@
 @extends('mail.layout')
 
 @section('content')
-  <tr>
-    <td align="center" style="background-color: white; padding-top: 25px; padding-bottom: 0;">
-      <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-        <tr>
-          <td class="padding: 0; margin: 0">
-            <h1 class="h1m" style="font-size: 22px; line-height: 28px;letter-spacing: -.20px; margin: 10px 0 16px 0; font-family: Helvetica Neue, Arial, sans-serif; color: #ae006d; text-align: left;">
-              {{ $subTitle ?? $subject ?? '' }}
-            </h1>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 0; margin: 0">
-            <div style="margin: 0 0 15px 0 ; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 24px;">
-              <p>Your {{ $brand ?? '' }} account's password has been changed. If you didn't make this request, please try to reset your password. If you require more assistance you can contact our support team at {{ $support ?? '' }}</p>
-
-              <p style="padding-top: 2rem;">If you lose your password, you lose your data. Please remember your password and improve your security level.</p>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-  <tr>
-    <td align="center" style="background-color: white; padding-top: 10px; padding-bottom: 10px;">
-      <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-        <tr>
-          <td class="" style="font-size: 13px; font-family: Helvetica Neue, Arial, sans-serif; color: #969696; text-align: left; font-weight: bold; padding-bottom: 5px;">
-            This is your information changes.
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-
-  <tr>
-    <td align="center" style="background-color: white; padding-top: 0; padding-bottom: 20px;">
-      <table width="90%" border="0" align="center" cellpadding="0" cellspacing="0">
-        <tr>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px; padding-right: 10px;">
-              Platform
-            </div>
-          </td>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px;">
-              {{ $platform ?? 'N/A' }}
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px; padding-right: 10px;">
-              Device
-            </div>
-          </td>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px;">
-              {{ $device ?? 'N/A' }}
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px; padding-right: 10px;">
-              Ip Address
-            </div>
-          </td>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px;">
-              {{ $ipAddress ?? 'N/A' }}
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px; padding-right: 10px;">
-              Changed at
-            </div>
-          </td>
-          <td class="" style="padding-top: 5px; padding-bottom: 5px; font-size: 14px; font-family: Helvetica Neue, Arial, sans-serif; color: #3C4043; text-align: left; line-height: 1.55em;" width="50%">
-            <div style="color:#3C4043;margin:0px;font-size:12px;line-height:22px;  font-weight: normal; font-size: 15px;">
-              {{ $time ?? 'N/A' }}
-            </div>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
+    @php($cell = 'padding:6px 0;border-top:1px solid #e5e7eb;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:20px;')
+    <tr>
+        <td>
+            <h1 style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:28px;font-weight:bold;color:#111827;">{{ __('mgs.mail.password-changed-subject') }}</h1>
+            <p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#1f2937;">{{ __('mgs.mail.password-changed-intro', ['brand' => $brand ?? \App\Support\Mail\MailBrand::name()]) }}</p>
+            @if (! empty($support))
+                <p style="margin:0 0 14px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;color:#1f2937;">{{ __('mgs.mail.password-changed-support', ['support' => $support]) }}</p>
+            @endif
+            <p style="margin:8px 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;font-weight:bold;color:#6b7280;">{{ __('mgs.mail.password-changed-details') }}</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
+                <tr><td width="40%" style="{{ $cell }}color:#6b7280;">{{ __('mgs.mail.password-changed-platform') }}</td><td style="{{ $cell }}color:#111827;">{{ $platform ?? '-' }}</td></tr>
+                <tr><td width="40%" style="{{ $cell }}color:#6b7280;">{{ __('mgs.mail.password-changed-device') }}</td><td style="{{ $cell }}color:#111827;">{{ $device ?? '-' }}</td></tr>
+                <tr><td width="40%" style="{{ $cell }}color:#6b7280;">{{ __('mgs.mail.password-changed-ip') }}</td><td style="{{ $cell }}color:#111827;">{{ $ipAddress ?? '-' }}</td></tr>
+                <tr><td width="40%" style="{{ $cell }}color:#6b7280;">{{ __('mgs.mail.password-changed-at') }}</td><td style="{{ $cell }}color:#111827;">{{ $time ?? '-' }}</td></tr>
+            </table>
+        </td>
+    </tr>
 @endsection

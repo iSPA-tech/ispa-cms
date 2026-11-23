@@ -191,3 +191,22 @@ test('a failing notification never breaks the sign-in', function () {
 
     expect($new->plainTextToken)->toContain('|');
 });
+
+/**
+ * The queue stores the notice serialized and the worker restores it. Live on cms.ispa.io (2026-11-13 and 2026-11-23) the
+ * restore failed with "Cannot initialize readonly property AdminNotification::$type from scope NewDeviceSignInNotification":
+ * Laravel's SerializesModels sets each property again from the subclass scope, which PHP refuses for a readonly property
+ * of the parent class, so the notice was never sent.
+ */
+test('the queued notice survives the queue round trip', function () {
+    $notice = new NewDeviceSignInNotification('Chrome on macOS', '2026-11-23T05:02:36+00:00');
+
+    $restored = unserialize(serialize($notice));
+
+    expect($restored)->toBeInstanceOf(NewDeviceSignInNotification::class)
+        ->and($restored->type)->toBe('security.new_device')
+        ->and($restored->payload)->toBe(['device' => 'Chrome on macOS', 'at' => '2026-11-23T05:02:36+00:00']);
+
+    $job = unserialize(serialize(new Illuminate\Notifications\SendQueuedNotifications(p10NdnUser(), $notice, ['mail'])));
+    expect($job->notification->payload['device'])->toBe('Chrome on macOS');
+});
