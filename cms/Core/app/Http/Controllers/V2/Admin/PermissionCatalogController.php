@@ -8,9 +8,9 @@
 
 namespace Cms\Core\Http\Controllers\V2\Admin;
 
-use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Cms\Core\Models\Permission;
+use Cms\Core\Services\Permissions\PermissionCatalog;
 use Illuminate\Support\Facades\DB;
 use Cms\Core\Responses\AppResponse;
 use Cms\Core\Http\Controllers\AdminController;
@@ -39,7 +39,7 @@ class PermissionCatalogController extends AdminController
             ->select('group')
             ->whereNotNull('group')
             ->get()
-            ->map(static fn (Permission $permission) => Str::lower(Str::before($permission->group, '.')))
+            ->map(static fn (Permission $permission) => PermissionCatalog::moduleOf($permission->group))
             ->filter()
             ->countBy()
             ->sortKeys()

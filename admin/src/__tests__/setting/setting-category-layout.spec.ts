@@ -4,10 +4,10 @@ import SettingCategoryLayout from '@/pages/setting/setting-category-layout.vue'
 
 const routeState = vi.hoisted(() => ({ value: {} as Record<string, unknown> }))
 vi.mock('vue-router', () => ({ useRoute: () => routeState.value }))
-const ruleState = vi.hoisted(() => ({ allowed: true }))
-vi.mock('@/mixins', () => ({ rule: () => ruleState.allowed }))
+const ruleState = vi.hoisted(() => ({ allowed: true as boolean | ((name: string) => boolean) }))
+vi.mock('@/mixins', () => ({ rule: (name: string) => (typeof ruleState.allowed === 'function' ? ruleState.allowed(name) : ruleState.allowed) }))
 
-const mountLayout = (meta: Record<string, unknown>, allowed = true) => {
+const mountLayout = (meta: Record<string, unknown>, allowed: boolean | ((name: string) => boolean) = true) => {
     ruleState.allowed = allowed
     routeState.value = { name: 'setting-ai-runtime', path: '/setting/automation/ai-runtime', meta }
     return mount(SettingCategoryLayout, {
@@ -43,5 +43,10 @@ describe('SettingCategoryLayout', () => {
         const wrapper = mountLayout({ settingWide: true }, false)
         expect(wrapper.find('[data-testid="setting-wide"]').exists()).toBe(true)
         expect(wrapper.text()).not.toContain('|')
+    })
+
+    it('lists workflow credentials in the automation menu for workflow_credential.manage only', () => {
+        expect(mountLayout({}).text()).toContain('text.workflow_credential.title')
+        expect(mountLayout({}, (name) => name !== 'workflow_credential.manage').text()).not.toContain('text.workflow_credential.title')
     })
 })

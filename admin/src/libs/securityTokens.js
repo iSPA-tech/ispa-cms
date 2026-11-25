@@ -60,6 +60,12 @@ export const retryAfterSeconds = (err) => {
 // Step-up confirmation (any signed-in operator, own account)
 // ---------------------------------------------------------------------------------------------------------------------
 
+/** Purpose of a grant when the caller names none (ending sessions). A grant only works for the purpose it was made for. */
+export const DEFAULT_PURPOSE = 'revoke_tokens'
+
+/** The default purpose is left out of the body, as before purposes existed. */
+const withPurpose = (body, purpose) => (purpose && purpose !== DEFAULT_PURPOSE ? { ...body, purpose } : body)
+
 /**
  * What the account must confirm with, and whether the confirmation is locked.
  * @returns {Promise<object>} Body with `password_required`, `second_factor`, `locked`, `retry_after`, `possible`.
@@ -69,9 +75,11 @@ export const fetchStepUpStatus = async () => unwrap(await ajax.get('security/ste
 /**
  * Check the password; the answer is the grant or the second-factor step.
  * @param {string|null} password Password as typed (null for an account without one).
+ * @param {string} [purpose] What the grant is for (default: ending sessions).
  * @returns {Promise<object>} Body.
  */
-export const startStepUp = async (password) => unwrap(await ajax.post('security/step-up', { password }, quiet))
+export const startStepUp = async (password, purpose = DEFAULT_PURPOSE) =>
+    unwrap(await ajax.post('security/step-up', withPurpose({ password }, purpose), quiet))
 
 /**
  * Check the code of the open second-factor step.
@@ -86,39 +94,58 @@ export const stepUpSecondFactor = async (challengeId, code, method = null) =>
 /**
  * Send (or send again) the e-mail code. Without a confirmation id it starts the confirmation of an account that has no password.
  * @param {string|null} challengeId Open confirmation, or null.
+ * @param {string} [purpose] What the grant is for; only read when this call starts the confirmation.
  * @returns {Promise<object>} Body: the second-factor step.
  */
-export const stepUpEmailCode = async (challengeId = null) =>
-    unwrap(await ajax.post('security/step-up/email-code', { challenge_id: challengeId }, quiet))
+export const stepUpEmailCode = async (challengeId = null, purpose = DEFAULT_PURPOSE) =>
+    unwrap(await ajax.post('security/step-up/email-code', withPurpose({ challenge_id: challengeId }, purpose), quiet))
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Grant held in memory (never in storage)
 // ---------------------------------------------------------------------------------------------------------------------
 
-let heldGrant = null
-let heldUntil = 0
+/** purpose => { grant, until } */
+const held = {}
 
 /**
  * Keep the grant of a successful confirmation in memory until it expires, so single-token revokes need no new confirmation.
  * @param {string} grant Grant value.
  * @param {number} expiresInSeconds Lifetime reported by the API.
+ * @param {string} [purpose] Purpose the grant was made for.
  */
-export const holdGrant = (grant, expiresInSeconds) => {
-    heldGrant = grant || null
+export const holdGrant = (grant, expiresInSeconds, purpose = DEFAULT_PURPOSE) => {
+    if (!grant) {
+        delete held[purpose]
+        return
+    }
     // Two seconds of margin so a request never carries a grant that expires on the way.
-    heldUntil = Date.now() + Math.max(0, Number(expiresInSeconds || 0) - 2) * 1000
+    held[purpose] = { grant, until: Date.now() + Math.max(0, Number(expiresInSeconds || 0) - 2) * 1000 }
 }
 
 /**
  * The held grant while it is still valid, else null.
+ * @param {string} [purpose] Purpose the grant is needed for.
  * @returns {string|null}
  */
-export const heldGrantValue = () => (heldGrant && Date.now() < heldUntil ? heldGrant : null)
+export const heldGrantValue = (purpose = DEFAULT_PURPOSE) => {
+    const row = held[purpose]
+    return row && Date.now() < row.until ? row.grant : null
+}
 
-/** Forget the held grant (a used-up grant, a failed request that said "required", leaving the page). */
-export const dropGrant = () => {
-    heldGrant = null
-    heldUntil = 0
+/**
+ * Forget the held grant (a used-up grant, a failed request that said "required", leaving the page).
+ * @param {string} [purpose] Purpose to forget.
+ */
+export const dropGrant = (purpose = DEFAULT_PURPOSE) => {
+    delete held[purpose]
+}
+
+/**
+ * Forget every held grant (sign-out, signing in as another user): a grant never outlives the account it was made for
+ * in this tab.
+ */
+export const dropAllGrants = () => {
+    for (const purpose of Object.keys(held)) delete held[purpose]
 }
 
 /**
@@ -126,47 +153,74 @@ export const dropGrant = () => {
  * confirmation dialog first and calls it after `confirmed`. A bulk action (`consume: true`) uses the grant up. A server answer
  * `step_up_required` forgets the held grant and asks again once. Bind `open` to the dialog and call `confirmed` / `cancelled`
  * from its events.
+ *
+ * With `lazy: true` the action is tried first without a grant and the dialog opens only when the server asks for one
+ * (a publish needs a confirmation only when it changes sensitive behaviour); `run(action, { askFirst: true })` skips that
+ * first try when the caller already knows the answer. With `wait: true` (implied by `lazy`) `run`
+ * resolves when the whole flow has ended: with the action's result, or with `undefined` when the operator closed the dialog.
+ *
+ * @param {{ purpose?: string, lazy?: boolean, wait?: boolean }} [options]
  * @returns {{ open: import('vue').Ref<boolean>, run: Function, confirmed: Function, cancelled: Function }}
  */
-export const useStepUpRunner = () => {
+export const useStepUpRunner = ({ purpose = DEFAULT_PURPOSE, lazy = false, wait = lazy } = {}) => {
     const open = ref(false)
     let pending = null
 
-    const call = async (action, consume, grant) => {
-        if (consume) dropGrant()
+    /** Open the dialog; waiting runners hand back a promise that settles when the confirmed action has run. */
+    const ask = (action, consume) => {
+        open.value = true
+        if (!wait) {
+            pending = { action, consume }
+            return undefined
+        }
+        return new Promise((resolve, reject) => {
+            pending = { action, consume, resolve, reject }
+        })
+    }
+
+    const call = async (action, consume, grant, mayAsk = true) => {
+        if (consume) dropGrant(purpose)
         try {
             return await action(grant)
         } catch (err) {
-            if (errorCode(err) === 'step_up_required') {
-                dropGrant()
-                pending = { action, consume }
-                open.value = true
-                return undefined
+            if (errorCode(err) === 'step_up_required' && mayAsk) {
+                dropGrant(purpose)
+                return ask(action, consume)
             }
             throw err
         }
     }
 
-    const run = async (action, { consume = false } = {}) => {
-        const grant = heldGrantValue()
-        if (grant) return await call(action, consume, grant)
-        pending = { action, consume }
-        open.value = true
-        return undefined
+    const run = async (action, { consume = false, askFirst = false } = {}) => {
+        const grant = heldGrantValue(purpose)
+        // `askFirst`: a lazy runner whose caller already knows a confirmation is needed skips the try without a grant.
+        if (grant || (lazy && !askFirst)) return await call(action, consume, grant)
+        return ask(action, consume)
     }
 
     const confirmed = async (payload) => {
-        holdGrant(payload?.grant, payload?.expires_in)
+        holdGrant(payload?.grant, payload?.expires_in, purpose)
         open.value = false
         const next = pending
         pending = null
         if (!next) return undefined
-        return await call(next.action, next.consume, payload?.grant)
+        if (!next.resolve) return await call(next.action, next.consume, payload?.grant)
+        // One retry only: a second "required" answer goes to the caller as the error it is.
+        try {
+            const result = await call(next.action, next.consume, payload?.grant, false)
+            next.resolve(result)
+            return result
+        } catch (err) {
+            next.reject(err)
+            return undefined
+        }
     }
 
     const cancelled = () => {
+        const next = pending
         pending = null
         open.value = false
+        next?.resolve?.(undefined)
     }
 
     return { open, run, confirmed, cancelled }

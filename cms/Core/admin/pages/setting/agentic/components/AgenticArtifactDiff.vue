@@ -24,33 +24,8 @@
             :format-json="formatJson"
         />
 
-        <div v-else-if="isDescriptionPatch" class="grid gap-2 lg:grid-cols-2">
-            <div class="agentic-diff-block">
-                <div class="agentic-diff-label">{{ t('text.agentic.diff.before') }}</div>
-                <div class="agentic-diff-copy">
-                    {{ descriptionBefore }}
-                </div>
-            </div>
-            <div class="agentic-diff-block agentic-diff-block--after">
-                <div class="agentic-diff-label">{{ t('text.agentic.diff.after') }}</div>
-                <div class="agentic-diff-copy">
-                    {{ descriptionAfter }}
-                </div>
-            </div>
-        </div>
-
-        <div v-else-if="isJsonPatch" class="grid gap-2 lg:grid-cols-2">
-            <div class="agentic-diff-block">
-                <div class="agentic-diff-label">{{ t('text.agentic.diff.before') }}</div>
-                <pre class="agentic-json">{{ formatJson(diffData?.before || {}) }}</pre>
-            </div>
-            <div class="agentic-diff-block agentic-diff-block--after">
-                <div class="agentic-diff-label">{{ t('text.agentic.diff.after') }}</div>
-                <pre class="agentic-json">{{ formatJson(diffData?.after || artifact?.payload?.proposed_change || {}) }}</pre>
-            </div>
-        </div>
-
-        <pre v-else class="agentic-json">{{ formatJson(diffData || artifact?.payload || {}) }}</pre>
+        <!-- Every other proposal: one readable block per field, never raw JSON. -->
+        <AgenticReadableDiff v-else :record="record" />
 
         <AgenticArtifactEvidence
             :title="t('text.agentic.diff.evidence')"
@@ -75,6 +50,7 @@ import { agenticDiffComponent } from '../registry'
 import AgenticArtifactEvidence from './AgenticArtifactEvidence.vue'
 import AgenticEducationArtifactDiff from './AgenticEducationArtifactDiff.vue'
 import AgenticProductArtifactDiff from './AgenticProductArtifactDiff.vue'
+import AgenticReadableDiff from './AgenticReadableDiff.vue'
 
 const { t } = useI18n()
 
@@ -102,11 +78,6 @@ const isProductArtifact = computed(() => {
     return artifactType.startsWith('product_') || diffData.value?.type === 'product_catalog_patch' || diffData.value?.type === 'product_flags_patch'
 })
 
-const isDescriptionPatch = computed(() =>
-    artifact.value?.artifact_type === 'content_post_description_patch'
-    || diffData.value?.type === 'text_diff'
-)
-
 const isEducationArtifact = computed(() =>
     artifact.value?.artifact_type === 'education_ai_evaluation_patch' || diffData.value?.type === 'scorecard_change'
 )
@@ -114,22 +85,15 @@ const isEducationArtifact = computed(() =>
 /** The approval diff a module registered for this artifact (or diff) type, else null. */
 const moduleDiff = computed(() => agenticDiffComponent(artifact.value?.artifact_type || '', diffData.value?.type || ''))
 
-const isJsonPatch = computed(() => diffData.value?.type === 'json_patch')
+/** The proposal's one-line summary; left out when the readable diff below shows a summary field of its own. */
+const summaryText = computed(() => {
+    const summary = diffData.value?.summary || artifact.value?.payload?.summary || ''
+    const after = diffData.value?.after ?? artifact.value?.payload?.proposed_change
+    const shownAsField = !usesModuleDiff.value && after && typeof after === 'object' && typeof after.summary === 'string' && after.summary !== ''
+    return shownAsField ? '' : summary
+})
 
-const descriptionBefore = computed(() =>
-    diffData.value?.before || artifact.value?.original_data_snapshot?.description || t('text.agentic.diff.no_baseline')
-)
-
-const descriptionAfter = computed(() =>
-    diffData.value?.after
-    || artifact.value?.payload?.description
-    || artifact.value?.payload?.proposed_change?.description
-    || t('text.agentic.diff.no_proposal')
-)
-
-const summaryText = computed(() =>
-    diffData.value?.summary || artifact.value?.payload?.summary || ''
-)
+const usesModuleDiff = computed(() => isProductArtifact.value || isEducationArtifact.value || Boolean(moduleDiff.value))
 
 const evidenceItems = computed(() => {
     const evidence = diffData.value?.evidence ?? artifact.value?.payload?.evidence ?? []

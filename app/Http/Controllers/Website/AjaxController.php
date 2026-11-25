@@ -452,6 +452,9 @@ class AjaxController extends Controller
 
             $email->save();
 
+            // One workflow trigger per stored message, returning senders included (dispatched after commit).
+            event(\App\Events\ContactMessageReceived::fromMessage($contact, $email));
+
             //  Pusher event
             event(new PusherContactCreate());
 

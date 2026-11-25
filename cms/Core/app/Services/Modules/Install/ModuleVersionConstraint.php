@@ -17,7 +17,11 @@ use Illuminate\Support\Str;
  *
  * Grammar: `*` (any), a comparison (`>=`, `>`, `<=`, `<`, `=`) followed by a version, or a bare version (equality).
  * A comma joins parts with AND. Anything else never matches, so an unknown operator blocks rather than allows.
- * Versions are compared with version_compare() (module versions are CalVer YYYY.MM.NN such as 2026.11.01).
+ * Versions are compared with version_compare() (module versions are CalVer YYYY.MM.NN such as 2026.11.01), except a
+ * legacy number: before CalVer (2026-11-22) some Core and module versions had a "month" above 12 (2026.16.2,
+ * 2026.16.10). That code is older than every CalVer release, so a legacy version sorts below every CalVer version and
+ * never meets a CalVer lower bound (fail closed: such a site must deploy or upgrade Core first). A bound written with a
+ * month above 12 (`<2026.13.00`) is compared as a plain number, so it still accepts every 2026.01-2026.12 version.
  */
 final class ModuleVersionConstraint
 {
@@ -41,12 +45,54 @@ final class ModuleVersionConstraint
             }
             $operator = $m[1] === '' ? '=' : $m[1];
             $php = $operator === '=' ? '==' : $operator;
-            if (!version_compare($version, $m[2], $php)) {
+            if (!self::boundHolds($version, $m[2], $php)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * True when $version is a pre-CalVer number: a four-digit year followed by a month segment above 12.
+     */
+    public static function isLegacy(string $version): bool
+    {
+        return preg_match('/^(\d{4})\.(\d+)(?:\.|$)/', trim($version), $m) === 1 && (int) $m[1] >= 2000 && (int) $m[2] > 12;
+    }
+
+    /**
+     * Order of two concrete versions (-1, 0, 1), with legacy numbers below every CalVer version (among themselves
+     * they keep their plain order). Use it, not version_compare(), wherever an install or upgrade decision compares
+     * two Core or module versions.
+     */
+    public static function compare(string $a, string $b): int
+    {
+        $legacyA = self::isLegacy($a);
+        $legacyB = self::isLegacy($b);
+        if ($legacyA !== $legacyB) {
+            return $legacyA ? -1 : 1;
+        }
+
+        return version_compare($a, $b);
+    }
+
+    /**
+     * Whether $version meets one bound. A legacy version is below any CalVer bound; a bound with a month above 12
+     * is a plain numeric bound (see the class comment).
+     */
+    private static function boundHolds(string $version, string $bound, string $operator): bool
+    {
+        $order = self::isLegacy($version) && !self::isLegacy($bound) ? -1 : version_compare($version, $bound);
+
+        return match ($operator) {
+            '==' => $order === 0,
+            '>=' => $order >= 0,
+            '>' => $order > 0,
+            '<=' => $order <= 0,
+            '<' => $order < 0,
+            default => false,
+        };
     }
 
     /**

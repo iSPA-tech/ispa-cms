@@ -8,6 +8,7 @@ use Cms\Core\Workflows\Runtime\WorkflowContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Cms\Core\Tests\Support\WorkflowTestDelegate;
 use Cms\Core\Tests\TestCase;
 
 class CreateObjectRunnerTest extends TestCase
@@ -22,6 +23,7 @@ class CreateObjectRunnerTest extends TestCase
             $table->string('status')->nullable();
             $table->timestamps();
         });
+        WorkflowTestDelegate::allow(COL::class);
     }
 
     public function test_save_false_creates_instance(): void
@@ -42,9 +44,12 @@ class CreateObjectRunnerTest extends TestCase
 
         $this->assertSame('success', $res->status);
         $this->assertFalse($res->resultData['saved']);
+        // vars hold a snapshot with a signed reference, never the live model.
         $stored = $ctx->getVarPath('log');
-        $this->assertInstanceOf(COL::class, $stored);
-        $this->assertEquals(11, $stored->order_id);
+        $this->assertIsArray($stored);
+        $this->assertSame(COL::class, $stored['__class']);
+        $this->assertEquals(11, $stored['order_id']);
+        $this->assertNull($stored['__id']);
         $this->assertNull($res->resultData['id']);
     }
 
@@ -68,8 +73,8 @@ class CreateObjectRunnerTest extends TestCase
         $this->assertTrue($res->resultData['saved']);
         $this->assertNotNull($res->resultData['id']);
         $stored = $ctx->getVarPath('log');
-        $this->assertInstanceOf(COL::class, $stored);
-        $this->assertEquals($res->resultData['id'], $stored->getKey());
+        $this->assertIsArray($stored);
+        $this->assertEquals($res->resultData['id'], $stored['__id']);
     }
 
     protected function makeRoot(array $attrs = []): Model

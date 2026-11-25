@@ -1,12 +1,13 @@
 <template>
-    <div class="template-editor space-y-2">
+    <div class="w-full space-y-2">
         <label v-if="label" class="text-sm font-semibold text-gray-700">{{ label }}</label>
-        <a-textarea
-            v-model:value="localValue"
-            :placeholder="placeholder || 'Hello {{ root.id }}'"
-            :auto-size="{ minRows: 3, maxRows: 8 }"
-            :disabled="loading"
-            @change="emitChange"
+        <DataTokenInput
+            :model-value="localValue"
+            :placeholder="placeholder"
+            :aria-label="label || placeholder"
+            :disabled="disabled || loading"
+            multiline
+            @update:model-value="onEdit"
         />
         <div class="flex items-center gap-2">
             <a-button size="small" type="default" :loading="loading" @click="preview">
@@ -34,6 +35,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { previewTemplate } from '@/services/workflowApi'
 import { iAlert } from '@/mixins'
+import DataTokenInput from './DataTokenInput.vue'
 
 const props = defineProps({
     modelValue: {
@@ -47,6 +49,10 @@ const props = defineProps({
     placeholder: {
         type: String,
         default: '',
+    },
+    disabled: {
+        type: Boolean,
+        default: false,
     },
 })
 
@@ -66,8 +72,9 @@ watch(
     }
 )
 
-const emitChange = () => {
-    emit('update:modelValue', localValue.value)
+const onEdit = (value) => {
+    localValue.value = value
+    emit('update:modelValue', value)
 }
 
 const preview = async () => {
@@ -96,9 +103,3 @@ const preview = async () => {
     }
 }
 </script>
-
-<style scoped>
-.template-editor {
-    width: 100%;
-}
-</style>

@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Cms\Core\Tests\Support\WorkflowTestDelegate;
 use Cms\Core\Tests\TestCase;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 
 class CommitObjectsRunnerTest extends TestCase
 {
@@ -23,6 +25,7 @@ class CommitObjectsRunnerTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+        WorkflowTestDelegate::allow(CommitCustomer::class);
     }
 
     public function test_commit_single_model(): void
@@ -30,7 +33,10 @@ class CommitObjectsRunnerTest extends TestCase
         $customer = CommitCustomer::create(['email' => 'x@example.com']);
         $customer->email = 'y@example.com';
 
-        $ctx = new WorkflowContext($this->makeRoot(), [], ['customer' => $customer]);
+        // A model the run changed without saving: its working set keeps the change, vars keep the signed reference.
+        $ctx = new WorkflowContext($this->makeRoot());
+        WorkflowModelRefs::remember($ctx, $customer);
+        $ctx->setVar('customer', WorkflowModelRefs::snapshot($customer, $ctx));
         $runner = new CommitObjectsRunner();
         $step = new StepDefinition(null, null, 'commit_objects', 'c', null, 'Commit', [
             'targetExpr' => 'vars.customer',
@@ -52,7 +58,10 @@ class CommitObjectsRunnerTest extends TestCase
         $a->email = 'a2@example.com';
         $b->email = 'b2@example.com';
 
-        $ctx = new WorkflowContext($this->makeRoot(), [], ['customers' => [$a, $b]]);
+        $ctx = new WorkflowContext($this->makeRoot());
+        WorkflowModelRefs::remember($ctx, $a);
+        WorkflowModelRefs::remember($ctx, $b);
+        $ctx->setVar('customers', [WorkflowModelRefs::snapshot($a, $ctx), WorkflowModelRefs::snapshot($b, $ctx)]);
         $runner = new CommitObjectsRunner();
         $step = new StepDefinition(null, null, 'commit_objects', 'c', null, 'Commit', [
             'targetExpr' => 'vars.customers',

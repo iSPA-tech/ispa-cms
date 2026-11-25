@@ -48,7 +48,10 @@ class InstallCommand extends Command
         .' {--skip-seed : Skip the module seeders and the admin account (for a seed that runs separately)}';
 
     /** Printed instead of the runner line when the code belongs to root (same text as the admin card). */
-    public const ROOT_OWNER_TEXT = "The website's code belongs to root, so updates from the admin are not possible. The person who manages the server can move the code to a separate account.";
+    public const ROOT_OWNER_TEXT = "The website's code belongs to root, so updates from the admin are not possible yet. Give the site folder to the web server user once, for example: sudo chown -R www-data:www-data <site folder>.";
+
+    /** Usual names of the web server user; when one of them owns the code, admin updates need no setup. */
+    public const WEB_SERVER_USERS = ['www-data', 'nginx', 'apache', 'http', 'nobody', 'wwwrun', '_www'];
 
     /** Shortest password accepted for the first webmaster. */
     public const MIN_PASSWORD_LENGTH = 12;
@@ -437,9 +440,9 @@ class InstallCommand extends Command
     }
 
     /**
-     * On a site installed from a core package (it has core-manifest.json), print the upgrade runner's crontab line,
-     * so the admin's one-click core update works without a later setup step, or, when the code belongs to root, why
-     * that is not possible. Nothing otherwise.
+     * On a site installed from a core package (it has core-manifest.json), say what the admin's one-click core update
+     * needs: nothing when the web server user owns the code (simple setup), the runner's crontab line when another
+     * user does, or the one chown command when the code belongs to root. Nothing otherwise.
      */
     private function printRunnerSetup(): void
     {
@@ -457,8 +460,20 @@ class InstallCommand extends Command
 
             return;
         }
-        $this->line('Add this line once to the crontab of '.$setup['user'].', the user that owns the code:');
+        if (self::isWebServerUser($setup['user'])) {
+            $this->line('Nothing to set up: the web server user ('.$setup['user'].') owns the code, so updates from the admin run on their own.');
+
+            return;
+        }
+        $this->line('If the web server runs as '.$setup['user'].' (the user that owns the code), nothing else is needed.');
+        $this->line('If it runs as another user, add this line once to the crontab of '.$setup['user'].':');
         $this->line('  '.$setup['line']);
+    }
+
+    /** Whether `$user` is a usual web server user name ({@see self::WEB_SERVER_USERS}). */
+    public static function isWebServerUser(string $user): bool
+    {
+        return in_array($user, self::WEB_SERVER_USERS, true);
     }
 
     /**

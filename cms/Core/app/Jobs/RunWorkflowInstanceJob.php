@@ -15,6 +15,7 @@ use Cms\Core\Services\Agentic\AgentRunControlService;
 use Cms\Core\Services\Agentic\AgentScheduleRuntimeSyncService;
 use Cms\Core\Workflows\Runtime\WorkflowGraphExecutor;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -37,8 +38,35 @@ use Illuminate\Support\Facades\Log;
  * @author  iSPA Team
  * @since   8.0.0 (2026-03-17)
  */
-class RunWorkflowInstanceJob implements ShouldQueue
+class RunWorkflowInstanceJob implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
+    /**
+     * Seconds the uniqueness lock lives at most if the job is never processed.
+     *
+     * The lock is released when processing starts (not when it ends), so the executor can
+     * re-dispatch the same instance for delays, retries and continuations. The executor's
+     * atomic status claim is what keeps two executions from running at once.
+     *
+     * @var int
+     */
+    public int $uniqueFor = 3600;
+
+    /**
+     * Never retried by the queue: a retry could replay steps with side effects. The executor's own step retries and
+     * re-dispatches (delays, continuations) start a new job; a run whose worker died is failed as `stale_running` by
+     * cms:workflow-run-scheduled.
+     *
+     * @var int
+     */
+    public int $tries = 1;
+
+    /**
+     * Seconds one execution may run before the worker kills it (below WORKFLOW_STALE_RUNNING_MINUTES).
+     *
+     * @var int
+     */
+    public int $timeout = 900;
+
     /** @var bool */
     public bool $isDiscovery = false;
 
@@ -52,6 +80,16 @@ class RunWorkflowInstanceJob implements ShouldQueue
      */
     public function __construct(protected int $instanceId)
     {
+    }
+
+    /**
+     * One queued job per workflow instance.
+     *
+     * @return string
+     */
+    public function uniqueId(): string
+    {
+        return (string) $this->instanceId;
     }
 
     /**

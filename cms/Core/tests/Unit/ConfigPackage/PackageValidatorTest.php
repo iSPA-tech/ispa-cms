@@ -86,6 +86,18 @@ it('rejects numeric id and *_id keys inside sections', function (): void {
         ->and((new PackageValidator())->validate($withUuidKey)->isValid())->toBeTrue();
 });
 
+it('rejects numeric camelCase *Id keys inside workflows only', function (): void {
+    $step = static fn (array $config): array => configPackage(['workflows' => [['slug' => 'w', 'steps' => [['step_code' => 'a', 'step_config' => $config]]]]]);
+
+    expect(errorsText($step(['sourceRunId' => 42])))->toContain('sections.workflows.0.steps.0.step_config.sourceRunId')
+        ->and(errorsText($step(['approvalID' => '7'])))->toContain('step_config.approvalID')
+        ->and((new PackageValidator())->validate($step(['sourceRunId' => 'vars.run.uuid', 'valid' => 1, 'uuid' => 'x']))->errors())->toBe([]);
+
+    // A site's own setting value keeps exporting: camelCase ids were never checked outside workflows.
+    $setting = configPackage(['settings' => [['key' => 'theme.home', 'type' => 'json', 'group_name' => 'theme', 'name' => 'Home', 'language' => null, 'value' => ['pageId' => 12]]]]);
+    expect((new PackageValidator())->validate($setting)->errors())->toBe([]);
+});
+
 it('rejects an oversize package', function (): void {
     $validator = new PackageValidator(maxBytes: 200);
 

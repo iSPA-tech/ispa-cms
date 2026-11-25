@@ -178,6 +178,47 @@ final class CoreRunnerTick
      * Whether a runner may work on this tree: it does not run as root, the tree was installed from a core package,
      * it is a flat install and every path the upgrade writes is writable.
      */
+    /**
+     * Whether this process can be the runner itself: it may run ({@see self::canRun()}) and owns the code folder,
+     * which nobody else can write. True on simple hosting, where the web user owns the code: an upgrade asked from
+     * the admin then starts from the request ({@see CoreRunnerLauncher}) and needs no runner cron.
+     */
+    public static function selfRunner(string $base, ?int $euid = null): bool
+    {
+        $euid ??= function_exists('posix_geteuid') ? posix_geteuid() : null;
+        if ($euid === null) {
+            return false;
+        }
+
+        return (new self($base, $euid))->canRun() && ! self::codeDirShared($base, $euid);
+    }
+
+    /**
+     * Remove group and others write access from the code folder (and `.ispa-runner`) when this process owns it:
+     * unpacking a zip or `chmod -R 775` often leaves the folder group-writable, which the runner refuses
+     * (CORE_CODE_DIR_SHARED). Never for root, a link or a release layout. Returns whether anything changed.
+     */
+    public static function tightenBase(string $base, ?int $euid = null): bool
+    {
+        $euid ??= function_exists('posix_geteuid') ? posix_geteuid() : null;
+        $base = rtrim($base, '/\\');
+        if ($euid === null || $euid === 0 || self::releaseLink($base) !== null) {
+            return false;
+        }
+        $changed = false;
+        foreach (['', '/'.CoreUpgrader::RUNNER_DIR] as $suffix) {
+            $path = $base.$suffix;
+            clearstatcache(true, $path);
+            $stat = @lstat($path);
+            if ($stat === false || ($stat['mode'] & 0170000) !== 0040000 || $stat['uid'] !== $euid || ($stat['mode'] & 0022) === 0) {
+                continue;
+            }
+            $changed = @chmod($path, $stat['mode'] & 07755) || $changed;
+        }
+
+        return $changed;
+    }
+
     public function canRun(): bool
     {
         // Never as root: one-click updates need a code owner that is not root.

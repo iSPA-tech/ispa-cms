@@ -32,6 +32,14 @@ class BlueprintCallableRunnerTest extends TestCase
         /** @var Kernel $kernel */
         $kernel = $this->app->make(Kernel::class);
         $kernel->registerCommand(new DummyWorkflowCommand());
+
+        // Workflow callables are deny-by-default (core.workflow_security); allow the fixtures this test calls.
+        config(['core.workflow_security.services' => [
+            DummyWorkflowService::class => ['doWork'],
+            DummyRequiredArgService::class => ['needArg'],
+        ]]);
+        config(['core.workflow_security.jobs' => [DummyWorkflowJob::class]]);
+        config(['core.workflow_security.commands' => ['dummy:workflow' => ['--foo']]]);
     }
 
     public function test_service_callable_executes_and_stores(): void

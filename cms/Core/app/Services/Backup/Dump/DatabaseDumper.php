@@ -20,7 +20,7 @@ namespace Cms\Core\Services\Backup\Dump;
 interface DatabaseDumper
 {
     /**
-     * Dump the connection's database into the target file (mode 0600). On any failure the partial target is deleted.
+     * Dump the connection's database into the target file (mode 0660). On any failure the partial target is deleted.
      *
      * @throws \RuntimeException message prefixed with the machine error code
      */

@@ -13,6 +13,7 @@ use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -31,6 +32,8 @@ use Traversable;
  */
 class DeleteObjectRunner implements StepRunner
 {
+    use ResolvesModelTargets;
+
     /**
      * Initialize the runner with an expression engine for evaluating target expressions.
      *
@@ -60,21 +63,17 @@ class DeleteObjectRunner implements StepRunner
             return StepRunResult::failed('delete_object: targetExpr is required');
         }
 
-        try {
-            $target = $this->engine->evaluate($targetExpr, $context, true);
-        } catch (\Throwable $e) {
-            return StepRunResult::failed('delete_object: failed to evaluate targetExpr: ' . $e->getMessage());
+        // Only references this run produced (retrieve rows, created/cloned/changed models, the root); anything else,
+        // or one row the run's delegate may not delete, fails the whole step before any row is touched.
+        $models = $this->resolveModelTargets('delete_object', $targetExpr, $cfg, $context, true, $error, static fn (): string => 'delete');
+        if ($models === null) {
+            return StepRunResult::failed($error);
         }
 
-        $models = $this->normalizeTargets($target);
         $count = 0;
         $logs = [];
 
         foreach ($models as $model) {
-            if (!$model instanceof Model) {
-                continue;
-            }
-
             $deleted = $this->deleteModel($model, $force);
             if ($deleted) {
                 $count++;
@@ -91,34 +90,6 @@ class DeleteObjectRunner implements StepRunner
             'deletedCount' => $count,
             'force' => $force,
         ], $logs);
-    }
-
-    /**
-     * @return array<int, Model>
-     */
-    protected function normalizeTargets(mixed $target): array
-    {
-        if ($target === null) {
-            return [];
-        }
-
-        if ($target instanceof Model) {
-            return [$target];
-        }
-
-        if ($target instanceof Collection) {
-            return $target->all();
-        }
-
-        if ($target instanceof Traversable) {
-            return iterator_to_array($target);
-        }
-
-        if (is_array($target)) {
-            return $target;
-        }
-
-        return [];
     }
 
     protected function deleteModel(Model $model, bool $force): bool

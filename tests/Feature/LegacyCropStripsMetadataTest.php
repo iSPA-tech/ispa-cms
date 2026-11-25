@@ -64,4 +64,24 @@ class LegacyCropStripsMetadataTest extends TestCase
 
         $this->assertSame([], $variant->getImageProfiles('*', false));
     }
+
+    public function test_the_queued_crop_job_never_lowers_the_memory_limit_of_the_process(): void
+    {
+        if (! extension_loaded('imagick')) {
+            $this->markTestSkipped('Metadata copying is an Imagick-driver behaviour.');
+        }
+
+        // A queue worker (or a test run) keeps the process: a crop that set 256M left every later job with less memory.
+        $before = ini_get('memory_limit');
+        ini_set('memory_limit', '1024M');
+
+        try {
+            $source = $this->seedFatSource();
+            (new RequestCropImageJob('public', $source, 'image/2026/08/source.jpg.300x180.webp', 300, 180, 'webp'))->handle();
+
+            $this->assertSame('1024M', ini_get('memory_limit'));
+        } finally {
+            ini_set('memory_limit', (string) $before);
+        }
+    }
 }

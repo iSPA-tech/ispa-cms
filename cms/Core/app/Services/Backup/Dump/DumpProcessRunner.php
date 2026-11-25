@@ -52,14 +52,16 @@ class DumpProcessRunner
     }
 
     /**
-     * Ensure a directory exists with mode 0700.
+     * Ensure a directory exists with mode 0770: the web server user and the code owner (the core upgrade runner) both
+     * reach it through the ACLs INSTALL.md sets on storage/. Mode 0700 would set the ACL mask to nothing and lock the
+     * other user out; others stay out either way.
      */
     public static function ensureDir(string $dir): void
     {
-        if (! is_dir($dir) && ! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
+        if (! is_dir($dir) && ! @mkdir($dir, 0770, true) && ! is_dir($dir)) {
             throw new \RuntimeException('BACKUP_DUMP_FAILED: cannot create directory');
         }
-        @chmod($dir, 0700);
+        @chmod($dir, 0770);
     }
 
     /**

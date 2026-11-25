@@ -76,7 +76,7 @@ class WorkflowExecutorLogMessageTest extends TestCase
         $target->exists = true;
 
         $executor = new WorkflowExecutor($project, $target);
-        $executor->run();
+        $executor->runGraph($project->steps, $project->connections);
 
         CMSLogger::shouldNotHaveReceived('warning');
     }

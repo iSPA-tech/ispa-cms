@@ -113,6 +113,7 @@ const categoryMap = {
             { name: 'setting-contact', text: 'nav.a.setting-contact', rule: 'setting.viewAny' },
             { name: 'setting-social', text: 'nav.a.setting-social', rule: 'setting.viewAny' },
             { name: 'setting-email', text: 'nav.a.setting-email', rule: 'setting.viewAny' },
+            { name: 'setting-email-templates', text: 'nav.a.email_templates', rule: 'email_template.viewAny' },
             { name: 'setting-homepage', text: 'nav.a.setting-homepage', rule: 'setting.viewAny' },
             { name: 'setting-ads', text: 'nav.a.setting-ads', rule: 'setting.ads' },
         ],
@@ -169,6 +170,7 @@ const categoryMap = {
         bgColor: '#fce7f3',
         items: [
             { name: 'setting-workflows-manage', text: 'nav.a.workflows', rule: 'workflow.viewAny' },
+            { name: 'setting-workflow-credentials', text: 'text.workflow_credential.title', rule: 'workflow_credential.manage' },
             { name: 'setting-agentic', text: 'text.agentic.cms', rule: 'agentic.viewAny' },
             { name: 'setting-ai-runtime', text: 'text.ai_runtime.title', rule: 'setting.viewAny' },
         ],

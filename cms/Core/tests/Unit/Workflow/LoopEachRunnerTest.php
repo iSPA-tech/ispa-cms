@@ -28,11 +28,15 @@ class LoopEachRunnerTest extends TestCase
         $this->assertEquals(['index' => 0, 'total' => 2], $res1->resultData['state']);
 
         $res2 = $runner->run($step, $ctx);
-        $this->assertSame('done', $res2->nextEdgeHint);
+        $this->assertSame('loop', $res2->nextEdgeHint);
         $this->assertSame(20, $ctx->getVarPath('item'));
         $this->assertSame(1, $ctx->getVarPath('index'));
         $this->assertEquals(2, $res2->resultData['iterations']);
         $this->assertEquals(['index' => 1, 'total' => 2], $res2->resultData['state']);
+
+        $res3 = $runner->run($step, $ctx);
+        $this->assertSame('done', $res3->nextEdgeHint);
+        $this->assertSame(0, $ctx->getStep('loop')->getMeta()['loop_index']);
     }
 
     public function test_empty_collection_returns_done(): void

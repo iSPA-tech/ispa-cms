@@ -20,7 +20,8 @@ use Illuminate\Support\Carbon;
 /**
  * Hands a recorded install (or uninstall) row to whatever runs it (spec 2026-11-22, decision 5).
  *
- * With a real queue the row goes to a worker as {@see InstallModuleJob}. When the default queue is `sync` the job is
+ * With a real queue the row goes to a worker as {@see InstallModuleJob}. When the scheduler runs installs
+ * ({@see self::usesScheduler()}: the default queue is `sync`, or its `retry_after` is too short) the job is
  * not run inside the web request: the row stays `queued` as a pending run, and the scheduled command
  * `cms:module-install-run-pending` claims it ({@see self::claimNext()}) and runs the same job in its own process.
  *
@@ -72,19 +73,39 @@ final class InstallRunDispatcher
     }
 
     /**
-     * Whether installs run through the scheduler (no queue worker: the default queue is `sync`).
+     * Whether installs run through the scheduler instead of a queue worker. The one rule every install path uses
+     * (schedule registration, dispatch, unclaimed-row expiry, the run-pending command, the install preflight).
+     *
+     * True when the default queue is `sync` (no worker), or when the default connection's `retry_after` is not longer
+     * than the install job timeout (`core.module_packages.job_timeout`): a worker would hand a long install to a
+     * second worker while the first still runs it, so that queue is unsafe for installs (fix 2026-11-25; config/
+     * queue.php defaults redis to 900 s and database to 90 s, below the 2700 s timeout).
      */
     public function usesScheduler(): bool
     {
-        return (string) config('queue.default', 'sync') === 'sync';
+        return self::schedulerRunsInstalls();
+    }
+
+    /**
+     * Static form of {@see self::usesScheduler()} for callers without a container-built instance (service provider).
+     */
+    public static function schedulerRunsInstalls(): bool
+    {
+        $connection = (string) config('queue.default', 'sync');
+        if ($connection === 'sync') {
+            return true;
+        }
+        $retryAfter = config("queue.connections.{$connection}.retry_after");
+
+        return is_numeric($retryAfter) && (int) $retryAfter <= (int) config('core.module_packages.job_timeout', 2700);
     }
 
     /**
      * Queue the row for a worker, or leave it pending for the scheduled runner.
      *
-     * A `sync` queue without a fresh scheduler heartbeat keeps the old inline run: the install preflight already
-     * refuses installs there (MODULE_INSTALL_NO_RUNNER), so only an uninstall, which has no queue check, gets here,
-     * and a pending row would never be picked up.
+     * Without a fresh scheduler heartbeat the job is dispatched as before (inline on `sync`): the install preflight
+     * already refuses installs there (MODULE_INSTALL_NO_RUNNER), so only an uninstall, which has no queue check,
+     * gets here, and a pending row would never be picked up.
      */
     public function dispatch(ModuleInstall $install): void
     {

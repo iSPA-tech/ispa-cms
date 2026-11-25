@@ -25,4 +25,10 @@ return [
     ],
     // Tasks whose prompt holds a user's question: the AI call log keeps no prompt hash for them.
     'ai_runtime_private_prompt_tasks' => ['content_agent_answer'],
+
+    // Workflow nodes (content.save_post_draft, content.assign_taxonomy): whether a node may create a post tag that
+    // does not exist yet when its own `create_missing_tags` is on (the run's user also needs tag.create).
+    'workflow_nodes' => [
+        'allow_create_missing_tags' => true,
+    ],
 ];

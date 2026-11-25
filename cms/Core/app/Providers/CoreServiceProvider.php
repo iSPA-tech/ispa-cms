@@ -116,6 +116,14 @@ final class CoreServiceProvider extends ModuleServiceProvider
         // Registered (not auto-resolved) so Education can guard its calls with app()->bound().
         $this->app->singleton(\Cms\Core\Services\UserTagService::class);
         $this->app->register(EventServiceProvider::class);
+        // Every stored contact-form message may start a workflow (`trigger_event`, start only); set in register()
+        // because the workflow trigger bootstrap reads the list once while Core boots.
+        // `subject`: the trigger's own person for e-mail policy B (TriggerSubjectResolver): the sender saved on the inbox
+        // message the event names, looked up by uuid on the server.
+        config()->set('core.workflow_security.trigger_events.' . \App\Events\ContactMessageReceived::class, [
+            'schema' => \App\Events\ContactMessageReceived::payloadSchema(),
+            'subject' => ['kind' => 'contact_message', 'field' => 'message_uuid'],
+        ]);
         \Cms\Core\Services\Ai\Usage\AiCallLog::trackQueueJobs($this->app['events']);
         $this->app->register(RouteServiceProvider::class);
         $this->app->register(AuthServiceProvider::class);
@@ -269,6 +277,12 @@ final class CoreServiceProvider extends ModuleServiceProvider
         $this->registerGoogleDriveDisk();
         $this->registerOneDriveDisk();
         $this->registerHubSetupCodeAnnouncement();
+        // Workflow trigger listeners (model events, allowlisted app events, run-in-progress tracking), once per boot.
+        \Cms\Core\Services\Workflow\Triggers\WorkflowTriggerBootstrap::register($this->app->make('events'));
+        // A schedule stops when someone other than its scheduler changes the project graph or turns the project on.
+        foreach ([\Cms\Core\Models\Workflows\WorkflowStep::class, \Cms\Core\Models\Workflows\WorkflowConnection::class, \Cms\Core\Models\Workflows\WorkflowProject::class] as $workflowModel) {
+            $workflowModel::observe(\Cms\Core\Observers\WorkflowScheduleOwnershipObserver::class);
+        }
     }
 
     /**
@@ -366,8 +380,9 @@ final class CoreServiceProvider extends ModuleServiceProvider
     /**
      * Module install without a queue worker (spec 2026-11-22): a heartbeat every minute proves the scheduler runs
      * (the install preflight reads it); it is an in-process callback, so it starts no extra process. The
-     * pending-install runner, which runs in its own background process, is registered only while the default queue
-     * is `sync`: with a real queue a worker runs installs, so the many sites on one server do not each start a PHP
+     * pending-install runner, which runs in its own background process, is registered only while the scheduler runs
+     * installs ({@see \Cms\Core\Services\Modules\Install\InstallRunDispatcher::schedulerRunsInstalls()}: queue `sync`,
+     * or a `retry_after` not longer than the install job timeout): with a safe real queue a worker runs installs, so the many sites on one server do not each start a PHP
      * process every minute. The runner's overlap lock outlives the longest allowed install run
      * ({@see \Cms\Core\Services\Modules\Install\InstallRunDispatcher::lockMinutes()}).
      *
@@ -378,7 +393,7 @@ final class CoreServiceProvider extends ModuleServiceProvider
         $this->app->afterResolving(\Illuminate\Console\Scheduling\Schedule::class, static function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
             $schedule->call(static fn () => app(\Cms\Core\Services\Scheduler\SchedulerHeartbeat::class)->beat())
                 ->everyMinute()->name('core:scheduler-heartbeat');
-            if ((string) config('queue.default', 'sync') !== 'sync') {
+            if (! \Cms\Core\Services\Modules\Install\InstallRunDispatcher::schedulerRunsInstalls()) {
                 return;
             }
             $schedule->command(\Cms\Core\Console\Commands\ModuleInstallRunPendingCommand::NAME)
@@ -585,6 +600,10 @@ final class CoreServiceProvider extends ModuleServiceProvider
             \Cms\Core\Console\Commands\ConfigPackageRunPruneCommand::class,
             \Cms\Core\Console\Commands\ConfigExportCommand::class,
             \Cms\Core\Console\Commands\ConfigImportCommand::class,
+            \Cms\Core\Console\Commands\WorkflowPackageExportCommand::class,
+            \Cms\Core\Console\Commands\WorkflowPackageCheckCommand::class,
+            \Cms\Core\Console\Commands\WorkflowPackageInstallCommand::class,
+            \Cms\Core\Console\Commands\InstallContactWorkflowCommand::class,
             \Cms\Core\Console\Commands\ManifestLintCommand::class,
             \Cms\Core\Console\Commands\MakeModuleCommand::class,
             \Cms\Core\Console\Commands\ModuleEditionReportCommand::class,
@@ -609,8 +628,16 @@ final class CoreServiceProvider extends ModuleServiceProvider
             \Cms\Core\Console\Commands\WidgetBundleBuildCommand::class,
             \Cms\Core\Console\Commands\WidgetBundleSignCommand::class,
             \Cms\Core\Console\Commands\WidgetBundleMarkPublishedCommand::class,
+            \Cms\Core\Console\Commands\WorkflowBundleBuildCommand::class,
+            \Cms\Core\Console\Commands\WorkflowBundleSignCommand::class,
             \Cms\Core\Console\Commands\CorePackageBuildCommand::class,
             \Cms\Core\Console\Commands\CoreUpgradeCommand::class,
+            \Cms\Core\Console\Commands\CoreUpgradeBackupCommand::class,
+            \Cms\Core\Console\Commands\WorkflowRunCommand::class,
+            \Cms\Core\Console\Commands\WorkflowRunScheduledCommand::class,
+            \Cms\Core\Console\Commands\WorkflowIntegrityCheckCommand::class,
+            \Cms\Core\Console\Commands\WorkflowResealCommand::class,
+            \Cms\Core\Console\Commands\WorkflowPauseAllCommand::class,
             \Cms\Core\Console\Commands\AdminConfigCommand::class,
             \Cms\Core\Console\Commands\BuildCommand::class,
             \Cms\Core\Console\Commands\DevCommand::class,

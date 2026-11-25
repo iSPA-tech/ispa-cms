@@ -12,6 +12,9 @@ use Cms\Core\Services\CoreUpgrade\CoreUpgradeException;
 use Cms\Core\Services\CoreUpgrade\CoreUpgradePreflight;
 use Cms\Core\Services\CoreUpgrade\CoreUpgrader;
 use Cms\Core\Services\CoreUpgrade\CoreUpgradeRequests;
+use Cms\Core\Models\Backup\Backup;
+use Cms\Core\Services\Backup\BackupGate;
+use Cms\Core\Services\Backup\BackupRequiredException;
 use Illuminate\Support\Facades\File;
 
 /** Upgrader on a temp base that records run() and restore() and never swaps files. */
@@ -23,6 +26,14 @@ final class CrrFakeUpgrader extends CoreUpgrader
     public int $restores = 0;
 
     public ?Throwable $throw = null;
+
+    /** @var list<?string> Every usePreparedBackup() call. */
+    public array $prepared = [];
+
+    public function usePreparedBackup(?string $uuid): void
+    {
+        $this->prepared[] = $uuid;
+    }
 
     public function run(string $targetVersion, bool $overwriteModified, ?BackgroundTask $task = null, ?int $userId = null, array $extraPhpVersions = []): void
     {
@@ -71,6 +82,8 @@ function crrRunner(string $base, CoreUpgrader $upgrader): CoreRequestRunner
 }
 
 beforeEach(function () {
+    // The wait for the web side's safety backup has its own tests; the others run without it.
+    config(['core.upgrade.backup_wait_seconds' => 0]);
     $this->base = crrBase();
     $this->upgrader = new CrrFakeUpgrader($this->base);
     $this->runner = crrRunner($this->base, $this->upgrader);
@@ -298,4 +311,140 @@ test('the runner checks for an unfinished install only while it holds its lock, 
         ->and($lockDuringCheck)->not->toBe([])
         ->and(array_unique($lockDuringCheck))->toBe([true])
         ->and(CoreRunnerTick::lockHeld($this->base))->toBeFalse();
+});
+
+/** Backup gate whose ensure() returns a stored backup row, or throws when told to. */
+function crrGate(bool $fail = false): BackupGate
+{
+    return new class($fail) extends BackupGate {
+        public int $calls = 0;
+
+        public function __construct(private bool $fail)
+        {
+        }
+
+        public function ensure(string $reason, ?int $userId, ?BackgroundTask $task = null): Backup
+        {
+            $this->calls++;
+            if ($this->fail) {
+                throw new BackupRequiredException('BACKUP_DUMP_FAILED');
+            }
+
+            return Backup::query()->create(['reason' => $reason, 'status' => Backup::STATUS_SUCCEEDED, 'db_driver' => 'sqlite', 'db_name' => 'x', 'format' => 'sqlite.gz', 'started_by' => $userId]);
+        }
+    };
+}
+
+test('an upgrade waits for the safety backup the web side takes', function () {
+    config(['core.upgrade.backup_wait_seconds' => 600]);
+    $task = $this->requests->create('upgrade', '2026.12.0', 7);
+
+    expect($this->runner->tick())->toBe('waiting_backup')
+        ->and(is_file($this->requestFile))->toBeTrue()
+        ->and($task->refresh()->status)->toBe('queued')
+        ->and($this->upgrader->runs)->toBe([]);
+});
+
+test('the web side takes the backup, the task stays queued, and the runner reuses it', function () {
+    config(['core.upgrade.backup_wait_seconds' => 600]);
+    $task = $this->requests->create('upgrade', '2026.12.0', 7);
+    $gate = crrGate();
+
+    expect($this->requests->prepareBackup($gate))->toBe('prepared')
+        ->and($this->requests->prepareBackup($gate))->toBe('idle')
+        ->and($gate->calls)->toBe(1);
+    $uuid = $task->refresh()->result[CoreUpgradeRequests::PREPARED_BACKUP_KEY];
+    expect($task->status)->toBe('queued')->and($uuid)->toBeString();
+
+    expect($this->runner->tick())->toBe('succeeded')
+        ->and($this->upgrader->prepared)->toBe([$uuid])
+        ->and($this->upgrader->runs)->toHaveCount(1);
+});
+
+test('a failed web-side backup fails the task and removes the request', function () {
+    $task = $this->requests->create('upgrade', '2026.12.0', 7);
+
+    expect($this->requests->prepareBackup(crrGate(true)))->toBe('failed')
+        ->and($task->refresh()->status)->toBe('failed')
+        ->and($task->message_params['code'] ?? null)->toBe('CORE_BACKUP_FAILED')
+        ->and(is_file($this->requestFile))->toBeFalse();
+    expect($this->runner->tick())->toBe('idle')->and($this->upgrader->runs)->toBe([]);
+});
+
+test('after the wait the runner takes its own backup', function () {
+    config(['core.upgrade.backup_wait_seconds' => 600]);
+    $task = $this->requests->create('upgrade', '2026.12.0', 7);
+
+    expect($this->runner->tick(time() + 601))->toBe('succeeded')
+        ->and($this->upgrader->prepared)->toBe([null])
+        ->and($this->upgrader->runs)->toHaveCount(1);
+});
+
+test('a restore request never waits for a backup and takes none on the web side', function () {
+    config(['core.upgrade.backup_wait_seconds' => 600]);
+    $this->requests->create('restore', null, 7);
+    $gate = crrGate();
+
+    expect($this->requests->prepareBackup($gate))->toBe('idle')
+        ->and($gate->calls)->toBe(0)
+        ->and($this->runner->tick())->toBe('succeeded')
+        ->and($this->upgrader->restores)->toBe(1);
+});
+
+test('the scheduler starts the web-side backup only while an upgrade request waits', function () {
+    file_put_contents($this->base.'/artisan', '<?php');
+    $spawned = [];
+    $launcher = new \Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher($this->base, function (array $command) use (&$spawned): void {
+        $spawned[] = $command;
+    });
+    $backupCommands = static fn (array $all): array => array_values(array_filter($all, static fn (array $c): bool => in_array(\Cms\Core\Console\Commands\CoreUpgradeBackupCommand::NAME, $c, true)));
+
+    $launcher->tick();
+    expect($backupCommands($spawned))->toBe([]);
+
+    $this->requests->create('upgrade', '2026.12.0', 7);
+    $launcher->tick();
+    expect($backupCommands($spawned))->toHaveCount(1)
+        ->and($backupCommands($spawned)[0][1])->toBe($this->base.'/artisan');
+});
+
+test('simple hosting: a group-writable code folder of the web user is tightened, then it can be the runner', function () {
+    if (posix_geteuid() === 0) {
+        $this->markTestSkipped('root never runs the upgrade');
+    }
+    chmod($this->base, 0775);
+
+    expect(CoreRunnerTick::selfRunner($this->base))->toBeFalse()
+        ->and(CoreRunnerTick::tightenBase($this->base))->toBeTrue();
+    clearstatcache();
+    expect(fileperms($this->base) & 0777)->toBe(0755)
+        ->and(CoreRunnerTick::tightenBase($this->base))->toBeFalse()
+        ->and(CoreRunnerTick::selfRunner($this->base))->toBeTrue();
+});
+
+test('the code folder of another user is never touched and cannot be self-run', function () {
+    chmod($this->base, 0775);
+    $other = posix_geteuid() + 4242;
+
+    expect(CoreRunnerTick::tightenBase($this->base, $other))->toBeFalse()
+        ->and(CoreRunnerTick::selfRunner($this->base, $other))->toBeFalse();
+    clearstatcache();
+    expect(fileperms($this->base) & 0777)->toBe(0775);
+});
+
+test('the web-side backup hands over to the runner at once', function () {
+    file_put_contents($this->base.'/artisan', '<?php');
+    file_put_contents($this->base.'/ispa', '<?php');
+    $spawned = [];
+    app()->instance(\Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher::class, new \Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher($this->base, function (array $command) use (&$spawned): void {
+        $spawned[] = $command;
+    }));
+    app()->instance(CoreUpgradeRequests::class, $this->requests);
+    app()->instance(BackupGate::class, crrGate());
+    $this->requests->create('upgrade', '2026.12.0', 7);
+
+    $this->artisan(\Cms\Core\Console\Commands\CoreUpgradeBackupCommand::NAME)->assertExitCode(0);
+
+    $runner = array_values(array_filter($spawned, static fn (array $c): bool => in_array('--run-requested', $c, true)));
+    expect($runner)->toHaveCount(1)->and($runner[0][1])->toBe($this->base.'/ispa');
 });

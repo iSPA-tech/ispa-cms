@@ -140,9 +140,25 @@ test('site level blocking codes', function (string $code, Closure $break) {
         config(['queue.default' => 'sync', 'core.scheduler.heartbeat_path' => $t->tmp.'/heartbeat']);
         file_put_contents($t->tmp.'/heartbeat', (string) (time() - 600));
     }],
-    'retry_after equals the job timeout' => [InstallPreflight::QUEUE_TIMEOUT, fn () => config(['queue.connections.redis.retry_after' => 2700])],
-    'retry_after below the job timeout' => [InstallPreflight::QUEUE_TIMEOUT, fn () => config(['queue.connections.redis.retry_after' => 90])],
+    // A short retry_after means the scheduler runs installs (the queue would redeliver a long install), so the
+    // scheduler heartbeat decides, not the queue timeout (fix 2026-11-25).
+    'retry_after equals the job timeout and the scheduler never ran' => [InstallPreflight::NO_RUNNER, fn ($t) => config(['queue.connections.redis.retry_after' => 2700, 'core.scheduler.heartbeat_path' => $t->tmp.'/heartbeat'])],
+    'redis default retry_after 900 and the scheduler heartbeat is old' => [InstallPreflight::NO_RUNNER, function ($t) {
+        config(['queue.connections.redis.retry_after' => 900, 'core.scheduler.heartbeat_path' => $t->tmp.'/heartbeat']);
+        file_put_contents($t->tmp.'/heartbeat', (string) (time() - 600));
+    }],
 ]);
+
+test('a queue whose retry_after is not longer than the job timeout is not blocked when the scheduler runs', function (int $retryAfter) {
+    preflightFakeHub($this->secret, $this->version);
+    config(['queue.default' => 'redis', 'queue.connections.redis.retry_after' => $retryAfter, 'core.scheduler.heartbeat_path' => $this->tmp.'/heartbeat']);
+    app(SchedulerHeartbeat::class)->beat();
+
+    $codes = preflightMake($this)->check('Probe', '2026.1.0')->blockingCodes();
+
+    expect($codes)->not->toContain(InstallPreflight::QUEUE_TIMEOUT)
+        ->and($codes)->not->toContain(InstallPreflight::NO_RUNNER);
+})->with(['redis default 900' => [900], 'equal to the job timeout' => [2700], 'database default 90' => [90]]);
 
 test('a sync queue with a fresh scheduler heartbeat is not blocked: installs run through the scheduler', function () {
     preflightFakeHub($this->secret, $this->version);

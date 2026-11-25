@@ -34,6 +34,7 @@ class AgenticScheduleControllerTest extends TestCase
         parent::setUp();
         $this->withoutMiddleware();
         $this->migrateTables();
+        \Cms\Core\Tests\Support\WorkflowTestVersions::ensureSchema(); // schedule wrappers are published versions (B1)
         $this->actingAs(User::query()->create([
             'name' => 'Webmaster',
             'email' => 'webmaster@example.test',

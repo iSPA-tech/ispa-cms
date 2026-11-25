@@ -155,7 +155,9 @@ class CoreUpgradePreflight
             }
         }
 
-        if ($forAdmin && $heartbeat === null) {
+        // On simple hosting the web user owns the code and starts the runner itself from the admin request: no cron needed.
+        $selfRunner = $forAdmin && $heartbeat === null && CoreRunnerTick::selfRunner($this->base);
+        if ($forAdmin && $heartbeat === null && ! $selfRunner) {
             $add($blocking, 'CORE_NO_RUNNER', 'No upgrade runner has checked in during the last 3 minutes. Add the runner line to the crontab of the user that owns the code: `'.CoreUpgradeRequests::runnerLine($this->base).'`.');
         }
 
@@ -164,7 +166,7 @@ class CoreUpgradePreflight
         }
 
         // Visible to the web user too: the base folder's owner and mode (the runner refuses the same at run time).
-        if ($forAdmin && CoreRunnerTick::codeDirShared($this->base, $heartbeat['uid'] ?? null)) {
+        if ($forAdmin && ! $selfRunner && CoreRunnerTick::codeDirShared($this->base, $heartbeat['uid'] ?? null)) {
             $add($blocking, 'CORE_CODE_DIR_SHARED', 'The code folder can be written by group or others, or belongs to another user than the runner; updates from the admin stay off until the folder permissions are fixed.');
         }
 

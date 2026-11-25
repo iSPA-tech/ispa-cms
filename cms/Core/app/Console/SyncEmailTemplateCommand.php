@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\Schema;
  *
  * Loads templates from database/seeders/exported/email_templates.php (falling back to the
  * Core module export path). Each template is inserted only if no matching record already
- * exists for the same language_id, group, and key_name combination. Foreign key constraints
+ * exists for the same language_id, group, and key_name combination (`mail_class` is copied; an export without it gets
+ * `business`). Foreign key constraints
  * are disabled during the sync. The application cache is cleared after the import completes.
  *
  * Usage: php artisan cms:sync-email-template
@@ -79,6 +80,8 @@ class SyncEmailTemplateCommand extends Command
                 DB::table(Tables::EMAIL_TEMPLATES)->insert([
                     'name' => $template->name,
                     'group' => $template->group,
+                    // Exports from before the column carry no class: business (the column default, fail closed).
+                    'mail_class' => in_array($template->mail_class ?? null, ['system', 'business'], true) ? $template->mail_class : 'business',
                     'blade_layout' => $template->blade_layout,
                     'key_name' => $template->key_name,
                     'content' => $template->content,

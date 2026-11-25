@@ -65,8 +65,31 @@ class WorkflowExecutor
      */
     public function run(): void
     {
-        $steps = $this->workflow->steps->keyBy('id');
-        $connections = $this->workflow->connections;
+        // Only the project's published version runs, verified first (B1/B2); never the editable draft rows.
+        try {
+            $graph = \Cms\Core\Services\Workflow\Versioning\RunGraph::forVersion(
+                \Cms\Core\Services\Workflow\Versioning\RunGraph::published($this->workflow)
+            );
+        } catch (\Cms\Core\Services\Workflow\Exceptions\WorkflowIntegrityException $e) {
+            \Cms\Core\Services\Workflow\Versioning\WorkflowIntegrity::violated($e, null, 'start');
+            return;
+        } catch (\Cms\Core\Services\Workflow\Exceptions\WorkflowProjectNotPublished) {
+            Log::info('Workflow skipped: no published version', ['workflow_id' => $this->workflow->id]);
+            return;
+        }
+
+        $this->runGraph($graph['steps'], $graph['connections']);
+    }
+
+    /**
+     * Walk a resolved graph (run() passes the verified published version; tests pass in-memory models).
+     *
+     * @param \Illuminate\Support\Collection<int, \Cms\Core\Models\Workflows\WorkflowStep>       $steps
+     * @param \Illuminate\Support\Collection<int, \Cms\Core\Models\Workflows\WorkflowConnection> $connections
+     */
+    public function runGraph(\Illuminate\Support\Collection $steps, \Illuminate\Support\Collection $connections): void
+    {
+        $steps = $steps->keyBy('id');
 
         if ($steps->isEmpty()) {
             CMSLogger::debug([

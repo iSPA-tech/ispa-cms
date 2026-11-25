@@ -38,6 +38,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property \Carbon\Carbon|null $updated_at
  * @property \Carbon\Carbon|null $deleted_at
  * @property int|null    $delegated_by_user_id User the instance acts for (null when nobody delegated it)
+ * @property int|null    $error_workflow_project_id Project's error workflow, recorded when this run failed
+ * @property int         $usage_tokens_in     Tokens sent, summed from steps' meta.usage (executor-written)
+ * @property int         $usage_tokens_out    Tokens received, summed from steps' meta.usage (executor-written)
+ * @property float       $usage_cost_usd      USD spent, summed from steps' meta.usage (executor-written)
+ * @property int         $usage_unknown_calls ai_spend steps that reported no cost
+ * @property int|null    $version_id          Workflow version this run executes (set when it is created; null = refused)
  *
  * ==== Relationships
  * @property-read \Cms\Core\Models\Workflows\WorkflowProject $project The workflow project definition
@@ -65,6 +71,8 @@ class WorkflowInstance extends Model
         'started_at',
         'finished_at',
         'delegated_by_user_id',
+        'error_workflow_project_id',
+        'version_id',
     ];
 
     protected $casts = [
@@ -75,7 +83,37 @@ class WorkflowInstance extends Model
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
         'delegated_by_user_id' => 'integer',
+        'error_workflow_project_id' => 'integer',
+        'usage_tokens_in' => 'integer',
+        'usage_tokens_out' => 'integer',
+        'usage_cost_usd' => 'float',
+        'usage_unknown_calls' => 'integer',
+        'version_id' => 'integer',
     ];
+
+    /**
+     * When a run fails, start its project's error workflow; when a sub-workflow run in `wait` mode ends, continue
+     * its parent (lane N3). Both are queued jobs, so the status change commits first.
+     */
+    protected static function booted(): void
+    {
+        static::updated(static function (self $instance): void {
+            if (! $instance->wasChanged('status')) {
+                return;
+            }
+
+            if ($instance->status === 'failed' && ($instance->error_workflow_project_id
+                || WorkflowProject::query()->whereKey($instance->project_id)->value('error_workflow_project_id'))) {
+                \Cms\Core\Services\Workflow\Triggers\StartErrorWorkflowJob::dispatch($instance->id);
+            }
+
+            if (data_get($instance->context_snapshot, 'trigger.meta.mode') === 'wait'
+                && data_get($instance->context_snapshot, 'trigger.meta.parent_instance_id')
+                && \Cms\Core\Services\Workflow\Triggers\SubWorkflowService::isFinished($instance)) {
+                \Cms\Core\Services\Workflow\Triggers\ResumeParentWorkflowJob::dispatch($instance->id);
+            }
+        });
+    }
 
     /**
      * Get the workflow project definition this instance is based on.
@@ -84,6 +122,15 @@ class WorkflowInstance extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(WorkflowProject::class, 'project_id');
+    }
+
+    /**
+     * The workflow version this run executes.
+     * @return BelongsTo
+     */
+    public function version(): BelongsTo
+    {
+        return $this->belongsTo(WorkflowVersion::class, 'version_id');
     }
 
     /**

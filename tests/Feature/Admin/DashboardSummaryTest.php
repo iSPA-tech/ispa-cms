@@ -235,4 +235,19 @@ final class DashboardSummaryTest extends TestCase
 
         $this->withHeaders($headers)->getJson('/api/v2/admin/dashboard/summary')->assertJsonPath('data.hub.connected', true);
     }
+
+    public function test_a_status_group_the_installed_ecommerce_lacks_matches_nothing(): void
+    {
+        // Asked by module name: naming an Ecommerce class here would make the open-source export leave this whole file out.
+        if (! \Nwidart\Modules\Facades\Module::has('Ecommerce')) {
+            $this->markTestSkipped('Needs the Ecommerce module (not part of every install).');
+        }
+
+        $service = app(\App\Services\Dashboard\DashboardSummaryService::class);
+        $method = new \ReflectionMethod($service, 'anyStatusIn');
+
+        // An older Ecommerce from the hub may not have a newer bucket such as `draft`: no error, no match.
+        $this->assertSame('(1 = 0)', $method->invoke($service, 'bucket_this_version_does_not_have'));
+        $this->assertStringContainsString('order_status', $method->invoke($service, 'paid'));
+    }
 }

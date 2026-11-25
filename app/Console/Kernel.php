@@ -272,6 +272,21 @@ class Kernel extends ConsoleKernel
                 ->withoutOverlapping();
         }
 
+        // Re-verify the hash and seal of every workflow version that can still run (guardrails B2).
+        $schedule->command('cms:workflow-integrity-check')
+            ->name('cms:workflow-integrity-check')
+            ->dailyAt('02:15')
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        // Always scheduled: besides cron-scheduled projects (the command checks WORKFLOW_SCHEDULER_ENABLED itself), it puts
+        // live the sensitive workflow changes whose cooling-off ended (guardrails B3), which must not wait for that flag.
+        $schedule->command('cms:workflow-run-scheduled')
+            ->name('cms:workflow-run-scheduled')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->onOneServer();
+
         $schedule->onOneServer();
     }
 

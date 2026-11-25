@@ -65,7 +65,11 @@ class LoopEachRunner implements StepRunner
             return StepRunResult::failed('loop_each: itemVar must start with vars.');
         }
 
-        $maxItems = $maxItemsCfg !== null ? (int) $maxItemsCfg : (int) config('core.workflow.max_loop_items', 100);
+        // A node's maxItems may only lower the site cap, never raise it.
+        $siteCap = (int) config('core.workflow.max_loop_items', 100);
+        $maxItems = $maxItemsCfg !== null && is_numeric($maxItemsCfg) && (int) $maxItemsCfg > 0
+            ? min((int) $maxItemsCfg, $siteCap)
+            : $siteCap;
 
         try {
             $collection = $this->engine->evaluate($collectionExpr, $context, true);
@@ -100,6 +104,11 @@ class LoopEachRunner implements StepRunner
         if ($total === 0 || $currentIndex >= $total) {
             $logs[] = ['level' => 'info', 'message' => 'Loop finished'];
 
+            // Reset progress so the loop starts again from the first item when re-entered (e.g. nested loops).
+            $meta['loop_index'] = 0;
+            $meta['loop_total'] = $total;
+            $context->setStepResult($stepCode, null, 'success', $meta);
+
             return StepRunResult::success(
                 [
                     'state' => ['index' => $currentIndex, 'total' => $total],
@@ -127,7 +136,8 @@ class LoopEachRunner implements StepRunner
 
         $logs[] = ['level' => 'info', 'message' => "Loop iteration {$currentIndex}"];
 
-        $nextHint = ($currentIndex + 1) < $total ? 'loop' : 'done';
+        // Every item runs the body; the done edge is taken on the next visit, once all items are used.
+        $nextHint = 'loop';
         $result = StepRunResult::success([
             'state' => ['index' => $currentIndex, 'total' => $total],
             'next' => $nextHint,

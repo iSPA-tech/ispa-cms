@@ -111,6 +111,9 @@ class ContactSubmissionService
 
             $inbox->save();
 
+            // One workflow trigger per stored message, returning senders included (dispatched after commit).
+            event(\App\Events\ContactMessageReceived::fromMessage($contact, $inbox));
+
             DB::commit();
         } catch (Throwable $exception) {
             DB::rollBack();

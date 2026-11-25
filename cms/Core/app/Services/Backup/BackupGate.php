@@ -55,4 +55,25 @@ class BackupGate
 
         return $backup;
     }
+
+    /**
+     * A safety backup taken earlier for the operation about to run, when it still qualifies: same reason, not failed,
+     * at least one stored copy, and taken within the last `$maxAgeSeconds`. Null otherwise; the caller then takes its
+     * own backup with {@see self::ensure()}.
+     */
+    public function prepared(string $uuid, string $reason, int $maxAgeSeconds = 86400): ?Backup
+    {
+        $backup = Backup::query()
+            ->where('uuid', $uuid)
+            ->where('reason', $reason)
+            ->whereIn('status', [Backup::STATUS_SUCCEEDED, Backup::STATUS_PARTIAL])
+            ->where('created_at', '>=', now()->subSeconds($maxAgeSeconds))
+            ->first();
+
+        if ($backup === null || $backup->copies()->where('status', BackupCopy::STATUS_STORED)->count() === 0) {
+            return null;
+        }
+
+        return $backup;
+    }
 }

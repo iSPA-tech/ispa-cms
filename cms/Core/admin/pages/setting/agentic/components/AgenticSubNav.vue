@@ -29,7 +29,7 @@ const { canProvisionAgentic } = useAgenticPermissions()
 
 const items = [
     { name: 'setting-agentic', labelKey: 'text.agentic.dashboard.title' },
-    { name: 'setting-agentic-approvals', labelKey: 'text.agentic.inbox.title' },
+    { name: 'approvals', labelKey: 'text.agentic.inbox.title' },
     { name: 'setting-agentic-admin', labelKey: 'text.agentic.admin.title', requiresAdmin: true },
 ]
 

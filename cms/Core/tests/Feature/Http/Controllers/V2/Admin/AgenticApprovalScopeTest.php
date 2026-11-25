@@ -350,3 +350,21 @@ test('the response names the delegating user and both scope summaries without no
     expect($row['run']['delegated_by']['uuid'])->toBe($this->delegator->uuid)
         ->and($row['scope']['now']['level'])->toBe('nodes');
 });
+
+test('sla-summary respects data scope', function (): void {
+    $in = ($this->approval)(ScopeFixtureRecord::class, ($this->record)('HOBBY_A'), $this->delegator);
+    $out = ($this->approval)(ScopeFixtureRecord::class, ($this->record)('TRADE_X'), $this->delegator);
+    foreach ([$in, $out] as $approval) {
+        $approval->forceFill(['sla_seconds' => 3600, 'due_at' => now()->subMinute()])->save();
+        DB::table(CoreTableConstant::AGENT_APPROVAL_ASSIGNEE)->insert(['approval_id' => $approval->id, 'user_id' => $this->approver->id, 'created_at' => now()]);
+    }
+    $this->actingAs($this->approver, 'sanctum');
+
+    $data = $this->getJson('/api/v2/admin/agentic/approvals/sla-summary')->assertOk()->json('data');
+
+    expect($data['totals']['assigned'])->toBe(1)
+        ->and($data['totals']['overdue_now'])->toBe(1)
+        ->and($data['reviewers'])->toHaveCount(1)
+        ->and($data['reviewers'][0]['assigned'])->toBe(1);
+    expect(collect($this->getJson('/api/v2/admin/agentic/approvals?overdue=1')->assertOk()->json('data.data'))->pluck('id')->all())->toBe([$in->id]);
+});

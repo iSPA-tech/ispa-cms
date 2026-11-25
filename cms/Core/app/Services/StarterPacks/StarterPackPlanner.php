@@ -242,7 +242,7 @@ class StarterPackPlanner
                 if ($candidate['revoked'] || !ModuleVersionConstraint::satisfies($candidate['version'], $constraint)) {
                     continue;
                 }
-                if ($best === null || version_compare($candidate['version'], $best['version'], '>')) {
+                if ($best === null || ModuleVersionConstraint::compare($candidate['version'], $best['version']) > 0) {
                     $best = $candidate;
                 }
             }
@@ -294,12 +294,12 @@ class StarterPackPlanner
 
         $newest = null;
         foreach (StarterPackApplication::query()->succeeded()->where('pack_key', $pack->key)->pluck('pack_version') as $version) {
-            if ($newest === null || version_compare((string) $version, $newest, '>')) {
+            if ($newest === null || ModuleVersionConstraint::compare((string) $version, $newest) > 0) {
                 $newest = (string) $version;
             }
         }
 
-        if ($newest !== null && version_compare($pack->version, $newest, '<')) {
+        if ($newest !== null && ModuleVersionConstraint::compare($pack->version, $newest) < 0) {
             $blockers[] = "Pack version {$pack->version} is older than version {$newest} already applied to this site.";
         }
     }

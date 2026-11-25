@@ -15,8 +15,12 @@ use Illuminate\Support\Facades\Validator;
 use Cms\Core\Models\Agents\AgentApproval;
 use Cms\Core\Responses\AppResponse;
 use Cms\Core\Services\Agentic\AgentApprovalService;
+use Cms\Core\Workflows\Runtime\Runners\Human\ReviewMeta;
 use Cms\Core\Services\Agentic\AgenticAuthorization;
 use Cms\Core\Services\DataScope\ScopeSummary;
+use Cms\Core\Constants\CoreTableConstant;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Manage agentic approval records via the admin API.
@@ -45,6 +49,26 @@ class AgenticApprovalController extends Controller
      */
     protected array $scopeSummaries = [];
 
+    /** Whether the assignee/SLA columns exist (memoised per request; see AgentApproval::hasAssignmentColumns()). */
+    protected ?bool $assignmentReady = null;
+
+    protected function assignmentReady(): bool
+    {
+        return $this->assignmentReady ??= AgentApproval::hasAssignmentColumns();
+    }
+
+    /**
+     * Relations every serialized approval needs.
+     *
+     * @return list<string>
+     */
+    protected function relations(): array
+    {
+        $relations = ['artifact', 'run.profile', 'run.workflowInstance', 'run.delegatedBy', 'reviewer', 'applier'];
+
+        return $this->assignmentReady() ? [...$relations, 'assignees', 'decider'] : $relations;
+    }
+
     /**
      * List approval records with filtering and pagination.
      *
@@ -68,7 +92,7 @@ class AgenticApprovalController extends Controller
         [$page, $perPage] = $this->pagination($request, 20);
 
         $query = AgentApproval::query()
-            ->with(['artifact', 'run.profile', 'run.workflowInstance', 'run.delegatedBy', 'reviewer', 'applier'])
+            ->with($this->relations())
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')->toString()))
             ->when($request->filled('apply_outcome'), fn ($q) => $q->where('apply_outcome', $request->string('apply_outcome')->toString()))
             ->when($request->filled('artifact_type'), function ($q) use ($request) {
@@ -93,6 +117,14 @@ class AgenticApprovalController extends Controller
             ->when($request->filled('subject_type'), function ($q) use ($request) {
                 $subjectType = $request->string('subject_type')->toString();
                 $q->whereHas('artifact', fn ($artifactQuery) => $artifactQuery->where('subject_type', $subjectType));
+            })
+            // `assigned=me`: approvals a workflow step assigned to the caller.
+            ->when($request->input('assigned') === 'me' && $this->assignmentReady(), function ($q) use ($request) {
+                $q->whereHas('assignees', fn ($users) => $users->whereKey((int) $request->user()?->getKey()));
+            })
+            // `overdue=1`: pending approvals past their SLA due time.
+            ->when($request->boolean('overdue') && $this->assignmentReady(), function ($q) {
+                $q->where('status', 'pending')->whereNotNull('due_at')->where('due_at', '<', now());
             })
             ->orderByRaw("case when status = 'pending' then 0 when status = 'approved' then 1 else 2 end")
             ->orderByDesc('updated_at');
@@ -138,11 +170,88 @@ class AgenticApprovalController extends Controller
             return ires()->notFound(__('mgs.agentic.approval-not-found'));
         }
 
-        return ires()->data($this->serializeApproval(
+        return ires()->data($this->serializeWithHistory(
             $resolvedApproval,
             $authorization->canApprove($request->user()),
             $approvalService,
         ));
+    }
+
+    /**
+     * Send a pending approval back for a rewrite: the producing step runs again with the reviewer's feedback, added
+     * information and chosen options (declared in `diff_data.workflow_node.revision_options`).
+     *
+     * Same permission and data scope as approve. 422 when the approval is not pending or not revisable, the round cap is
+     * reached, an option is not declared, or the feedback is missing.
+     *
+     * @param  Request                $request          `feedback` (3..5000), `added_info` (..10000), `options` (key => value)
+     * @param  string                 $approval         Approval ID
+     * @param  AgentApprovalService   $approvalService  Approval processing service
+     * @param  AgenticAuthorization   $authorization    Authorization service
+     * @return AppResponse  The approval (same shape as show)
+     */
+    public function requestChanges(
+        Request $request,
+        string $approval,
+        AgentApprovalService $approvalService,
+        AgenticAuthorization $authorization,
+    ): AppResponse {
+        if (!$authorization->canApprove($request->user())) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        $resolvedApproval = $this->resolveApproval($approval, $request->user(), $approvalService);
+        if (! $resolvedApproval) {
+            return ires()->notFound(__('mgs.agentic.approval-not-found'));
+        }
+        if ($refused = $this->decisionRefused($resolvedApproval, $request->user(), $approvalService)) {
+            return $refused;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'feedback' => ['required', 'string', 'min:3', 'max:5000'],
+            'added_info' => ['nullable', 'string', 'max:10000'],
+            'options' => ['nullable', 'array'],
+        ]);
+        if ($validator->fails()) {
+            return ires()->error()->code(422)->errorCode('invalid_request')->message($validator->errors()->first());
+        }
+
+        $addedInfo = trim($request->string('added_info')->toString());
+        try {
+            $result = $approvalService->requestChanges(
+                $resolvedApproval,
+                $request->user(),
+                trim($request->string('feedback')->toString()),
+                $addedInfo !== '' ? $addedInfo : null,
+                (array) $request->input('options', []),
+            );
+        } catch (\InvalidArgumentException $e) {
+            if ($e->getMessage() === AgentApprovalService::SCOPE_DENIED) {
+                return ires()->forbidden(__('mgs.no.permission'));
+            }
+
+            return ires()->error()->code(422)->errorCode('changes_not_allowed')->message($e->getMessage());
+        }
+
+        $fresh = $this->resolveApproval((string) $result['approval']->id, $request->user(), $approvalService) ?? $result['approval'];
+
+        return ires()->data($this->serializeWithHistory($fresh, true, $approvalService));
+    }
+
+    /**
+     * The show payload: the serialized approval plus `revision_history`, the rounds of its rewrite chain oldest first.
+     * Reviewer text (feedback, added information) is sent only to callers who may approve.
+     *
+     * @return array<string, mixed>
+     */
+    protected function serializeWithHistory(AgentApproval $approval, bool $includeRecordData, AgentApprovalService $approvalService): array
+    {
+        $history = array_map(static fn (array $round): array => $includeRecordData
+            ? $round
+            : array_merge($round, ['feedback' => null, 'added_info' => null]), $approvalService->revisionHistory($approval));
+
+        return $this->serializeApproval($approval, $includeRecordData, $approvalService) + ['revision_history' => $history];
     }
 
     /**
@@ -171,6 +280,9 @@ class AgenticApprovalController extends Controller
         if (! $resolvedApproval) {
             return ires()->notFound(__('mgs.agentic.approval-not-found'));
         }
+        if ($refused = $this->decisionRefused($resolvedApproval, $request->user(), $approvalService)) {
+            return $refused;
+        }
 
         $validator = Validator::make($request->all(), [
             'reviewer_note' => ['nullable', 'string'],
@@ -181,10 +293,11 @@ class AgenticApprovalController extends Controller
         }
 
         try {
-            $result = $approvalService->approve(
+            $result = $approvalService->approveWithEdits(
                 $resolvedApproval,
                 $request->user(),
                 $request->string('reviewer_note')->toString() ?: null,
+                $this->editedFields($request),
             );
         } catch (\Throwable $e) {
             return ires()->badRequest($e->getMessage());
@@ -221,13 +334,24 @@ class AgenticApprovalController extends Controller
         if (! $resolvedApproval) {
             return ires()->notFound(__('mgs.agentic.approval-not-found'));
         }
+        if ($refused = $this->decisionRefused($resolvedApproval, $request->user(), $approvalService)) {
+            return $refused;
+        }
 
         $validator = Validator::make($request->all(), [
             'reviewer_note' => ['nullable', 'string'],
+            'reason' => ['nullable', 'string', 'max:40'],
         ]);
 
         if ($validator->fails()) {
             return ires()->badRequest($validator->errors()->first());
+        }
+
+        // Declared reject reasons make one required; an approval without reasons refuses any (the service re-checks).
+        $reason = trim($request->string('reason')->toString());
+        $declared = ReviewMeta::rejectReasons(data_get($resolvedApproval->diff_data, 'workflow_node.reject_reasons'));
+        if ($declared !== [] && $reason === '') {
+            return ires()->error()->code(422)->errorCode('reason_required')->message('Pick a reason for the rejection.');
         }
 
         try {
@@ -235,7 +359,14 @@ class AgenticApprovalController extends Controller
                 $resolvedApproval,
                 $request->user(),
                 $request->string('reviewer_note')->toString() ?: null,
+                $reason !== '' ? $reason : null,
             );
+        } catch (\InvalidArgumentException $e) {
+            if (str_starts_with($e->getMessage(), 'Reason [')) {
+                return ires()->error()->code(422)->errorCode('invalid_reason')->message($e->getMessage());
+            }
+
+            return ires()->badRequest($e->getMessage());
         } catch (\Throwable $e) {
             return ires()->badRequest($e->getMessage());
         }
@@ -282,6 +413,81 @@ class AgenticApprovalController extends Controller
         return ires()
             ->message(__('mgs.agentic.approval-applied'))
             ->data($this->serializeApproval($result['approval'], true, $approvalService));
+    }
+
+    /**
+     * Approve a pending approval and apply it in one call.
+     *
+     * Same permission (canApprove) and data-scope lookup as approve and apply.
+     * Answers 200 with the approval plus `outcome` (applied, approval_stale or
+     * apply_failed); a stale or failed apply leaves the approval approved and
+     * waiting, with `apply_error` saying why.
+     *
+     * @param  Request                $request          The incoming HTTP request (reviewer_note)
+     * @param  string                 $approval         Approval ID
+     * @param  AgentApprovalService   $approvalService  Approval processing service
+     * @param  AgenticAuthorization   $authorization    Authorization service
+     * @return AppResponse  Updated approval data with `outcome`
+     */
+    public function approveAndApply(
+        Request $request,
+        string $approval,
+        AgentApprovalService $approvalService,
+        AgenticAuthorization $authorization,
+    ): AppResponse {
+        if (!$authorization->canApprove($request->user())) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
+        $resolvedApproval = $this->resolveApproval($approval, $request->user(), $approvalService);
+        if (! $resolvedApproval) {
+            return ires()->notFound(__('mgs.agentic.approval-not-found'));
+        }
+        if ($refused = $this->decisionRefused($resolvedApproval, $request->user(), $approvalService)) {
+            return $refused;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reviewer_note' => ['nullable', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return ires()->badRequest($validator->errors()->first());
+        }
+
+        try {
+            $result = $approvalService->approveAndApply(
+                $resolvedApproval,
+                $request->user(),
+                $request->string('reviewer_note')->toString() ?: null,
+                $this->editedFields($request),
+            );
+        } catch (\Throwable $e) {
+            return ires()->badRequest($e->getMessage());
+        }
+
+        $fresh = $this->resolveApproval((string) $result['approval']->id, $request->user(), $approvalService)
+            ?? $result['approval'];
+
+        return ires()
+            ->message(__($result['outcome'] === 'applied' ? 'mgs.agentic.approval-applied' : 'mgs.agentic.approval-approved'))
+            ->data(array_merge(
+                $this->serializeApproval($fresh, true, $approvalService),
+                ['outcome' => $result['outcome']],
+            ));
+    }
+
+    /**
+     * Reviewer edits of the fields a workflow approval declares editable (`edited_fields`: payload path => value).
+     *
+     * @param  Request $request The incoming HTTP request
+     * @return array<string, mixed>|null
+     */
+    protected function editedFields(Request $request): ?array
+    {
+        $edits = $request->input('edited_fields');
+
+        return is_array($edits) && $edits !== [] ? $edits : null;
     }
 
     /**
@@ -381,6 +587,11 @@ class AgenticApprovalController extends Controller
                 'original_data_snapshot' => $includeRecordData ? $approval->artifact?->original_data_snapshot : null,
             ],
             'diff_data' => $includeRecordData ? $approval->diff_data : null,
+            // Auto-publish after calibration: why a person decides, JEV's verdict {verdict, probability,
+            // min_confidence} and who decided (`jev` marks an automatic approval).
+            'held_reason' => is_string($held = data_get($approval->diff_data, 'workflow_node.held_reason')) ? $held : null,
+            'jev' => \Cms\Core\Services\Workflow\AutoApproval\WorkflowAutoApproval::jevOf($approval),
+            'decided_by' => is_string($by = data_get($approval->diff_data, 'workflow_node.decided_by')) ? $by : null,
             'reviewer' => [
                 'id' => $approval->reviewer?->id,
                 'name' => $approval->reviewer?->name,
@@ -389,7 +600,167 @@ class AgenticApprovalController extends Controller
                 'id' => $approval->applier?->id,
                 'name' => $approval->applier?->name,
             ],
+            'assignment' => $this->serializeAssignment($approval, request()->user()),
         ];
+    }
+
+    /**
+     * Assignee and SLA facts of an approval (null when it has no assignees, no SLA, no fallback and no decision
+     * timing, e.g. approvals created before the feature). Users are named by uuid and name only.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function serializeAssignment(AgentApproval $approval, ?User $viewer): ?array
+    {
+        if (!$this->assignmentReady()) {
+            return null;
+        }
+        $assignees = $approval->assignees;
+        $fallback = data_get($approval->diff_data, 'workflow_node.assignment_fallback') === true;
+        if ($assignees->isEmpty() && $approval->sla_seconds === null && $approval->decided_at === null && !$fallback) {
+            return null;
+        }
+
+        $decider = $approval->decider;
+
+        return [
+            'assignees' => $assignees->map(static fn (User $user): array => ['uuid' => $user->uuid, 'name' => $user->name])->values()->all(),
+            'assigned_to_me' => $viewer !== null && $assignees->contains(static fn (User $user): bool => (int) $user->getKey() === (int) $viewer->getKey()),
+            'due_at' => optional($approval->due_at)->toJSON(),
+            'sla_seconds' => $approval->sla_seconds,
+            'decided_at' => optional($approval->decided_at)->toJSON(),
+            'response_seconds' => $approval->response_seconds,
+            'sla_met' => $approval->sla_met,
+            'overdue' => $approval->status === 'pending' && $approval->due_at !== null && $approval->due_at->lt(now()),
+            'breached_at' => optional($approval->sla_breached_at)->toJSON(),
+            'decided_by' => $decider ? ['uuid' => $decider->uuid, 'name' => $decider->name] : null,
+            'fallback' => $fallback,
+        ];
+    }
+
+    /**
+     * SLA summary of assigned approvals created in a date range (`from`, `to` as YYYY-MM-DD; default the last 30 days,
+     * at most 366 days), inside the caller's data scope like the list. Approvals count when they have assignees, an SLA
+     * or fell back to the permission holders; at most 5 000 (newest first, `truncated: true` above). Per reviewer: one
+     * row per assignee with how many they got, decided themselves or someone else decided, within / late (expired
+     * counts late) / overdue now, and the median and average response time of the ones they decided.
+     *
+     * @param  Request                $request          `from`, `to`
+     * @param  AgenticAuthorization   $authorization    Same permission as the list
+     * @param  AgentApprovalService   $approvalService  Data-scope filter
+     * @return AppResponse  `{totals: {...}, reviewers: [...], from, to, truncated}`
+     */
+    public function slaSummary(
+        Request $request,
+        AgenticAuthorization $authorization,
+        AgentApprovalService $approvalService,
+    ): AppResponse {
+        if (!$authorization->canView($request->user())) {
+            return ires()->error()->message(__('mgs.no.permission'));
+        }
+
+        $validator = Validator::make($request->all(), [
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        if ($validator->fails()) {
+            return ires()->error()->code(422)->errorCode('invalid_request')->message($validator->errors()->first());
+        }
+
+        $to = $request->filled('to') ? Carbon::createFromFormat('Y-m-d', $request->string('to')->toString())->endOfDay() : now()->endOfDay();
+        $from = $request->filled('from') ? Carbon::createFromFormat('Y-m-d', $request->string('from')->toString())->startOfDay() : $to->copy()->subDays(29)->startOfDay();
+        if ($from->gt($to) || $from->copy()->addDays(366)->lte($to->copy()->startOfDay())) {
+            return ires()->error()->code(422)->errorCode('invalid_range')->message('The range must run forward and cover at most 366 days.');
+        }
+
+        if (!$this->assignmentReady()) {
+            return ires()->error()->code(409)->errorCode('not_migrated')->message('Run the database migrations first.');
+        }
+
+        $cap = 5000;
+        $query = AgentApproval::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->where(static function ($measured): void {
+                $measured->whereHas('assignees')
+                    ->orWhereNotNull('sla_seconds')
+                    ->orWhere('diff_data->workflow_node->assignment_fallback', true);
+            });
+        $approvalService->constrainToScope($query, $request->user());
+        $rows = $query->orderByDesc('id')->limit($cap + 1)
+            ->get(['id', 'status', 'due_at', 'sla_seconds', 'decided_at', 'response_seconds', 'sla_met', 'decided_by_user_id']);
+        $truncated = $rows->count() > $cap;
+        $rows = $rows->take($cap)->keyBy('id');
+
+        $assigned = [];
+        foreach ($rows->keys()->chunk(1000) as $ids) {
+            DB::table(CoreTableConstant::AGENT_APPROVAL_ASSIGNEE . ' as a')
+                ->join(CoreTableConstant::USERS . ' as u', 'u.id', '=', 'a.user_id')
+                ->whereIn('a.approval_id', $ids->all())
+                ->get(['a.approval_id', 'a.user_id', 'u.uuid', 'u.name'])
+                ->each(static function ($row) use (&$assigned): void {
+                    $assigned[(int) $row->user_id]['user'] ??= ['uuid' => $row->uuid, 'name' => $row->name];
+                    $assigned[(int) $row->user_id]['approvals'][] = (int) $row->approval_id;
+                });
+        }
+
+        $reviewers = [];
+        foreach ($assigned as $userId => $entry) {
+            $mine = $rows->only($entry['approvals']);
+            $byThem = $mine->filter(static fn (AgentApproval $a): bool => $a->decided_at !== null && (int) $a->decided_by_user_id === $userId);
+            $times = $byThem->pluck('response_seconds')->filter(static fn ($v): bool => $v !== null)->map(static fn ($v): int => (int) $v)->all();
+            $reviewers[] = $entry['user'] + [
+                'assigned' => $mine->count(),
+                'decided_by_them' => $byThem->count(),
+                'decided_by_others' => $mine->filter(static fn (AgentApproval $a): bool => $a->decided_at !== null && (int) $a->decided_by_user_id !== $userId)->count(),
+            ] + $this->slaCounts($mine) + [
+                'median_response_seconds' => self::median($times),
+                'avg_response_seconds' => $times === [] ? null : (int) round(array_sum($times) / count($times)),
+            ];
+        }
+        usort($reviewers, static fn (array $a, array $b): int => [$b['assigned'], $a['name']] <=> [$a['assigned'], $b['name']]);
+
+        $times = $rows->filter(static fn (AgentApproval $a): bool => $a->decided_at !== null && $a->response_seconds !== null)
+            ->map(static fn (AgentApproval $a): int => (int) $a->response_seconds)->values()->all();
+
+        return ires()->data([
+            'totals' => [
+                'assigned' => $rows->count(),
+                'decided' => $rows->filter(static fn (AgentApproval $a): bool => $a->decided_at !== null)->count(),
+            ] + $this->slaCounts($rows) + ['median_response_seconds' => self::median($times)],
+            'reviewers' => $reviewers,
+            'from' => $from->toDateString(),
+            'to' => $to->toDateString(),
+            'truncated' => $truncated,
+        ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, AgentApproval> $approvals
+     * @return array{within_sla: int, late: int, overdue_now: int}
+     */
+    protected function slaCounts($approvals): array
+    {
+        $now = now();
+
+        return [
+            'within_sla' => $approvals->filter(static fn (AgentApproval $a): bool => $a->sla_met === true)->count(),
+            'late' => $approvals->filter(static fn (AgentApproval $a): bool => $a->sla_met === false)->count(),
+            'overdue_now' => $approvals->filter(static fn (AgentApproval $a): bool => $a->status === 'pending' && $a->due_at !== null && $a->due_at->lt($now))->count(),
+        ];
+    }
+
+    /**
+     * @param list<int> $values
+     */
+    protected static function median(array $values): ?int
+    {
+        if ($values === []) {
+            return null;
+        }
+        sort($values);
+        $middle = intdiv(count($values), 2);
+
+        return count($values) % 2 === 1 ? $values[$middle] : (int) round(($values[$middle - 1] + $values[$middle]) / 2);
     }
 
     /**
@@ -417,6 +788,49 @@ class AgenticApprovalController extends Controller
     }
 
     /**
+     * Undo a reversible-field change a workflow applied without a person (`decided_by: reversible_fields`).
+     * Needs the approve permission; 422 when there is nothing to undo, 409 when a field changed since.
+     */
+    public function undo(
+        Request $request,
+        string $approval,
+        AgentApprovalService $approvalService,
+        AgenticAuthorization $authorization,
+    ): AppResponse {
+        if (!$authorization->canApprove($request->user())) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
+        $resolvedApproval = $this->resolveApproval($approval, $request->user(), $approvalService);
+        if (! $resolvedApproval) {
+            return ires()->notFound(__('mgs.agentic.approval-not-found'));
+        }
+
+        try {
+            $undone = $approvalService->undoReversible($resolvedApproval, $request->user());
+        } catch (\Cms\Core\Services\Agentic\Exceptions\ApprovalStaleException $e) {
+            return ires()->error()->code(409)->errorCode('approval_stale')->message($e->getMessage());
+        } catch (\InvalidArgumentException $e) {
+            return ires()->error()->code(422)->errorCode('nothing_to_undo')->message($e->getMessage());
+        }
+
+        return ires()->data($this->serializeApproval($undone, true, $approvalService));
+    }
+
+    /**
+     * 403 with the refusal code when the caller may not decide this item (AgentApprovalService::decisionRefusal():
+     * reviewer permission of the step, assignees, the run's own user, the workflow's authors), else null.
+     */
+    protected function decisionRefused(AgentApproval $approval, ?User $user, AgentApprovalService $approvalService): ?AppResponse
+    {
+        $refusal = $approvalService->decisionRefusal($approval, $user);
+
+        return $refusal === null
+            ? null
+            : ires()->error()->code(403)->errorCode($refusal['code'])->message($refusal['message']);
+    }
+
+    /**
      * Resolve an approval record by ID with eager-loaded relationships, within the viewer's data scope.
      *
      * @param  string                $approval         Approval ID to resolve
@@ -427,7 +841,7 @@ class AgenticApprovalController extends Controller
     protected function resolveApproval(string $approval, ?User $viewer, AgentApprovalService $approvalService): ?AgentApproval
     {
         $resolved = AgentApproval::query()
-            ->with(['artifact', 'run.profile', 'run.workflowInstance', 'run.delegatedBy', 'reviewer', 'applier'])
+            ->with($this->relations())
             ->find($approval);
 
         if (! $resolved || ! $approvalService->allowsSubject($resolved, $viewer)) {

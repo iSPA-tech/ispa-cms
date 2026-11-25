@@ -44,7 +44,7 @@ class WorkflowRetryTest extends TestCase
             'from_step_id' => $step->id,
             'to_step_id' => null,
         ]);
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'status' => 'pending',
         ]);
@@ -72,7 +72,7 @@ class WorkflowRetryTest extends TestCase
             'step_code' => 'queued_retryable',
             'step_config' => ['retry' => ['max' => 2, 'backoffSeconds' => [5]]],
         ]);
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'status' => 'pending',
         ]);
@@ -85,7 +85,7 @@ class WorkflowRetryTest extends TestCase
         $instance->refresh();
         $instanceStep = WorkflowInstanceStep::query()->where('instance_id', $instance->id)->latest('id')->first();
 
-        $this->assertSame('running', $instance->status);
+        $this->assertSame('waiting', $instance->status);
         $this->assertSame($step->id, $instance->resume_step_id);
         $this->assertNotNull($instanceStep);
         $this->assertSame('failed', $instanceStep->status);

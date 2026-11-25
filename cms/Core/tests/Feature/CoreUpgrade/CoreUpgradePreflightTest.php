@@ -63,12 +63,28 @@ afterEach(function () {
     cpfRm($this->dir);
 });
 
-test('admin mode needs a fresh runner', function () {
-    $without = cpfPreflight($this->base, null)->check($this->manifest, '2026.12.1', true);
-    $with = cpfPreflight($this->base, cpfHeartbeat())->check($this->manifest, '2026.12.1', true);
+test('admin mode needs a fresh runner when the web user cannot run it', function () {
+    // Code the web user cannot write: another user must run the upgrade (runner cron).
+    chmod($this->base.'/app', 0555);
+    try {
+        $without = cpfPreflight($this->base, null)->check($this->manifest, '2026.12.1', true);
+        $with = cpfPreflight($this->base, cpfHeartbeat())->check($this->manifest, '2026.12.1', true);
+    } finally {
+        chmod($this->base.'/app', 0755);
+    }
 
     expect($without->blockingCodes())->toContain('CORE_NO_RUNNER')
         ->and($with->blockingCodes())->not->toContain('CORE_NO_RUNNER');
+});
+
+test('simple hosting: the web user owns the code, so the admin needs no runner cron', function () {
+    if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+        $this->markTestSkipped('root never runs the upgrade');
+    }
+    $result = cpfPreflight($this->base, null)->check($this->manifest, '2026.12.1', true);
+
+    expect($result->blockingCodes())->not->toContain('CORE_NO_RUNNER')
+        ->and($result->blockingCodes())->not->toContain('CORE_CODE_DIR_SHARED');
 });
 
 test('admin mode ignores web-user writability', function () {

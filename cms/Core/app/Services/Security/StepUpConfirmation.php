@@ -52,7 +52,11 @@ use Throwable;
 final class StepUpConfirmation
 {
     public const PURPOSE_REVOKE_TOKENS = 'revoke_tokens';
-    public const PURPOSES = [self::PURPOSE_REVOKE_TOKENS];
+    /** Adding, changing or deleting a workflow credential (guardrails B6). */
+    public const PURPOSE_WORKFLOW_CREDENTIAL = 'workflow_credential';
+    /** Publishing or approving a sensitive workflow change (guardrails B3). */
+    public const PURPOSE_WORKFLOW_PUBLISH = 'workflow_publish';
+    public const PURPOSES = [self::PURPOSE_REVOKE_TOKENS, self::PURPOSE_WORKFLOW_CREDENTIAL, self::PURPOSE_WORKFLOW_PUBLISH];
     public const HEADER = 'X-Step-Up-Grant';
 
     public const METHOD_PASSWORD = 'password';

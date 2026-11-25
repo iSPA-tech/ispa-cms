@@ -209,6 +209,17 @@ function cuGate(): object
 
             return $backup;
         }
+
+        public function prepared(string $uuid, string $reason, int $maxAgeSeconds = 86400): ?Backup
+        {
+            if ($uuid !== 'prepared-ok') {
+                return null;
+            }
+            $backup = new Backup();
+            $backup->uuid = $uuid;
+
+            return $backup;
+        }
     };
 }
 
@@ -655,6 +666,47 @@ test('dry run downloads and verifies but changes nothing', function () {
         ->and(file_get_contents($this->tree.'/app/X.php'))->toBe('x-v1')
         ->and(is_dir($this->tree.'/.ispa-runner/upgrade-staging/2026.12.1'))->toBeFalse()
         ->and($gate->calls)->toBe(0)->and($runner->commands)->toBe([]);
+});
+
+test('a safety backup the site took is reused instead of a new one', function () {
+    [$up, , , $gate] = cuUpgrader($this->tree, $this->pkg);
+
+    $up->usePreparedBackup('prepared-ok');
+    $up->run('2026.12.1', false);
+
+    expect($gate->calls)->toBe(0)
+        ->and(file_exists($this->tree.'/app/New.php'))->toBeTrue();
+});
+
+test('a prepared backup that does not qualify is replaced by a new one', function () {
+    [$up, , , $gate] = cuUpgrader($this->tree, $this->pkg);
+
+    $up->usePreparedBackup('missing-or-failed');
+    $up->run('2026.12.1', false);
+
+    expect($gate->calls)->toBe(1);
+});
+
+test('the upgrade stops before any change when it cannot write the backup folders', function () {
+    if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+        $this->markTestSkipped('root can write any folder');
+    }
+    $locked = $this->dir.'/locked-backups';
+    mkdir($locked, 0500);
+    config(['core.backup.staging_path' => $locked.'/staging', 'core.backup.local_root' => $locked.'/local']);
+    [$up, , , $gate] = cuUpgrader($this->tree, $this->pkg);
+
+    try {
+        $up->run('2026.12.1', false);
+        $this->fail('The upgrade must stop.');
+    } catch (CoreUpgradeException $e) {
+        expect($e->errorCode)->toBe('CORE_BACKUP_FAILED')
+            ->and($e->getMessage())->toContain('setfacl');
+    } finally {
+        chmod($locked, 0700);
+    }
+    expect($gate->calls)->toBe(0)
+        ->and(file_exists($this->tree.'/app/New.php'))->toBeFalse();
 });
 
 test('upgrade to the installed version does nothing and reports the core is up to date', function () {

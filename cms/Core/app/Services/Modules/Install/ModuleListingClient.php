@@ -118,11 +118,11 @@ final class ModuleListingClient
     public static function releaseNotesAbove(array $versions, ?string $installed): array
     {
         $eligible = array_values(array_filter($versions, static fn (array $v): bool => ! $v['revoked']));
-        usort($eligible, static fn (array $a, array $b): int => version_compare((string) $b['version'], (string) $a['version']));
+        usort($eligible, static fn (array $a, array $b): int => ModuleVersionConstraint::compare((string) $b['version'], (string) $a['version']));
         if ($installed === null || preg_match('/^\d+(?:\.\d+)*$/', $installed) !== 1) {
             $eligible = array_slice($eligible, 0, 1);
         } else {
-            $eligible = array_values(array_filter($eligible, static fn (array $v): bool => version_compare((string) $v['version'], $installed, '>')));
+            $eligible = array_values(array_filter($eligible, static fn (array $v): bool => ModuleVersionConstraint::compare((string) $v['version'], $installed) > 0));
         }
 
         $notes = [];

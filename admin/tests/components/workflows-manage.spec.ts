@@ -8,6 +8,13 @@ const hookState = vi.hoisted(() => ({
     refetchMock: vi.fn(async () => undefined),
 }))
 
+// The page reads `?open=<slug>` (a workflow installed from a package) and clears it afterwards.
+const routerState = vi.hoisted(() => ({ query: {} as Record<string, unknown>, replace: vi.fn(), push: vi.fn() }))
+vi.mock('vue-router', () => ({
+    useRoute: () => ({ query: routerState.query }),
+    useRouter: () => ({ replace: routerState.replace, push: routerState.push }),
+}))
+
 vi.mock('@/hooks', () => ({
     useWorkflows: () => ({
         data: { value: hookState.workflowsPayload },

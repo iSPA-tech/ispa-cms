@@ -72,8 +72,12 @@ class LocalDriver implements DestinationDriver
         }
 
         $root = rtrim((string) $config['root'], '/');
-        if (!is_dir($root) && !@mkdir($root, 0700, true) && !is_dir($root)) {
-            throw new InvalidArgumentException('BACKUP_LOCAL_ROOT_INVALID');
+        if (!is_dir($root)) {
+            if (!@mkdir($root, 0770, true) && !is_dir($root)) {
+                throw new InvalidArgumentException('BACKUP_LOCAL_ROOT_INVALID');
+            }
+            // mkdir applies the umask; 0770 keeps the ACL mask open for the web server user and the core upgrade runner.
+            @chmod($root, 0770);
         }
 
         return [
@@ -83,8 +87,8 @@ class LocalDriver implements DestinationDriver
             'visibility' => 'private',
             'directory_visibility' => 'private',
             'permissions' => [
-                'file' => ['public' => 0600, 'private' => 0600],
-                'dir' => ['public' => 0700, 'private' => 0700],
+                'file' => ['public' => 0660, 'private' => 0660],
+                'dir' => ['public' => 0770, 'private' => 0770],
             ],
         ];
     }

@@ -13,7 +13,7 @@
             <a-skeleton active :paragraph="{ rows: 2 }" />
         </div>
         <div v-else class="space-y-3">
-            <p class="m-0 text-sm text-ink-muted">{{ t('text.security_tokens.stepup.intro') }}</p>
+            <p class="m-0 text-sm text-ink-muted" data-testid="stepup-intro">{{ intro || t('text.security_tokens.stepup.intro') }}</p>
 
             <a-alert
                 v-if="lockSeconds > 0"
@@ -141,7 +141,7 @@
 
 <script setup>
 /**
- * The one confirmation form every token revoke uses: the account password, then the second factor the account
+ * The one confirmation form every token revoke, workflow credential change and sensitive workflow publish uses: the account password, then the second factor the account
  * has (authenticator code, e-mail code with a "send code" button, or a recovery code), or only an e-mail code for an
  * account without a password. Wrong password and wrong code share one generic text; the fields are cleared after every
  * answer; a lock shows a countdown from `Retry-After`. The grant is handed to the parent through `confirmed` and never
@@ -150,6 +150,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
+    DEFAULT_PURPOSE,
     errorCode,
     fetchStepUpStatus,
     retryAfterSeconds,
@@ -161,6 +162,10 @@ import {
 const props = defineProps({
     /** Whether the dialog is open. */
     open: { type: Boolean, default: false },
+    /** What the grant is for (`revoke_tokens`, `workflow_credential`, `workflow_publish`); a grant only works for its purpose. */
+    purpose: { type: String, default: DEFAULT_PURPOSE },
+    /** Sentence above the form that says why the confirmation is asked; empty keeps the one about ending sessions. */
+    intro: { type: String, default: '' },
 })
 const emit = defineEmits(['confirmed', 'cancel'])
 
@@ -291,10 +296,10 @@ const guarded = async (fn) => {
     }
 }
 
-const submitPassword = () => password.value && guarded(() => startStepUp(password.value))
+const submitPassword = () => password.value && guarded(() => startStepUp(password.value, props.purpose))
 const submitCode = () =>
     code.value && guarded(() => stepUpSecondFactor(challengeId.value, code.value, useRecovery.value ? 'recovery_code' : null))
-const sendEmailCode = () => guarded(() => stepUpEmailCode(stage.value === 'code' ? challengeId.value : null))
+const sendEmailCode = () => guarded(() => stepUpEmailCode(stage.value === 'code' ? challengeId.value : null, props.purpose))
 
 /** Switch between the authenticator code and a recovery code. */
 const toggleRecovery = () => {

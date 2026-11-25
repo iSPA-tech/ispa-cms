@@ -417,7 +417,8 @@ class WorkflowContext
         $snapshot = [
             '__class' => $model::class,
             '__id' => $model->getKey(),
-            'attributes' => $model->attributesToArray(),
+            // Hidden attributes and encrypted casts never reach the stored snapshot (nothing is decrypted).
+            'attributes' => \Cms\Core\Workflows\Security\WorkflowModelRefs::attributes($model),
             'relations' => [],
         ];
 

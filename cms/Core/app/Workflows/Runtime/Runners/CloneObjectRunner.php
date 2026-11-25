@@ -13,6 +13,7 @@ use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -28,6 +29,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CloneObjectRunner implements StepRunner
 {
+    use ResolvesModelTargets;
+
     /**
      * Initialize the runner with an expression engine for evaluating source model expressions.
      *
@@ -63,17 +66,18 @@ class CloneObjectRunner implements StepRunner
             return StepRunResult::failed('clone_object: storeAs must start with vars.');
         }
 
-        try {
-            $source = $this->engine->evaluate($sourceExpr, $context, true);
-        } catch (\Throwable $e) {
-            return StepRunResult::failed('clone_object: evaluate source failed: ' . $e->getMessage());
+        // The source is a reference this run produced; the run's delegate must be allowed to create that model.
+        $sources = $this->resolveModelTargets('clone_object', $sourceExpr, $cfg, $context, false, $error, static fn (): string => 'create');
+        if ($sources === null || count($sources) !== 1) {
+            return StepRunResult::failed($error ?? 'clone_object: sourceExpr must resolve to a model');
         }
+        $source = $sources[0];
 
-        if (!$source instanceof Model) {
-            return StepRunResult::failed('clone_object: sourceExpr must resolve to a model');
-        }
-
-        $except = is_array($exclude) ? $exclude : ['id', 'created_at', 'updated_at'];
+        // Hidden attributes (secrets, hashes, tokens) are never copied, whatever `exclude` says.
+        $except = array_values(array_unique([
+            ...(is_array($exclude) ? array_filter($exclude, 'is_string') : ['id', 'created_at', 'updated_at']),
+            ...$source->getHidden(),
+        ]));
         $clone = $source->replicate($except);
         $saved = false;
         $id = null;
@@ -88,7 +92,9 @@ class CloneObjectRunner implements StepRunner
             }
         }
 
-        $context->setVarPath(substr($storeAs, 5), $clone);
+        // A snapshot with a signed reference, never the live clone; an unsaved clone stays in the run's working set.
+        WorkflowModelRefs::remember($context, $clone);
+        $context->setVarPath(substr($storeAs, 5), WorkflowModelRefs::snapshot($clone, $context));
 
         $logs = [[
             'action' => 'clone_object',

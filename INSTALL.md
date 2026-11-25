@@ -82,7 +82,8 @@ screens cannot be rebuilt on this site"); the module's admin screens appear afte
    - writes `public/iPanel/config.js` for the admin (see below);
    - prints the hub setup code (see below);
    - on a site installed from the core package, prints the crontab line of the upgrade runner and the user it belongs
-     to, so the admin can update the core with one button (see "One-click core updates" below).
+     to. You only need it when the code belongs to another user than the web server (see "One-click core updates"
+     below); in the simple setup the update button works without it.
 
    Running it again is safe: it changes nothing that exists and prints no password. If it stops with an error, fix
    the cause and run it again.
@@ -199,9 +200,18 @@ cannot).
 
 ## One-click core updates
 
-The admin can update the core with one button (Settings > Modules). The web server user does not change the code
-itself: it leaves a request, and the upgrade runner, a small job that runs every minute as the user that owns the
-code, picks it up. Without the runner the button stays off and `./ispa upgrade` on the command line still works.
+The admin can update the core with one button (Settings > Modules).
+
+**Simple setup (the default): nothing to set up.** When the web server user owns the site folder (shared hosting, or
+a server where you ran `chown -R www-data:www-data /var/www/example.com`), the button works as it is: it takes a
+backup of the database, downloads and checks the new core, and installs it in the background, with no cron job. A site
+folder that unpacking left writable by group (`775`) is set to `755` by the site itself the first time you open the
+card. In this setup the web server can change the code, as on most shared hosting.
+
+**Separate code owner (optional, stricter).** If you want the web server unable to change the code, give the code to
+another user (for example `deploy`). The web server user then only leaves a request, and the upgrade runner, a small job
+that runs every minute as the code owner, picks it up. Without the runner the button stays off and `./ispa upgrade` on
+the command line still works.
 
 Add the runner to the crontab of the code owner (for example the user `deploy`; `crontab -e` as that user):
 
@@ -263,6 +273,11 @@ for the web server.
 sudo setfacl -R -m u:www-data:rwX -m u:deploy:rwX storage bootstrap/cache
 sudo setfacl -R -d -m u:www-data:rwX -m u:deploy:rwX storage bootstrap/cache
 ```
+
+An upgrade started from the admin takes its safety backup of the database through the site's scheduler, as the web
+server user, before the runner starts, so the button works even before the ACLs are in place. `./ispa upgrade` on the
+command line takes the backup itself and stops before changing anything when the code owner cannot write
+`storage/backups`.
 
 On hosting where PHP already runs as the code owner, the site's scheduler acts as the runner and nothing else is
 needed.

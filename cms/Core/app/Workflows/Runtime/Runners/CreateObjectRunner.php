@@ -8,11 +8,14 @@
 
 namespace Cms\Core\Workflows\Runtime\Runners;
 
+use Cms\Core\Services\Workflow\Guard\WorkflowAudit;
 use Cms\Core\Workflows\Expression\WorkflowExpressionEngine;
 use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -59,6 +62,12 @@ class CreateObjectRunner implements StepRunner
             return StepRunResult::failed('create_object: invalid model class');
         }
 
+        // Guard + the run's delegate must be allowed to create the model, even when the step only builds it unsaved.
+        $refusal = app(WorkflowCallableGuard::class)->modelStepRefusal($context, 'create', $modelClass);
+        if ($refusal !== null) {
+            return StepRunResult::failed('create_object: ' . $refusal);
+        }
+
         if (!is_array($fields)) {
             return StepRunResult::failed('create_object: fields must be array');
         }
@@ -72,6 +81,8 @@ class CreateObjectRunner implements StepRunner
         $logs = [];
         $fieldNames = [];
 
+        $values = [];
+
         foreach ($fields as $fieldCfg) {
             $field = $fieldCfg['field'] ?? null;
             $valueExpr = $fieldCfg['valueExpr'] ?? null;
@@ -80,15 +91,22 @@ class CreateObjectRunner implements StepRunner
                 continue;
             }
 
+            // Only mass-assignable attributes: $fillable / $guarded decide, like any request writing the model.
+            if (!$model->isFillable($field)) {
+                return StepRunResult::failed("create_object: field not fillable: {$field}", $logs);
+            }
+
             try {
                 $value = $this->engine->evaluate($valueExpr, $context, true);
             } catch (\Throwable $e) {
                 return StepRunResult::failed("create_object: failed to evaluate {$field}: " . $e->getMessage(), $logs);
             }
 
-            $model->setAttribute($field, $value);
+            $values[$field] = $value;
             $fieldNames[] = $field;
         }
+
+        $model->fill($values);
 
         $saved = false;
         $id = null;
@@ -98,13 +116,17 @@ class CreateObjectRunner implements StepRunner
                 $model->save();
                 $saved = true;
                 $id = $model->getKey();
+                WorkflowAudit::recordWritten($context, $step->stepCode, $modelClass, WorkflowAudit::modelKey($model), $fieldNames, 'create_object');
             } catch (\Throwable $e) {
                 return StepRunResult::failed('create_object: save failed: ' . $e->getMessage(), $logs);
             }
         }
 
+        // A snapshot with a signed reference, never the live model (expressions must not reach hidden attributes or
+        // relations through it); an unsaved model stays in the run's working set for commit_objects.
+        WorkflowModelRefs::remember($context, $model);
         if (is_string($storeAs)) {
-            $context->setVarPath(substr($storeAs, 5), $model);
+            $context->setVarPath(substr($storeAs, 5), WorkflowModelRefs::snapshot($model, $context));
         }
 
         $logs[] = [

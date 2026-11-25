@@ -28,7 +28,7 @@ final class CoreRequestRunner
     }
 
     /**
-     * @return string One of `cannot_run`, `idle`, `invalid`, `busy` (another runner, or a module install, is working), `not_claimed`, `succeeded`, `failed`.
+     * @return string One of `cannot_run`, `idle`, `invalid`, `waiting_backup` (the web side has not taken the safety backup yet), `busy` (another runner, or a module install, is working), `not_claimed`, `succeeded`, `failed`.
      */
     public function tick(?int $now = null): string
     {
@@ -56,6 +56,12 @@ final class CoreRequestRunner
             $tick->removeRequest();
 
             return 'invalid';
+        }
+        // An upgrade asked from the admin gets its safety backup from the web user first (cms:core-upgrade-backup);
+        // wait for it, then take one here after the wait (a host whose scheduler never ran the backup).
+        $prepared = $request['action'] === 'upgrade' ? $this->preparedBackup($request['task_uuid']) : null;
+        if ($request['action'] === 'upgrade' && $prepared === null && $this->waitingForBackup($request, $now)) {
+            return 'waiting_backup';
         }
 
         $lock = CoreRunnerTick::acquireLock($this->base);
@@ -100,6 +106,7 @@ final class CoreRequestRunner
                 $files = array_map('strval', array_values((array) ($first['details']['files'] ?? [])));
                 throw new CoreUpgradeException((string) $first['code'], (string) $first['message']);
             }
+            $this->upgrader->usePreparedBackup($prepared);
             $this->upgrader->run($version, false, $task, $task->started_by, [$request['web_php']]);
 
             return 'succeeded';
@@ -120,6 +127,30 @@ final class CoreRequestRunner
         } finally {
             CoreRunnerTick::releaseLock($lock);
         }
+    }
+
+    /** The uuid of the safety backup the web side recorded on the still-waiting task, if any. */
+    private function preparedBackup(string $taskUuid): ?string
+    {
+        $result = BackgroundTask::query()->where('uuid', $taskUuid)->where('type', CoreUpgradeRequests::TASK_TYPE)->value('result');
+        $result = is_string($result) ? json_decode($result, true) : $result;
+        $uuid = is_array($result) ? ($result[CoreUpgradeRequests::PREPARED_BACKUP_KEY] ?? null) : null;
+
+        return is_string($uuid) && $uuid !== '' ? $uuid : null;
+    }
+
+    /**
+     * Whether the request is younger than `core.upgrade.backup_wait_seconds` (default 600, under the 900 s request
+     * timeout), so the web side may still take its backup.
+     *
+     * @param array{requested_at: string} $request
+     */
+    private function waitingForBackup(array $request, ?int $now): bool
+    {
+        $at = strtotime($request['requested_at']);
+        $wait = (int) config('core.upgrade.backup_wait_seconds', 600);
+
+        return $at !== false && $wait > 0 && ($now ?? time()) - $at < $wait;
     }
 
     /**

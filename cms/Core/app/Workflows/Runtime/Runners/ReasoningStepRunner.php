@@ -21,6 +21,8 @@ use Cms\Core\Agents\Runtime\AgentRunner;
 use Cms\Core\Agents\Tools\AgentToolRegistry;
 use Cms\Core\Services\Agentic\AgentRunControlService;
 use Cms\Core\Services\Agentic\AgentApprovalDiffBuilder;
+use Cms\Core\Agents\Contracts\ReasoningEngineInterface;
+use Cms\Core\Workflows\Runtime\Runners\Ai\AiUsageMeter;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
@@ -56,8 +58,30 @@ class ReasoningStepRunner implements StepRunner
 
     /**
      * {@inheritdoc}
+     *
+     * Reports the reasoning engine's AI usage of this step (tokens and cost of every plan() call) through
+     * withUsage(), so per-run budget caps see what `ai_reasoning` spent. An engine that cannot report usage leaves
+     * the step without usage (the executor then counts it as unknown spend).
      */
     public function run(StepDefinition $step, WorkflowContext $context): StepRunResult
+    {
+        $engine = app(ReasoningEngineInterface::class);
+        $meters = method_exists($engine, 'takeUsage');
+        if ($meters) {
+            $engine->takeUsage(); // drop usage left over from earlier callers in this process
+        }
+
+        $result = $this->runLoop($step, $context);
+
+        $usage = $meters ? $engine->takeUsage() : null;
+        if ($meters) {
+            $result->withUsage($usage ?? AiUsageMeter::none('agentic_reasoning'));
+        }
+
+        return $result;
+    }
+
+    protected function runLoop(StepDefinition $step, WorkflowContext $context): StepRunResult
     {
         $cfg = $step->stepConfig ?? [];
         $profileSlug = $cfg['agentProfileSlug'] ?? null;

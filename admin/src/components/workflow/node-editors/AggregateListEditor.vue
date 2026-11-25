@@ -4,6 +4,7 @@
             <p class="text-sm font-semibold text-gray-700 mb-1">{{ t('text.workflow.editor.collection_expr') }}</p>
             <ExpressionEditor
                 v-model:model-value="config.collectionExpr"
+                variant="pick"
                 :placeholder="'vars.items'"
                 :model-class="rootModel"
                 :disabled="readOnly"

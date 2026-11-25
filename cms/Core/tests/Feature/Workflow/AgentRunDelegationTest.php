@@ -39,6 +39,7 @@ class AgentRunDelegationTest extends TestCase
         parent::setUp();
         $this->withoutMiddleware();
         $this->migrateTables();
+        \Cms\Core\Tests\Support\WorkflowTestVersions::ensureSchema(); // runs execute published versions (B1)
 
         config()->set('core.agentic.discovery.default_environment', 'testing');
         config()->set('core.agentic.discovery.allowlisted_namespaces', array_merge(
@@ -120,6 +121,26 @@ class AgentRunDelegationTest extends TestCase
         $this->assertSame(['actor_id' => $creator->id], $run->toolCalls()->sole()->output_payload);
     }
 
+    public function test_global_pause_stops_a_schedule_run_and_records_why(): void
+    {
+        $this->app->instance(\Cms\Core\Services\Workflow\Guard\WorkflowGlobalPause::class, new class (app(\Cms\Core\Services\Workflow\Guard\WorkflowChangeAlerter::class)) extends \Cms\Core\Services\Workflow\Guard\WorkflowGlobalPause {
+            public function active(): bool
+            {
+                return true;
+            }
+        });
+
+        try {
+            $this->executeSchedule($this->makeUser('paused')->id);
+            $this->fail('A schedule must not run while every workflow is paused.');
+        } catch (\Cms\Core\Services\Workflow\Exceptions\WorkflowGloballyPaused) {
+        }
+
+        $this->assertSame(0, AgentRun::query()->count());
+        $this->assertSame(0, WorkflowInstance::query()->count());
+        $this->assertNotNull(AgentSchedule::query()->sole()->last_error);
+    }
+
     public function test_schedule_without_creator_acts_for_nobody(): void
     {
         $run = $this->executeSchedule(null);
@@ -132,7 +153,7 @@ class AgentRunDelegationTest extends TestCase
     public function test_store_as_may_not_write_runtime_vars(): void
     {
         $user = $this->makeUser('owner');
-        $instance = WorkflowInstance::query()->create(['status' => 'running', 'delegated_by_user_id' => $user->id]);
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['status' => 'running', 'delegated_by_user_id' => $user->id]);
 
         foreach (['vars.__runtime.instance_id', 'vars.__runtime', 'vars. __runtime.x'] as $storeAs) {
             $context = $this->contextFor($instance);

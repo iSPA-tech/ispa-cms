@@ -10,14 +10,15 @@ namespace Cms\Core\Workflows\Runtime;
 
 use Cms\Core\Workflows\Runtime\Exceptions\InvalidRootModelException;
 use Cms\Core\Workflows\Runtime\Exceptions\WorkflowRootNotFoundException;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Loads the root Eloquent model for a workflow instance by class and ID.
  *
- * Validates that the target class exists and is an Eloquent model, with optional
- * soft-delete inclusion for trashed records.
+ * Validates that the target class exists, is an Eloquent model and passes WorkflowCallableGuard (no sensitive
+ * model becomes a run's root), with optional soft-delete inclusion for trashed records.
  *
  * @package Cms\Core\Workflows\Runtime
  * @author  iSPA Team
@@ -44,6 +45,10 @@ class RootModelLoader
 
         if (!is_subclass_of($targetType, Model::class)) {
             throw new InvalidRootModelException("Root model class {$targetType} is not an Eloquent model");
+        }
+
+        if (!app(WorkflowCallableGuard::class)->allowsModel($targetType)) {
+            throw new InvalidRootModelException("Root model class {$targetType} is not allowed for workflows");
         }
 
         /** @var Model $query */

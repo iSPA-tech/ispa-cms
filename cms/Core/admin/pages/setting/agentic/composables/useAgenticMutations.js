@@ -13,6 +13,8 @@ import {
     useApproveAgenticApproval,
     useRejectAgenticApproval,
     useApplyAgenticApproval,
+    useApproveApplyAgenticApproval,
+    useRequestChangesAgenticApproval,
     useCancelAgenticRun,
     useStopAgenticRun,
     useRerunAgenticRun,
@@ -58,6 +60,8 @@ export function useAgenticMutations() {
     const approveMutation = useApproveAgenticApproval()
     const rejectMutation = useRejectAgenticApproval()
     const applyMutation = useApplyAgenticApproval()
+    const approveApplyMutation = useApproveApplyAgenticApproval()
+    const requestChangesMutation = useRequestChangesAgenticApproval()
     const cancelRunMutation = useCancelAgenticRun()
     const stopRunMutation = useStopAgenticRun()
     const rerunRunMutation = useRerunAgenticRun()
@@ -209,10 +213,11 @@ export function useAgenticMutations() {
         })
     }
 
-    async function handleReject(approvalId, reviewerNote) {
+    /** `reason` is the declared reject reason the reviewer picked; left out when the step declares none. */
+    async function handleReject(approvalId, reviewerNote, reason = null) {
         return withAction(activeApprovalActionId, approvalActionMode, 'reject', approvalId, async () => {
             try {
-                const response = await rejectMutation.mutateAsync({ approvalId, reviewerNote })
+                const response = await rejectMutation.mutateAsync(reason ? { approvalId, reviewerNote, reason } : { approvalId, reviewerNote })
                 message.success(response?.message || t('text.agentic.msg.proposal_rejected'))
                 return response
             } catch (error) {
@@ -231,6 +236,58 @@ export function useAgenticMutations() {
                 message.error(resolveErrorMessage(error, t('text.agentic.msg.changes_apply_failed')))
             }
         })
+    }
+
+    /**
+     * Approve and apply in one step. Resolves with the outcome (applied, approval_stale, apply_failed),
+     * or undefined when the request itself failed. Each outcome gets its own plain message.
+     */
+    async function handleApproveApply(approvalId, reviewerNote) {
+        let outcome
+        await withAction(activeApprovalActionId, approvalActionMode, 'approve_apply', approvalId, async () => {
+            try {
+                const response = await approveApplyMutation.mutateAsync({ approvalId, reviewerNote })
+                outcome = response?.data?.outcome || 'apply_failed'
+                if (outcome === 'applied') {
+                    message.success(t('text.agentic.msg.approve_apply_done'))
+                } else if (outcome === 'approval_stale') {
+                    message.warning(t('text.agentic.inbox.stale_warning'), 8)
+                } else {
+                    message.error(t('text.agentic.inbox.apply_failed_warning'), 8)
+                }
+            } catch (error) {
+                // The API client already shows the server message for a failed request; add ours only when it did not.
+                if (!error?.reported) {
+                    message.error(resolveErrorMessage(error, t('text.agentic.msg.approve_apply_failed')))
+                }
+            }
+        })
+        return outcome
+    }
+
+    /**
+     * Ask the AI to rewrite a pending proposal. `request` = { feedback, addedInfo, options }.
+     * Resolves with the response, or undefined when the request failed.
+     */
+    async function handleRequestChanges(approvalId, request = {}) {
+        let result
+        await withAction(activeApprovalActionId, approvalActionMode, 'request_changes', approvalId, async () => {
+            try {
+                result = await requestChangesMutation.mutateAsync({
+                    approvalId,
+                    feedback: request.feedback,
+                    addedInfo: request.addedInfo || null,
+                    options: request.options || {},
+                })
+                message.success(t('text.agentic.msg.rewrite_requested'))
+            } catch (error) {
+                // The API client already shows the server message for a failed request; add ours only when it did not.
+                if (!error?.reported) {
+                    message.error(resolveErrorMessage(error, t('text.agentic.msg.rewrite_request_failed')))
+                }
+            }
+        })
+        return result
     }
 
     // ── Run handlers ───────────────────────────────────────────────
@@ -372,7 +429,7 @@ export function useAgenticMutations() {
         handleToggleBinding, handleUpdateBindingPriority,
 
         // Approvals
-        handleApprove, handleReject, handleApply,
+        handleApprove, handleReject, handleApply, handleApproveApply, handleRequestChanges,
 
         // Runs
         handleCancelRun, handleStopRun, handleRerunRun,

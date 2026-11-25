@@ -1,0 +1,1 @@
+import{M as e,Q as t,T as n,t as r,tt as i}from"./vue.runtime.esm-bundler-PD0fal8E.js";r();var a={class:`i-box`},o={__name:`i-box`,setup(r){return e({name:`IBox`}),(e,r)=>(t(),n(`div`,a,[i(e.$slots,`default`)]))}};export{o as t};

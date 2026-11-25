@@ -86,7 +86,7 @@ final class AiRuntimeSettingsService
      *
      * @return array<string, array{input_per_1m_usd: float, cached_input_per_1m_usd: ?float, output_per_1m_usd: ?float}>
      */
-    private function pricing(): array
+    public function pricing(): array
     {
         $models = array_keys((array) config('core.ai_usage.pricing', []));
         $prefix = AiRuntimeConfigResolver::PRICING_KEY_PREFIX;
@@ -224,7 +224,7 @@ final class AiRuntimeSettingsService
     /**
      * @return list<array<string, mixed>>
      */
-    private function providerRows(): array
+    public function providerRows(): array
     {
         $rows = [];
 
@@ -248,7 +248,7 @@ final class AiRuntimeSettingsService
     /**
      * @return list<array<string, mixed>>
      */
-    private function taskRows(): array
+    public function taskRows(): array
     {
         $logged = collect();
         try {

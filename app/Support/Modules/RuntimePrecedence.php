@@ -108,6 +108,28 @@ final class RuntimePrecedence
     }
 
     /**
+     * True when $version is a pre-CalVer number (four-digit year, month segment above 12, e.g. 2026.16.2).
+     */
+    public static function isLegacyVersion(string $version): bool
+    {
+        return preg_match('/^(\d{4})\.(\d+)(?:\.|$)/', trim($version), $m) === 1 && (int) $m[1] >= 2000 && (int) $m[2] > 12;
+    }
+
+    /**
+     * Order of two versions with legacy numbers below every CalVer version.
+     */
+    public static function compareVersions(string $a, string $b): int
+    {
+        $legacyA = self::isLegacyVersion($a);
+        $legacyB = self::isLegacyVersion($b);
+        if ($legacyA !== $legacyB) {
+            return $legacyA ? -1 : 1;
+        }
+
+        return version_compare($a, $b);
+    }
+
+    /**
      * Whether $version satisfies a constraint like `>=2026.11.0,<2027.0.0` (same grammar as ModuleVersionConstraint).
      */
     public static function satisfies(string $version, string $constraint): bool
@@ -125,7 +147,18 @@ final class RuntimePrecedence
                 return false;
             }
             $operator = $m[1] === '' || $m[1] === '=' ? '==' : $m[1];
-            if (! version_compare($version, $m[2], $operator)) {
+            // A legacy (pre-CalVer, month above 12) version is below every CalVer bound; a bound with a month above
+            // 12 stays a plain numeric bound. Same rule as Cms\Core ModuleVersionConstraint, kept here dependency-free.
+            $order = self::isLegacyVersion($version) && ! self::isLegacyVersion($m[2]) ? -1 : version_compare($version, $m[2]);
+            $holds = match ($operator) {
+                '==' => $order === 0,
+                '>=' => $order >= 0,
+                '>' => $order > 0,
+                '<=' => $order <= 0,
+                '<' => $order < 0,
+                default => false,
+            };
+            if (! $holds) {
                 return false;
             }
         }
@@ -226,7 +259,7 @@ final class RuntimePrecedence
             if ($runtimeVersion !== $linkVersion) {
                 return $result(false, 'runtime version does not match its installed folder', $releaseVersion, $runtimeVersion);
             }
-            if (version_compare($runtimeVersion, $releaseVersion) <= 0) {
+            if (self::compareVersions($runtimeVersion, $releaseVersion) <= 0) {
                 return $result(false, 'runtime copy is not newer than the release copy', $releaseVersion, $runtimeVersion);
             }
 

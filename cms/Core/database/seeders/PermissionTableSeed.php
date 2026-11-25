@@ -13,6 +13,8 @@ use App\Support\Modules\ModuleStatus;
 use App\Constants\Tables;
 use Illuminate\Database\Seeder;
 use Cms\Core\Models\Permission;
+use Cms\Core\Models\Role;
+use Illuminate\Support\Facades\DB;
 use Cms\Core\Constants\CoreTableConstant;
 use Illuminate\Support\Facades\Log;
 
@@ -46,6 +48,8 @@ class PermissionTableSeed extends Seeder
             'starter_pack' => ['view', 'apply'],
             // Hub connect from the admin (spec 2026-11-22): connect this site to the iSPA Hub without a setup code.
             'hub' => ['connect'],
+            // Workflow credentials (node catalog 2026-11-23): add, change, delete and test `$bind:` credentials.
+            'workflow_credential' => ['manage'],
             'agentic' => ['viewAny', 'update', 'approve'],
             CoreTableConstant::API_LOGS => ['viewAny', 'view', 'delete'],  //  3
             Tables::AUDIT_LOGS => ['viewAny', 'view'],  //  5
@@ -116,7 +120,9 @@ class PermissionTableSeed extends Seeder
             CoreTableConstant::WORKFLOW_CONNECTION => ['viewAny', 'view', 'create', 'edit', 'update', 'delete'],
             CoreTableConstant::WORKFLOW_INSTANCE => ['viewAny', 'view', 'create', 'edit', 'update', 'delete'],
             CoreTableConstant::WORKFLOW_INSTANCE_STEP => ['viewAny', 'view', 'create', 'edit', 'update', 'delete'],
-            CoreTableConstant::WORKFLOW_PROJECT => ['viewAny', 'view', 'create', 'edit', 'update', 'delete'],
+            // 'publish' (guardrails B8): release a version to the live site, Webmaster by default. 'run': start a run by
+            // hand; given once, when it is created, to the roles that could already edit workflows (they ran them before).
+            CoreTableConstant::WORKFLOW_PROJECT => ['viewAny', 'view', 'create', 'edit', 'update', 'delete', 'publish', 'run'],
             CoreTableConstant::WORKFLOW_STEP => ['viewAny', 'view', 'create', 'edit', 'update', 'delete'],
         ];
 
@@ -146,11 +152,15 @@ class PermissionTableSeed extends Seeder
                     continue;
                 }
 
-                Permission::query()->create([
+                $created = Permission::query()->create([
                     'group' => $group,
                     'name' => $action,
                     'title' => $this->getTitle($group, $action),
                 ]);
+
+                if ($group === 'workflow_project' && $action === 'run') {
+                    $this->grantToRolesHolding($created, 'workflow_project', 'update');
+                }
             }
         }
 
@@ -221,6 +231,23 @@ class PermissionTableSeed extends Seeder
         return $permission;
     }
 
+    /**
+     * Give a newly created permission to every role that already holds group.name (runs once: only when the new
+     * permission row is created, so a later revoke by the Webmaster is never undone by a re-seed).
+     */
+    protected function grantToRolesHolding(Permission $permission, string $group, string $name): void
+    {
+        $holder = Permission::query()->where('group', $group)->where('name', $name)->first();
+        if ($holder === null) {
+            return;
+        }
+
+        $roleIds = DB::table('permission_role')->where('permission_id', $holder->getKey())->pluck('role_id')->all();
+        foreach (Role::query()->whereIn('id', $roleIds)->get() as $role) {
+            $role->permissions()->syncWithoutDetaching([$permission->getKey()]);
+        }
+    }
+
     protected function moduleIsEnabled(string $module): bool
     {
         return ModuleStatus::isEnabled($module);
@@ -247,6 +274,9 @@ class PermissionTableSeed extends Seeder
             'widget.block' => 'Emergency block widgets | Chặn khẩn cấp widget',
             'widget.hub' => 'Download and update widgets from the hub (installs iSPA-signed design code) | Tải và cập nhật widget từ kho (cài mã giao diện do iSPA ký)',
             'hub.connect' => 'Connect this website to the iSPA Hub | Kết nối website với iSPA Hub',
+            'workflow_credential.manage' => 'Manage workflow credentials (bot tokens, mail servers, page keys) | Quản lý thông tin đăng nhập cho quy trình (mã bot, máy chủ thư, khóa trang)',
+            'workflow_project.publish' => 'Publish workflows to the live site | Xuất bản quy trình lên website',
+            'workflow_project.run' => 'Run workflows by hand | Chạy quy trình thủ công',
         ];
 
         return $groupTitles["{$group}.{$action}"] ?? $this->getTitleByName($action);

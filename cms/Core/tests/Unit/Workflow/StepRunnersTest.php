@@ -11,7 +11,9 @@ use Cms\Core\Workflows\Runtime\WorkflowContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Cms\Core\Tests\Support\WorkflowTestDelegate;
 use Cms\Core\Tests\TestCase;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 
 class StepRunnersTest extends TestCase
 {
@@ -24,6 +26,7 @@ class StepRunnersTest extends TestCase
             $table->boolean('vip')->default(false);
             $table->timestamps();
         });
+        WorkflowTestDelegate::allow(RunnerCustomer::class);
     }
 
     public function test_set_variable_assigns_nested_vars(): void
@@ -89,12 +92,9 @@ class StepRunnersTest extends TestCase
     public function test_change_updates_model(): void
     {
         $customer = RunnerCustomer::create(['email' => 'c@example.com', 'vip' => false]);
-        $ctx = new WorkflowContext($this->makeDummyRoot(), [], [
-            'customer' => [
-                '__class' => RunnerCustomer::class,
-                '__id' => $customer->id,
-            ],
-        ]);
+        // The target is a reference this run produced (as a retrieve stores it), signed for the run.
+        $ctx = new WorkflowContext($this->makeDummyRoot());
+        $ctx->setVar('customer', WorkflowModelRefs::nestedSnapshot($customer, $ctx));
         $runner = new ChangeRunner();
         $step = new StepDefinition(null, null, 'change', 'c', null, 'Change', [
             'targetExpr' => 'vars.customer',
@@ -117,12 +117,9 @@ class StepRunnersTest extends TestCase
     public function test_change_without_save(): void
     {
         $customer = RunnerCustomer::create(['email' => 'd@example.com', 'vip' => false]);
-        $ctx = new WorkflowContext($this->makeDummyRoot(), [], [
-            'customer' => [
-                '__class' => RunnerCustomer::class,
-                '__id' => $customer->id,
-            ],
-        ]);
+        // The target is a reference this run produced (as a retrieve stores it), signed for the run.
+        $ctx = new WorkflowContext($this->makeDummyRoot());
+        $ctx->setVar('customer', WorkflowModelRefs::nestedSnapshot($customer, $ctx));
         $runner = new ChangeRunner();
         $step = new StepDefinition(null, null, 'change', 'c', null, 'Change', [
             'targetExpr' => 'vars.customer',
@@ -155,6 +152,23 @@ class StepRunnersTest extends TestCase
         $res = $runner->run($step, $ctx);
 
         $this->assertSame('failed', $res->status);
+    }
+
+    public function test_change_refuses_an_unsigned_snapshot(): void
+    {
+        $customer = RunnerCustomer::create(['email' => 'e@example.com', 'vip' => false]);
+        $ctx = new WorkflowContext($this->makeDummyRoot(), [], [
+            'customer' => ['__class' => RunnerCustomer::class, '__id' => $customer->id],
+        ]);
+        $step = new StepDefinition(null, null, 'change', 'c', null, 'Change', [
+            'targetExpr' => 'vars.customer',
+            'changes' => [['field' => 'vip', 'valueExpr' => 'true']],
+        ]);
+
+        $res = (new ChangeRunner())->run($step, $ctx);
+
+        $this->assertSame('failed', $res->status);
+        $this->assertFalse((bool) $customer->fresh()->vip);
     }
 
     protected function makeDummyRoot(array $attributes = []): Model

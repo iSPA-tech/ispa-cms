@@ -114,8 +114,8 @@ it('runs mysqldump with a defaults file first and no password in argv or env', f
         ->and($runner->credContent)->toContain('[client]')->toContain('host="10.0.0.5"')->toContain('port=3307')
         ->and($runner->credContent)->toContain('password="p@ss\\"w\\\\ord-SECRET"')
         ->and(file_exists($runner->credFile))->toBeFalse()
-        ->and(substr(sprintf('%o', fileperms($this->dir . '/staging')), -4))->toBe('0700')
-        ->and(substr(sprintf('%o', fileperms($this->dir . '/out/db.sql.gz')), -4))->toBe('0600');
+        ->and(substr(sprintf('%o', fileperms($this->dir . '/staging')), -4))->toBe('0770')
+        ->and(substr(sprintf('%o', fileperms($this->dir . '/out/db.sql.gz')), -4))->toBe('0660');
 
     expect(gzdecode((string) file_get_contents($this->dir . '/out/db.sql.gz')))->toBe($this->dump)
         ->and($result->sha256)->toBe(hash_file('sha256', $this->dir . '/out/db.sql.gz'))

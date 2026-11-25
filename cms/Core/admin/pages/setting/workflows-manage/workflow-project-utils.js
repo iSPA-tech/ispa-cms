@@ -1,4 +1,5 @@
 import { i18n } from '@/config/i18n'
+import { checkGraph } from '@/components/workflows/graphRules'
 
 const t = (key, params = {}) => i18n.global.t(key, params)
 
@@ -83,141 +84,58 @@ export const getWorkflowGraphDesign = (workflow = {}) => {
     return { nodes, edges }
 }
 
-export const buildWorkflowValidationReport = ({ nodes = [], edges = [] } = {}) => {
-    const nodeList = Array.isArray(nodes) ? nodes : []
-    const edgeList = Array.isArray(edges) ? edges : []
-    const inputs = nodeList.filter((node) => node.type === 'input')
-    const outputs = nodeList.filter((node) => node.type === 'output')
-    const decisions = nodeList.filter((node) => node.type === 'decision')
-    const nodeIds = new Set(nodeList.map((node) => node.id))
-    const adjacency = edgeList.reduce((acc, edge) => {
-        if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
-            return acc
-        }
-
-        acc[edge.source] = acc[edge.source] || []
-        acc[edge.source].push(edge.target)
-        return acc
-    }, {})
-    const indegree = edgeList.reduce((acc, edge) => {
-        if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) {
-            return acc
-        }
-
-        acc[edge.target] = (acc[edge.target] || 0) + 1
-        return acc
-    }, {})
-
-    const decisionIssues = decisions
-        .filter((node) => {
-            const yesHandle = node.data?.step_config?.yes_output || 'target-a'
-            const noHandle = node.data?.step_config?.no_output || 'target-b'
-            const outgoing = edgeList.filter((edge) => edge.source === node.id)
-            const hasYes = outgoing.some((edge) => edge.sourceHandle === yesHandle)
-            const hasNo = outgoing.some((edge) => edge.sourceHandle === noHandle)
-
-            return !hasYes || !hasNo
-        })
-        .map((node) => node.id)
-
-    const missingOutgoing = nodeList
-        .filter((node) => node.type !== 'output')
-        .filter((node) => !edgeList.some((edge) => edge.source === node.id))
-        .map((node) => node.id)
-
-    const orphanNodes = nodeList
-        .filter((node) => node.type !== 'input' && (!indegree[node.id] || indegree[node.id] < 1))
-        .map((node) => node.id)
-
-    const visited = new Set()
-    const stack = [...inputs.map((node) => node.id)]
-
-    while (stack.length) {
-        const current = stack.pop()
-        if (visited.has(current)) continue
-
-        visited.add(current)
-        ;(adjacency[current] || []).forEach((next) => {
-            if (!visited.has(next)) {
-                stack.push(next)
-            }
-        })
-    }
-
-    const reachableOutputIds = outputs.filter((output) => visited.has(output.id)).map((output) => output.id)
-    const unreachableOutputs = outputs.filter((output) => !visited.has(output.id)).map((output) => output.id)
+/**
+ * Graph checks with their wording, for the builder's health tab and the list cards.
+ * The rules live in `graphRules.checkGraph`; `byType` is the node catalog (`catalog.byType`) when it is loaded.
+ */
+export const buildWorkflowValidationReport = ({ nodes = [], edges = [], byType = {} } = {}) => {
+    const results = Object.fromEntries(checkGraph(nodes, edges, byType).map((check) => [check.key, check]))
+    const hasNodes = results['has-nodes']
+    const start = results['single-start']
+    const decisions = results['decision-branches']
+    const connected = results.connected
 
     const checks = [
         {
             key: 'has-nodes',
             label: t('text.workflow.validation.graph_has_steps'),
-            ok: nodeList.length > 0,
-            message: nodeList.length
-                ? t('text.workflow.validation.graph_has_steps_ok', { count: nodeList.length })
+            ok: hasNodes.ok,
+            message: hasNodes.ok
+                ? t('text.workflow.validation.graph_has_steps_ok', { count: hasNodes.count })
                 : t('text.workflow.validation.graph_has_steps_empty'),
             nodeIds: [],
         },
         {
             key: 'single-input',
             label: t('text.workflow.validation.single_input'),
-            ok: inputs.length === 1,
-            message:
-                inputs.length === 1
-                    ? t('text.workflow.validation.single_input_ok', {
-                          name: inputs[0].data?.name || inputs[0].id,
-                      })
-                    : t('text.workflow.validation.single_input_found', { count: inputs.length }),
-            nodeIds: inputs.map((node) => node.id),
+            ok: start.ok,
+            message: start.ok
+                ? t('text.workflow.validation.single_input_ok', { name: start.name })
+                : t('text.workflow.validation.single_input_found', { count: start.count }),
+            nodeIds: start.nodeIds,
         },
-        {
-            key: 'has-output',
-            label: t('text.workflow.validation.has_output'),
-            ok: outputs.length >= 1,
-            message:
-                outputs.length >= 1
-                    ? t('text.workflow.validation.has_output_ok', { count: outputs.length })
-                    : t('text.workflow.validation.has_output_empty'),
-            nodeIds: outputs.map((node) => node.id),
-        },
-        {
-            key: 'decision-branches',
-            label: t('text.workflow.validation.decision_branches'),
-            ok: decisionIssues.length === 0,
-            message:
-                decisionIssues.length === 0
-                    ? decisions.length
-                        ? t('text.workflow.validation.decision_branches_ok', {
-                              count: decisions.length,
-                          })
-                        : t('text.workflow.validation.decision_branches_none')
-                    : t('text.workflow.validation.decision_branches_missing', {
-                          count: decisionIssues.length,
-                      }),
-            nodeIds: decisionIssues,
-        },
+        // Only workflows that still use the old yes/no card have this check.
+        ...(decisions.total
+            ? [
+                  {
+                      key: 'decision-branches',
+                      label: t('text.workflow.validation.decision_branches'),
+                      ok: decisions.ok,
+                      message: decisions.ok
+                          ? t('text.workflow.validation.decision_branches_ok', { count: decisions.total })
+                          : t('text.workflow.validation.decision_branches_missing', { count: decisions.count }),
+                      nodeIds: decisions.nodeIds,
+                  },
+              ]
+            : []),
         {
             key: 'connected-nodes',
             label: t('text.workflow.validation.connected_nodes'),
-            ok: orphanNodes.length === 0 && missingOutgoing.length === 0,
-            message:
-                orphanNodes.length === 0 && missingOutgoing.length === 0
-                    ? t('text.workflow.validation.connected_nodes_ok')
-                    : t('text.workflow.validation.connected_nodes_missing', {
-                          count: new Set([...orphanNodes, ...missingOutgoing]).size,
-                      }),
-            nodeIds: Array.from(new Set([...orphanNodes, ...missingOutgoing])),
-        },
-        {
-            key: 'input-to-output',
-            label: t('text.workflow.validation.input_to_output'),
-            ok: reachableOutputIds.length > 0,
-            message:
-                reachableOutputIds.length > 0
-                    ? t('text.workflow.validation.input_to_output_ok', {
-                          count: reachableOutputIds.length,
-                      })
-                    : t('text.workflow.validation.input_to_output_missing'),
-            nodeIds: reachableOutputIds.length ? reachableOutputIds : unreachableOutputs,
+            ok: connected.ok,
+            message: connected.ok
+                ? t('text.workflow.validation.connected_nodes_ok')
+                : t('text.workflow.validation.connected_nodes_missing', { count: connected.count }),
+            nodeIds: connected.nodeIds,
         },
     ]
 

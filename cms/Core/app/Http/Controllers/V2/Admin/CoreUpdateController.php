@@ -10,11 +10,13 @@ declare(strict_types=1);
 
 namespace Cms\Core\Http\Controllers\V2\Admin;
 
+use Cms\Core\Services\Modules\Install\ModuleVersionConstraint;
 use App\Models\User;
 use Cms\Core\Events\AuditLogEvent;
 use Cms\Core\Http\Controllers\AdminController;
 use Cms\Core\Models\BackgroundTask;
 use Cms\Core\Services\CoreUpgrade\CoreManifest;
+use Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher;
 use Cms\Core\Services\CoreUpgrade\CoreRunnerTick;
 use Cms\Core\Services\CoreUpgrade\CoreUpdateChecker;
 use Cms\Core\Services\CoreUpgrade\CoreUpgradeException;
@@ -48,6 +50,7 @@ final class CoreUpdateController extends AdminController
         if (! $this->isWebmaster($request)) {
             return $this->forbidden();
         }
+        $this->prepareSelfRunner($requests->base());
         $requests->closeAbandoned();
 
         $latest = $checker->latest();
@@ -59,7 +62,7 @@ final class CoreUpdateController extends AdminController
         $running = $requests->running();
         $heartbeat = CoreRunnerTick::freshHeartbeat($requests->base(), now()->getTimestamp());
 
-        $newer = $latest !== null && $installed !== '' && version_compare($latest['version'], $installed, '>');
+        $newer = $latest !== null && $installed !== '' && ModuleVersionConstraint::compare($latest['version'], $installed) > 0;
 
         return ires()->data([
             'installed' => $installed,
@@ -71,6 +74,7 @@ final class CoreUpdateController extends AdminController
             'command' => self::COMMAND,
             'runner' => $heartbeat === null ? null : ['seen_at' => Carbon::createFromTimestamp($heartbeat['at'])->toIso8601String(), 'user' => $heartbeat['user']],
             'runner_setup' => $requests->runnerSetup(),
+            'web_user' => self::webUser(),
             'can_restore' => $manifest !== null && $preflight->interruptedForAdmin() && $heartbeat !== null && $running === null,
             // No core-manifest.json: a site iSPA deploys itself; the card shows only that iSPA keeps it up to date.
             'managed' => $manifest === null,
@@ -89,6 +93,7 @@ final class CoreUpdateController extends AdminController
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return $this->forbidden();
         }
+        $this->prepareSelfRunner($requests->base());
         $requests->closeAbandoned();
 
         $data = $request->validate([
@@ -132,6 +137,8 @@ final class CoreUpdateController extends AdminController
             // Best effort: an audit failure never blocks the upgrade.
         }
 
+        $this->startInBackground();
+
         return ires()->accepted(['background_task_uuid' => $task->uuid], 'Core upgrade requested.');
     }
 
@@ -148,6 +155,7 @@ final class CoreUpdateController extends AdminController
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return $this->forbidden();
         }
+        $this->prepareSelfRunner($requests->base());
         if ($request->input('confirm') !== true) {
             return ires()->error()->code(422)->errorCode('CORE_CONFIRMATION_REQUIRED')
                 ->message('Confirm to put back the files of the interrupted upgrade.');
@@ -164,7 +172,7 @@ final class CoreUpdateController extends AdminController
                 return $this->runningAnswer();
             }
             // The runner first: only a state file owned by the runner (its heartbeat uid) counts as interrupted.
-            if (CoreRunnerTick::freshHeartbeat($requests->base(), now()->getTimestamp()) === null) {
+            if (CoreRunnerTick::freshHeartbeat($requests->base(), now()->getTimestamp()) === null && ! CoreRunnerTick::selfRunner($requests->base())) {
                 return ires()->conflict('The upgrade runner is not running on this server.')->errorCode('CORE_NO_RUNNER');
             }
             if (! $preflight->interruptedForAdmin()) {
@@ -181,6 +189,8 @@ final class CoreUpdateController extends AdminController
         } catch (Throwable) {
             // Best effort: an audit failure never blocks the restore.
         }
+
+        $this->startInBackground();
 
         return ires()->accepted(['background_task_uuid' => $task->uuid], 'Core restore requested.');
     }
@@ -227,6 +237,20 @@ final class CoreUpdateController extends AdminController
     }
 
     /**
+     * The account PHP runs as here (the web server user), for the one-line fix the card offers: give the site folder
+     * to this account and updates run on their own. Null when it cannot be told or is root.
+     */
+    private static function webUser(): ?string
+    {
+        if (! function_exists('posix_geteuid') || ! function_exists('posix_getpwuid') || posix_geteuid() === 0) {
+            return null;
+        }
+        $name = (string) (posix_getpwuid(posix_geteuid())['name'] ?? '');
+
+        return preg_match('/^[a-z_][a-z0-9_.-]{0,31}$/i', $name) === 1 ? $name : null;
+    }
+
+    /**
      * One upgrade or restore request at a time per site.
      */
     private function startLock(): Lock
@@ -238,4 +262,39 @@ final class CoreUpdateController extends AdminController
     {
         return ires()->conflict('A core upgrade is already running on this site.')->errorCode('CORE_UPGRADE_RUNNING');
     }
+
+    /**
+     * Start the backup and the runner now, in the background, instead of waiting for cron: on simple hosting (the web
+     * user owns the code) the upgrade then needs no cron at all. Best effort; the scheduler and the runner cron pick
+     * the request up otherwise.
+     */
+    private function startInBackground(): void
+    {
+        try {
+            app(CoreRunnerLauncher::class)->tick();
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+
+    /**
+     * Simple hosting (the web user owns the code): drop a group/other write bit from the code folder, which zip
+     * unpacking or `chmod -R 775` leaves and the runner refuses, and check in as the runner, so the card, the
+     * preflight and the restore check need no runner cron. Does nothing when another user owns the code.
+     */
+    private function prepareSelfRunner(string $base): void
+    {
+        try {
+            if (CoreRunnerTick::tightenBase($base)) {
+                logger()->info('Core update: removed group/other write access from the code folder.');
+            }
+            if (CoreRunnerTick::selfRunner($base)) {
+                (new CoreRunnerTick($base))->writeHeartbeat();
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
 }

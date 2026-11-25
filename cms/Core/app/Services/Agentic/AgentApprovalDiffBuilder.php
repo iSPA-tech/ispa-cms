@@ -67,6 +67,8 @@ class AgentApprovalDiffBuilder
             'product_description_patch' => $this->buildProductDescriptionPatch($artifact),
             'product_seo_patch' => $this->buildProductSeoPatch($artifact),
             'education_ai_evaluation_patch' => $this->buildEducationAiEvaluationPatch($artifact),
+            'workflow.field_patch' => $this->buildWorkflowFieldPatch($artifact),
+            'workflow.question' => $this->buildWorkflowQuestion($artifact),
             default => $this->buildJsonFallback($artifact),
         };
     }
@@ -88,6 +90,52 @@ class AgentApprovalDiffBuilder
             'after' => data_get($artifact->payload, 'proposed_change.description'),
             'evidence' => data_get($artifact->payload, 'evidence', []),
             'citations' => data_get($artifact->payload, 'citations', []),
+        ];
+    }
+
+    /**
+     * Diff of a workflow reversible-field change: one row per field, before (record value when proposed) and after.
+     *
+     * @param AgentArtifact $artifact Artifact of type workflow.field_patch.
+     * @return array<string, mixed>
+     */
+    protected function buildWorkflowFieldPatch(AgentArtifact $artifact): array
+    {
+        $changes = [];
+        foreach ((array) data_get($artifact->payload, 'changes', []) as $field => $after) {
+            $changes[] = [
+                'field' => (string) $field,
+                'before' => data_get($artifact->original_data_snapshot, (string) $field),
+                'after' => $after,
+            ];
+        }
+
+        return [
+            'type' => 'field_changes',
+            'field' => 'record_fields',
+            'subject' => ['type' => $artifact->subject_type, 'id' => $artifact->subject_id],
+            'summary' => data_get($artifact->payload, 'summary'),
+            'before' => $artifact->original_data_snapshot,
+            'after' => data_get($artifact->payload, 'changes', []),
+            'changes' => $changes,
+        ];
+    }
+
+    /**
+     * A workflow question waiting for a person's answer (ask_and_wait).
+     *
+     * @param AgentArtifact $artifact Artifact of type workflow.question.
+     * @return array<string, mixed>
+     */
+    protected function buildWorkflowQuestion(AgentArtifact $artifact): array
+    {
+        return [
+            'type' => 'question',
+            'subject' => ['type' => $artifact->subject_type, 'id' => $artifact->subject_id],
+            'summary' => data_get($artifact->payload, 'summary'),
+            'question' => data_get($artifact->payload, 'question'),
+            'options' => data_get($artifact->payload, 'options', []),
+            'answer' => data_get($artifact->payload, 'answer'),
         ];
     }
 

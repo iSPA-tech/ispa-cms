@@ -56,7 +56,7 @@ class WorkflowExecutorNormalizationTest extends TestCase
         $target->setAttribute('id', 1);
 
         $executor = new WorkflowExecutor($project, $target);
-        $executor->run();
+        $executor->runGraph($project->steps, $project->connections);
 
         CMSLogger::shouldNotHaveReceived('warning');
     }
@@ -115,7 +115,7 @@ class WorkflowExecutorNormalizationTest extends TestCase
         $refMethod = (new \ReflectionClass(WorkflowExecutor::class))->getMethod('normalizeStepType');
         $refMethod->setAccessible(true);
         $this->assertSame('blueprint_callable', $refMethod->invoke($executor, $callable));
-        $executor->run();
+        $executor->runGraph($project->steps, $project->connections);
 
         $this->assertSame(1, DummyWorkflowHandler::$called);
     }

@@ -120,6 +120,23 @@
                         </div>
                     </li>
                 </ul>
+                <!--
+                    Simple hosting: give the site folder to the web server user once and updates run on their own (no
+                    cron). One command, ready to copy, then "Check again".
+                -->
+                <div v-if="ownerCommand" class="space-y-2 text-sm" data-testid="core-update-owner-fix">
+                    <p class="m-0">{{ $t('text.modules.core_update.fix_owner', { user: state.info.web_user }) }}</p>
+                    <code
+                        :ref="(el) => (ownerCode = el)"
+                        class="block break-all rounded-md bg-primary-soft px-2 py-1 text-xs text-ink"
+                        data-testid="core-update-owner-command"
+                    >{{ ownerCommand }}</code>
+                    <i-button size="sm" data-testid="core-update-copy-owner" @click="copyOwner">
+                        <span aria-live="polite">
+                            {{ $t(copied.owner ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.action.copy') }}
+                        </span>
+                    </i-button>
+                </div>
                 <!-- Ready-made instructions for an AI coding agent; collapsed so the person reads them before copying -->
                 <details
                     v-if="showAgentPrompt"
@@ -141,9 +158,15 @@
                         </i-button>
                     </div>
                 </details>
-                <i-button v-if="state.info.can_restore" size="sm" data-testid="core-update-restore-open" @click="openRestore">
-                    {{ $t('text.modules.core_update.action.restore') }}
-                </i-button>
+                <div class="flex flex-wrap gap-2">
+                    <i-button v-if="state.info.can_restore" size="sm" data-testid="core-update-restore-open" @click="openRestore">
+                        {{ $t('text.modules.core_update.action.restore') }}
+                    </i-button>
+                    <!-- After a fix on the server: read the card again instead of reloading the page -->
+                    <i-button size="sm" data-testid="core-update-recheck" :loading="state.loading" :disabled="state.loading" @click="recheck">
+                        {{ $t('text.modules.core_update.action.recheck') }}
+                    </i-button>
+                </div>
                 <p v-if="showCommandHint" class="m-0 text-sm">
                     {{ $t('text.modules.core_update.command_hint') }}
                     <code class="break-all" data-testid="core-update-command">{{ state.info.command }}</code>
@@ -282,14 +305,14 @@ const state = reactive({
     loading: false,
     loaded: false,
     error: '',
-    info: { installed: '', latest: null, managed: false, notes_url: null, can_update: false, preflight: { ok: true, issues: [] }, running: null, command: './ispa upgrade', runner: null, runner_setup: { user: '', line: '', base: '', root_owner: false }, can_restore: false },
+    info: { installed: '', latest: null, managed: false, web_user: null, notes_url: null, can_update: false, preflight: { ok: true, issues: [] }, running: null, command: './ispa upgrade', runner: null, runner_setup: { user: '', line: '', base: '', root_owner: false }, can_restore: false },
 })
 const confirm = reactive({ open: false, backup: false, loading: false, error: '' })
 const restore = reactive({ open: false, checked: false, loading: false, error: '' })
 /** Outcome of the last task followed on this page. */
 const result = reactive({ ok: false, text: '' })
 /** Which copy button says "copied". */
-const copied = reactive({ line: false, prompt: false })
+const copied = reactive({ line: false, prompt: false, owner: false })
 
 let timer = null
 let disposed = false
@@ -298,7 +321,8 @@ let hadRunning = false
 let tracked = { uuid: '', kind: '' }
 let setupCode = null
 let promptPre = null
-const copiedTimers = { line: null, prompt: null }
+let ownerCode = null
+const copiedTimers = { line: null, prompt: null, owner: null }
 
 const running = computed(() => {
     const task = state.info.running
@@ -317,6 +341,21 @@ const rootOwner = computed(() => state.info.runner_setup?.root_owner === true)
 const hasIssue = (code) => issues.value.some((issue) => issue.code === code)
 /** The crontab part of the prompt: no runner, a line to add, and a code owner that is not root. */
 const needsRunner = computed(() => hasIssue('CORE_NO_RUNNER') && !!setupLine.value && !rootOwner.value)
+/** A shell word: kept as is when plain, else single-quoted. */
+const shellWord = (value) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`)
+/**
+ * The one-line fix for simple hosting: the site folder goes to the web server user, which then runs the update
+ * itself. Offered when the code belongs to root, to an account with no runner, or is shared while no runner works;
+ * never when a runner of a separate code owner is set up (that setup is kept on purpose).
+ */
+const ownerCommand = computed(() => {
+    const web = String(state.info.web_user || '')
+    const base = String(state.info.runner_setup?.base || '')
+    if (!web || !base || state.info.runner) return ''
+    if (!rootOwner.value && !hasIssue('CORE_NO_RUNNER') && !hasIssue('CORE_CODE_DIR_SHARED')) return ''
+    if (!rootOwner.value && state.info.runner_setup?.user === web && !hasIssue('CORE_CODE_DIR_SHARED')) return ''
+    return `sudo chown -R ${shellWord(web)}:${shellWord(web)} ${shellWord(base)}`
+})
 const showAgentPrompt = computed(() => needsRunner.value || hasIssue('CORE_CODE_DIR_SHARED'))
 /**
  * Instructions the server manager pastes into an AI coding agent: who and where, then a section per problem it can
@@ -586,6 +625,15 @@ const markCopied = (which, done) => {
 
 const copyLine = async () => markCopied('line', await copyText(setupLine.value, setupCode))
 
+const copyOwner = async () => markCopied('owner', await copyText(ownerCommand.value, ownerCode))
+
+/** Read the card again after a fix on the server; the button is busy until the answer arrives. */
+const recheck = () => {
+    if (state.loading) return
+    clearResult()
+    load()
+}
+
 const copyPrompt = async () => markCopied('prompt', await copyText(agentPrompt.value, promptPre))
 
 onMounted(() => load())
@@ -595,5 +643,6 @@ onBeforeUnmount(() => {
     clearTimeout(timer)
     clearTimeout(copiedTimers.line)
     clearTimeout(copiedTimers.prompt)
+    clearTimeout(copiedTimers.owner)
 })
 </script>

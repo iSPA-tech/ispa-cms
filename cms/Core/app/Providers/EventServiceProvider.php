@@ -9,6 +9,8 @@
 namespace Cms\Core\Providers;
 
 use Cms\Core\Events\AuditLogEvent;
+use Cms\Core\Events\WorkflowIntegrityViolated;
+use Cms\Core\Listeners\AlertWorkflowIntegrityViolation;
 use Cms\Core\Listeners\AuditLogHandler;
 use Cms\Core\Listeners\StartWebMfaChallenge;
 use Illuminate\Auth\Events\Login;
@@ -31,6 +33,10 @@ class EventServiceProvider extends ServiceProvider
         ],
         Login::class => [
             StartWebMfaChallenge::class,
+        ],
+        // Dispatched by the workflow executor and cms:workflow-integrity-check (guardrails lane 1).
+        WorkflowIntegrityViolated::class => [
+            AlertWorkflowIntegrityViolation::class,
         ],
     ];
 

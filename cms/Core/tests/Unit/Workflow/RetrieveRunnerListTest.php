@@ -8,6 +8,7 @@ use Cms\Core\Workflows\Runtime\WorkflowContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Cms\Core\Tests\Support\WorkflowTestDelegate;
 use Cms\Core\Tests\TestCase;
 
 class RetrieveRunnerListTest extends TestCase
@@ -22,6 +23,7 @@ class RetrieveRunnerListTest extends TestCase
         });
         RRCustomer::create(['email' => 'a@example.com']);
         RRCustomer::create(['email' => 'b@example.com']);
+        WorkflowTestDelegate::allow(RRCustomer::class);
     }
 
     public function test_retrieve_list_mode_counts(): void

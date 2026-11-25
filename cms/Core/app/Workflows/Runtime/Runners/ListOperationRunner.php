@@ -63,11 +63,12 @@ class ListOperationRunner implements StepRunner
             return StepRunResult::failed('list_operation: storeAs must start with vars.');
         }
 
-        $allowedOps = ['filter', 'map', 'sort', 'take'];
+        $allowedOps = ['filter', 'map', 'sort', 'take', 'unique', 'flatten', 'pluck', 'split_out'];
         if (!in_array($operation, $allowedOps, true)) {
             return StepRunResult::failed('list_operation: invalid operation');
         }
 
+        // The engine returns data only (models as snapshots), so the item reads below never reach a live model.
         try {
             $collection = $this->engine->evaluate($collectionExpr, $context, true);
         } catch (\Throwable $e) {
@@ -89,6 +90,10 @@ class ListOperationRunner implements StepRunner
             'map' => $this->applyMap($items, $context, $config),
             'sort' => $this->applySort($items, $config),
             'take' => $this->applyTake($items, $config),
+            'unique' => $this->applyUnique($items, $config),
+            'flatten' => $this->applyFlatten($items),
+            'pluck' => $this->applyPluck($items, $config),
+            'split_out' => $this->applySplitOut($items, $config),
             default => $items,
         };
 
@@ -126,9 +131,8 @@ class ListOperationRunner implements StepRunner
 
         $filtered = [];
         foreach ($items as $item) {
-            $evalItem = $this->wrapItem($item);
-            try {
-                $ok = $this->engine->evaluate($expr, $context, true, ['item' => $evalItem]);
+                        try {
+                $ok = $this->engine->evaluate($expr, $context, true, ['item' => $item]);
             } catch (\Throwable $e) {
                 continue;
             }
@@ -153,9 +157,8 @@ class ListOperationRunner implements StepRunner
 
         $mapped = [];
         foreach ($items as $item) {
-            $evalItem = $this->wrapItem($item);
-            try {
-                $mapped[] = $this->engine->evaluate($expr, $context, true, ['item' => $evalItem]);
+                        try {
+                $mapped[] = $this->engine->evaluate($expr, $context, true, ['item' => $item]);
             } catch (\Throwable $e) {
                 // Skip item on failure
             }
@@ -209,38 +212,86 @@ class ListOperationRunner implements StepRunner
         return array_slice($items, 0, (int) $take);
     }
 
-    protected function wrapItem(mixed $item): mixed
+    /**
+     * Keep the first item per value of `field` (or per whole item when no field is given).
+     *
+     * @param array<int,mixed> $items
+     * @return array<int,mixed>
+     */
+    protected function applyUnique(array $items, array $config): array
     {
-        if (is_array($item)) {
-            return new class($item) {
-                /**
-                 * Initialize the array-item wrapper with the source data.
-                 *
-                 * @param array $data The source array data to wrap.
-                 *
-                 * @author  iSPA Team
-                 * @since   8.0.0 (2026-03-17)
-                 */
-                public function __construct(private array $data)
-                {
-                }
-
-                /**
-                 * Provide dynamic read access to the wrapped array data by key.
-                 *
-                 * @param  string  $name  The array key to retrieve.
-                 * @return mixed The value at the given key, or null if not present.
-                 *
-                 * @author iSPA Team
-                 * @since  8.0.0 (2026-03-17)
-                 */
-                public function __get(string $name): mixed
-                {
-                    return data_get($this->data, $name);
-                }
-            };
+        $field = is_string($config['field'] ?? null) && $config['field'] !== '' ? $config['field'] : null;
+        $seen = [];
+        $out = [];
+        foreach ($items as $item) {
+            $value = $field !== null ? data_get($item, $field) : $item;
+            $key = is_scalar($value) || $value === null ? var_export($value, true) : json_encode($value);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $item;
         }
 
-        return $item;
+        return $out;
+    }
+
+    /**
+     * One level: list items that are lists are spread into the result.
+     *
+     * @param array<int,mixed> $items
+     * @return array<int,mixed>
+     */
+    protected function applyFlatten(array $items): array
+    {
+        $out = [];
+        foreach ($items as $item) {
+            if (is_array($item) && array_is_list($item)) {
+                array_push($out, ...$item);
+            } else {
+                $out[] = $item;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * The value of `field` from every item.
+     *
+     * @param array<int,mixed> $items
+     * @return array<int,mixed>
+     */
+    protected function applyPluck(array $items, array $config): array
+    {
+        $field = $config['field'] ?? null;
+        if (!is_string($field) || $field === '') {
+            return [];
+        }
+
+        return array_map(fn ($item) => data_get($item, $field), array_values($items));
+    }
+
+    /**
+     * Each element of the list held in `field` becomes its own item.
+     *
+     * @param array<int,mixed> $items
+     * @return array<int,mixed>
+     */
+    protected function applySplitOut(array $items, array $config): array
+    {
+        $field = $config['field'] ?? null;
+        if (!is_string($field) || $field === '') {
+            return [];
+        }
+
+        $out = [];
+        foreach ($items as $item) {
+            foreach ((array) data_get($item, $field, []) as $child) {
+                $out[] = $child;
+            }
+        }
+
+        return $out;
     }
 }

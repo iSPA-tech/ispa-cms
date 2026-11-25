@@ -110,3 +110,15 @@ export const coreWidgetLibraryNavigationConfig = {
     rule: 'widget.viewAny',
     icon: 'puzzle-outline',
 }
+
+/**
+ * Approvals waiting for a person ("Chờ duyệt"): one sidebar entry right under the dashboard, with a counter of the
+ * waiting items (see `navBadges` in module.js). Core is always on, so no `module` tag.
+ */
+export const coreApprovalsNavigationConfig = {
+    name: 'approvals',
+    group: 'approvals',
+    text: 'nav.a.approvals',
+    rule: ['agentic.approve', 'agentic.viewAny'],
+    icon: 'clipboard-check-outline',
+}

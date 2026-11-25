@@ -11,6 +11,7 @@ namespace Cms\Core\Http\Controllers\Workflow;
 use App\Http\Controllers\Controller;
 use Cms\Core\Models\Workflows\WorkflowInstance;
 use Cms\Core\Models\Workflows\WorkflowInstanceStep;
+use Cms\Core\Models\Workflows\WorkflowProject;
 use Cms\Core\Workflows\Presenters\WorkflowInstancePresenter;
 
 /**
@@ -18,6 +19,9 @@ use Cms\Core\Workflows\Presenters\WorkflowInstancePresenter;
  *
  * Provides endpoints to view a workflow instance summary and its
  * individual execution steps with result data, logs, and error details.
+ * Access follows WorkflowProjectPolicy: `viewAny` (permission `workflow_project.viewAny`), or `view` on the
+ * instance's own project. Anything else, including an
+ * unknown instance id, is answered 403 so run history never leaks.
  *
  * @see WorkflowInstance
  * @see WorkflowInstancePresenter
@@ -40,14 +44,26 @@ class WorkflowInstanceController extends Controller
             ->with(['project'])
             ->find($id);
 
+        if (!$this->canViewRuns($instance)) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
         if (!$instance) {
             return ires()->data(['message' => 'Instance not found'], 404);
         }
 
         $summary = $presenter->toAdminArray($instance);
 
+        // Review fix 36: the run's full data (`context_snapshot`: trigger payloads, variables, step outputs) only for
+        // people who may edit the workflow (the designer reads it for sample values); viewers get the same shape with
+        // `context_snapshot: null` and the summary.
+        $payload = $instance->toArray();
+        if (!$this->canEditProject($instance)) {
+            $payload['context_snapshot'] = null;
+        }
+
         return ires()->data([
-            'instance' => $instance,
+            'instance' => $payload,
             'project' => $instance->project,
             'summary' => $summary,
         ]);
@@ -61,6 +77,12 @@ class WorkflowInstanceController extends Controller
      */
     public function steps(int $id)
     {
+        $instance = WorkflowInstance::query()->with(['project'])->find($id);
+
+        if (!$this->canViewRuns($instance)) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
         $steps = WorkflowInstanceStep::query()
             ->where('instance_id', $id)
             ->orderBy('started_at')
@@ -95,6 +117,34 @@ class WorkflowInstanceController extends Controller
         }
 
         return ires()->data($steps);
+    }
+
+    /**
+     * Whether the current user may read the run history of this instance (null = unknown instance).
+     *
+     * An unknown instance is visible only to `viewAny`, so the 404 answer does not reveal which ids exist.
+     */
+    protected function canEditProject(WorkflowInstance $instance): bool
+    {
+        $project = $instance->project;
+
+        return $project instanceof WorkflowProject && (bool) user()?->can('update', $project);
+    }
+
+    protected function canViewRuns(?WorkflowInstance $instance): bool
+    {
+        $user = user();
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->can('viewAny', WorkflowProject::class)) {
+            return true;
+        }
+
+        $project = $instance?->project;
+
+        return $project instanceof WorkflowProject && $user->can('view', $project);
     }
 
     /**

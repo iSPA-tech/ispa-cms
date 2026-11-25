@@ -1,11 +1,14 @@
 <script setup>
 import useDragAndDrop from '@/components/workflows/useDnd.js'
-import { computed, defineComponent, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useVueFlow } from '@vue-flow/core'
 import { normalizeBlueprints } from './blueprintNormalizer'
+import { buildPaletteGroups, useNodeCatalog } from './nodeCatalog'
 import CoreNodePalette from '@/components/workflow/CoreNodePalette.vue'
+import WorkflowGraphWarnings from '@/components/workflow/WorkflowGraphWarnings.vue'
 
-defineComponent({
+defineOptions({
     name: 'VueFlowSidebar',
 })
 
@@ -14,6 +17,11 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    /** A workflow that cannot be edited: steps cannot be dragged or added. */
+    disabled: {
+        type: Boolean,
+        default: false,
+    },
 })
 
 const searchQuery = ref('')
@@ -21,6 +29,17 @@ const showHidden = ref(false)
 const expandedCategories = ref([])
 const expandedGroups = ref([])
 const { t } = useI18n()
+const { catalog, load: loadCatalog } = useNodeCatalog()
+const { getNodes: canvasNodes, getEdges: canvasEdges } = useVueFlow()
+
+// Refresh on every open: the catalog depends on the signed-in user's permissions and on installed modules.
+onMounted(() => loadCatalog(true))
+
+const usedStepCodes = computed(() =>
+    (canvasNodes.value || []).map((node) => String(node?.data?.step_code || node?.id || ''))
+)
+
+// Built-in list, used only when the node catalog cannot be loaded (older server).
 const coreNodes = computed(() => [
     {
         step_type: 'ai_action',
@@ -111,7 +130,15 @@ const coreNodes = computed(() => [
     },
 ])
 
-const { onDragStart } = useDragAndDrop()
+const { onDragStart, addAtFreeSpot } = useDragAndDrop()
+
+const startDrag = (event, payload) => {
+    if (props.disabled) return event.preventDefault()
+    onDragStart(event, payload)
+}
+const addStep = (payload) => {
+    if (!props.disabled) addAtFreeSpot?.(payload)
+}
 
 const buildBlueprintPayload = (className, fnName) => ({
     type: 'custom',
@@ -129,23 +156,52 @@ const buildBlueprintPayload = (className, fnName) => ({
     },
 })
 
-const builtinNodes = computed(() => [
-    {
-        type: 'input',
-        label: t('text.workflow.node.input.label'),
-        hint: t('text.workflow.node.input.hint'),
-    },
-    {
-        type: 'decision',
-        label: t('text.workflow.node.decision.label'),
-        hint: t('text.workflow.node.decision.hint'),
-    },
-    {
-        type: 'output',
-        label: t('text.workflow.node.output.label'),
-        hint: t('text.workflow.node.output.hint'),
-    },
-])
+const hasCatalog = computed(() => catalog.loaded && catalog.nodes.length > 0)
+
+// The plain start / decision / finish cards are for sites whose catalog has no step for that job.
+const builtinNodes = computed(() => {
+    const groups = new Set(catalog.nodes.map((node) => node.group))
+    return [
+        {
+            type: 'input',
+            label: t('text.workflow.node.input.label'),
+            hint: t('text.workflow.node.input.hint'),
+            hidden: groups.has('trigger'),
+        },
+        {
+            type: 'decision',
+            label: t('text.workflow.node.decision.label'),
+            hint: t('text.workflow.node.decision.hint'),
+            hidden: !!catalog.byType?.decision,
+        },
+        {
+            type: 'output',
+            label: t('text.workflow.node.output.label'),
+            hint: t('text.workflow.node.output.hint'),
+            hidden: !!catalog.byType?.terminate_workflow,
+        },
+    ].filter((node) => !node.hidden)
+})
+
+const paletteGroups = computed(() => {
+    if (hasCatalog.value) {
+        return buildPaletteGroups(catalog, searchQuery.value, t)
+    }
+    if (catalog.loading && !catalog.failed) return []
+
+    const term = (searchQuery.value || '').trim().toLowerCase()
+    const nodes = coreNodes.value
+        .map((node) => ({
+            type: node.step_type,
+            title: node.title,
+            summary: node.description,
+            default_config: node.default_config,
+            safety: [],
+        }))
+        .filter((node) => !term || `${node.type} ${node.title} ${node.summary}`.toLowerCase().includes(term))
+
+    return nodes.length ? [{ key: 'core', label: t('text.workflow.palette.title'), icon: 'puzzle-outline', nodes }] : []
+})
 
 const groupedBlueprints = computed(() => {
     const normalized = normalizeBlueprints(props.blueprints || [], { showHidden: showHidden.value })
@@ -166,7 +222,7 @@ const filteredBlueprints = computed(() => {
         }))
     }
 
-const matches = []
+    const matches = []
     groupedBlueprints.value.forEach((cat) => {
         const groups = (cat.groups || []).map((g) => {
             const items = (g.items || []).filter((item) => {
@@ -217,59 +273,71 @@ const toggleExpanded = (groupKey) => {
 </script>
 
 <template>
-    <aside class="builder-sidebar">
-        <div class="description">{{ t('text.workflow.sidebar.drag_nodes_into_canvas') }}</div>
+    <aside class="max-h-full overflow-y-auto rounded-xl border border-solid border-slate-200 bg-slate-50 p-3 text-slate-900">
+        <WorkflowGraphWarnings :nodes="canvasNodes" :edges="canvasEdges" class="mb-3" />
 
-        <div v-if="blueprints.length" class="mb-3">
-            <input
-                v-model="searchQuery"
-                type="search"
-                class="search"
-                :placeholder="t('text.workflow.sidebar.search_class_or_function')"
-            />
-            <button v-if="searchQuery" class="clear-btn" type="button" @click="searchQuery = ''">
-                {{ t('text.workflow.sidebar.clear_search') }}
-            </button>
-            <label class="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                <input type="checkbox" v-model="showHidden" />
-                {{ t('text.workflow.sidebar.show_hidden_request_methods') }}
-            </label>
+        <div class="mb-3">
+            <a-input
+                v-model:value="searchQuery"
+                allow-clear
+                :aria-label="t('text.workflow.palette.search')"
+                :placeholder="t('text.workflow.palette.search')"
+            >
+                <template #prefix>
+                    <i-icon icon="magnify" class="h-4 w-4 text-gray-400" />
+                </template>
+            </a-input>
+            <p class="mb-0 mt-2 text-xs text-slate-500">{{ t('text.workflow.sidebar.drag_nodes_into_canvas') }}</p>
         </div>
 
-        <div class="nodes">
+        <div v-if="builtinNodes.length" class="mb-4 grid gap-2">
             <div
                 v-for="node in builtinNodes"
                 :key="node.type"
-                class="node-pill"
-                :draggable="true"
-                @dragstart="onDragStart($event, node.type)"
+                class="node-pill cursor-grab rounded-lg border border-solid border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:border-sky-300 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
+                :class="{ 'cursor-not-allowed opacity-60': disabled }"
+                :draggable="!disabled"
+                role="button"
+                :tabindex="disabled ? -1 : 0"
+                :data-builtin-node="node.type"
+                @dragstart="startDrag($event, node.type)"
+                @click="addStep(node.type)"
+                @keydown.enter.prevent="addStep(node.type)"
             >
-                <div class="node-label">{{ node.label }}</div>
-                <div class="node-hint">{{ node.hint }}</div>
+                <p class="mb-0 text-sm font-semibold text-gray-800">{{ node.label }}</p>
+                <p class="mb-0 text-xs text-gray-500">{{ node.hint }}</p>
             </div>
         </div>
 
-        <div v-if="coreNodes.length" class="mt-6">
-            <CoreNodePalette :nodes="coreNodes" :search="searchQuery" />
-        </div>
+        <CoreNodePalette
+            :groups="paletteGroups"
+            :loading="catalog.loading"
+            :search="searchQuery"
+            :used-codes="usedStepCodes"
+            :disabled="disabled"
+        />
 
         <div v-if="filteredBlueprints.length" class="mt-6 space-y-3">
-            <div class="font-semibold text-sm text-slate-900">
+            <div class="text-sm font-semibold text-slate-900">
                 {{ t('text.workflow.sidebar.blueprint_library') }}
             </div>
-            <a-collapse accordion size="small" v-model:activeKey="expandedCategories">
+            <label class="flex items-center gap-2 text-xs text-gray-600">
+                <input v-model="showHidden" type="checkbox" />
+                {{ t('text.workflow.sidebar.show_hidden_request_methods') }}
+            </label>
+            <a-collapse v-model:activeKey="expandedCategories" accordion size="small">
                 <a-collapse-panel
                     v-for="cat in filteredBlueprints"
                     :key="cat.category"
                     :header="`${cat.groupLabel} (${cat.groups.length})`"
                 >
-                    <a-collapse accordion size="small" v-model:activeKey="expandedGroups">
+                    <a-collapse v-model:activeKey="expandedGroups" accordion size="small">
                         <a-collapse-panel
                             v-for="group in cat.groups"
                             :key="group.groupKey"
                             :header="`${group.title} (${group.items.length})`"
                         >
-                            <div class="text-[11px] text-gray-500 truncate mb-2">
+                            <div class="mb-2 truncate text-[11px] text-gray-500">
                                 {{ group.subtitle }}
                             </div>
                             <div class="flex flex-wrap gap-1">
@@ -279,13 +347,20 @@ const toggleExpanded = (groupKey) => {
                                     :title="fn.hidden ? (fn.disallowed_reason || fn.reason || t('text.workflow.sidebar.hidden')) : ''"
                                 >
                                     <span
-                                        class="fn-pill"
-                                        :class="fn.hidden ? 'fn-pill--disabled' : ''"
-                                        :draggable="!fn.hidden"
-                                        @dragstart="!fn.hidden && onDragStart($event, buildBlueprintPayload(group.groupKey, fn.label))"
+                                        class="rounded-full border border-solid px-2.5 py-1 text-[11px] transition"
+                                        :class="
+                                            fn.hidden || disabled
+                                                ? 'cursor-not-allowed border-slate-300 bg-gray-200 text-slate-600 opacity-50'
+                                                : 'cursor-grab border-sky-200 bg-cyan-50 text-sky-800 hover:border-blue-300 hover:bg-blue-100'
+                                        "
+                                        :draggable="!fn.hidden && !disabled"
+                                        @dragstart="!fn.hidden && startDrag($event, buildBlueprintPayload(group.groupKey, fn.label))"
                                     >
                                         {{ fn.label }}
-                                        <span v-if="fn.hidden" class="badge-disallowed">
+                                        <span
+                                            v-if="fn.hidden"
+                                            class="ml-1.5 rounded-full border border-solid border-red-200 bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700"
+                                        >
                                             {{ t('text.workflow.sidebar.disallowed') }}
                                         </span>
                                     </span>
@@ -309,115 +384,3 @@ const toggleExpanded = (groupKey) => {
         </div>
     </aside>
 </template>
-
-<style scoped>
-.builder-sidebar {
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 14px;
-    color: #0f172a;
-    overflow-y: auto;
-    max-height: 100%;
-    box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.18);
-}
-
-.description {
-    font-size: 12px;
-    color: #475569;
-    margin-bottom: 10px;
-}
-
-.search {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 13px;
-}
-
-.clear-btn {
-    margin-top: 6px;
-    font-size: 11px;
-    color: #0ea5e9;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-}
-
-.nodes {
-    display: grid;
-    gap: 8px;
-}
-
-.node-pill {
-    cursor: grab;
-    padding: 12px 14px;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #ffffff, #f8fafc);
-    color: #0f172a;
-    box-shadow: 0 6px 16px -10px rgba(15, 23, 42, 0.25);
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.node-pill:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 22px -10px rgba(15, 23, 42, 0.35);
-}
-
-.node-label {
-    font-weight: 700;
-    font-size: 15px;
-    color: #0f172a;
-}
-
-.node-hint {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 2px;
-}
-
-.blueprint-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 10px;
-    box-shadow: 0 8px 18px -10px rgba(15, 23, 42, 0.25);
-}
-
-.fn-pill {
-    cursor: grab;
-    padding: 6px 10px;
-    font-size: 11px;
-    border: 1px solid #bae6fd;
-    border-radius: 999px;
-    background: #ecfeff;
-    color: #075985;
-    transition: background 0.1s ease, border-color 0.1s ease;
-}
-
-.fn-pill:hover {
-    background: #dbeafe;
-    border-color: #93c5fd;
-}
-
-.fn-pill--disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-    background: #e5e7eb;
-    border-color: #cbd5e1;
-    color: #475569;
-}
-
-.badge-disallowed {
-    margin-left: 6px;
-    font-size: 10px;
-    background: #fee2e2;
-    color: #b91c1c;
-    padding: 2px 6px;
-    border-radius: 999px;
-    border: 1px solid #fecaca;
-}
-</style>

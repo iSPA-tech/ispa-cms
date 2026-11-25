@@ -98,6 +98,7 @@ const categories = [
             { name: 'setting-basic', rule: 'setting.viewAny' },
             { name: 'setting-social', rule: 'setting.viewAny' },
             { name: 'setting-email', rule: 'setting.viewAny' },
+            { name: 'setting-email-templates', rule: 'email_template.viewAny' },
             { name: 'setting-homepage', rule: 'setting.viewAny' },
             { name: 'setting-ads', rule: 'setting.ads' },
         ],

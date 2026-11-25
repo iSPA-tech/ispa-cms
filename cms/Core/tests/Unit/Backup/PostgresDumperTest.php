@@ -105,7 +105,7 @@ it('runs pg_dump with PGPASSFILE and counts TABLE definitions only', function ()
         ->and($result->format)->toBe('pgdump')
         ->and($result->tablesDumped)->toBe(2)
         ->and($result->sha256)->toBe(hash_file('sha256', $target))
-        ->and(substr(sprintf('%o', fileperms($target)), -4))->toBe('0600');
+        ->and(substr(sprintf('%o', fileperms($target)), -4))->toBe('0660');
 });
 
 it('fails with a table count mismatch and removes the dump', function (): void {

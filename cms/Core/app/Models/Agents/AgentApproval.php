@@ -12,6 +12,7 @@ use App\Models\User;
 use Cms\Core\Constants\CoreTableConstant as Tables;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
@@ -34,6 +35,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property \Carbon\Carbon|null $apply_started_at    When artifact application began
  * @property \Carbon\Carbon|null $apply_finished_at   When artifact application finished
  * @property int|null    $applied_by_user_id    User who ran the last apply (null for system applies)
+ * @property \Carbon\Carbon|null $due_at          When a person should have decided (SLA; null = not measured)
+ * @property int|null    $sla_seconds           Target time to decide, in seconds
+ * @property \Carbon\Carbon|null $decided_at      When a person decided (approve, reject, request changes)
+ * @property int|null    $response_seconds      Seconds from asking a person to their decision
+ * @property bool|null   $sla_met               Decided within sla_seconds (false when it expired); null without SLA
+ * @property \Carbon\Carbon|null $sla_breached_at When the overdue check flagged it (once)
+ * @property int|null    $decided_by_user_id    The person whose decision stopped the clock (the approver, not the applier)
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
  *
@@ -42,6 +50,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property-read AgentArtifact $artifact  The artifact being reviewed
  * @property-read \App\Models\User|null $reviewer The user who reviewed the approval
  * @property-read \App\Models\User|null $applier  The user who ran the last apply
+ * @property-read \App\Models\User|null $decider  The user whose decision stopped the SLA clock
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $assignees Users the step assigned it to
  *
  * @mixin \Eloquent
  * @package Cms\Core\Models\Agents
@@ -67,6 +77,13 @@ class AgentApproval extends Model
         'apply_started_at',
         'apply_finished_at',
         'applied_by_user_id',
+        'due_at',
+        'sla_seconds',
+        'decided_at',
+        'response_seconds',
+        'sla_met',
+        'sla_breached_at',
+        'decided_by_user_id',
     ];
 
     protected $casts = [
@@ -76,6 +93,13 @@ class AgentApproval extends Model
         'apply_started_at' => 'datetime',
         'apply_finished_at' => 'datetime',
         'applied_by_user_id' => 'integer',
+        'due_at' => 'datetime',
+        'sla_seconds' => 'integer',
+        'decided_at' => 'datetime',
+        'response_seconds' => 'integer',
+        'sla_met' => 'boolean',
+        'sla_breached_at' => 'datetime',
+        'decided_by_user_id' => 'integer',
     ];
 
     /**
@@ -112,5 +136,34 @@ class AgentApproval extends Model
     public function applier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'applied_by_user_id');
+    }
+
+    /**
+     * Whether the assignee/SLA migration (2026_11_24_000070) ran on this connection. Writers of the timing columns
+     * check it so a code deploy that lands before its migration, or a test schema built by hand, keeps working.
+     */
+    public static function hasAssignmentColumns(): bool
+    {
+        // Asked once per request (the approvals list calls it per row); `once()` is flushed between tests.
+        return once(static fn (): bool => \Illuminate\Support\Facades\Schema::hasTable(Tables::AGENT_APPROVAL_ASSIGNEE));
+    }
+
+    /**
+     * Get the user whose decision stopped the SLA clock.
+     * @return BelongsTo
+     */
+    public function decider(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'decided_by_user_id');
+    }
+
+    /**
+     * Get the users a workflow step assigned this approval to.
+     * @return BelongsToMany
+     */
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, Tables::AGENT_APPROVAL_ASSIGNEE, 'approval_id', 'user_id')
+            ->withPivot('created_at');
     }
 }

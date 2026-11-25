@@ -34,7 +34,20 @@ return [
 
     'schema_cache_ttl' => 600,
     'allow_expression_db_preview' => false,
-    'max_steps' => 200,
-    'max_duration_seconds' => 60,
+    // Steps one run may take in all, counted across continuations, delays and retries. Sized for a full loop of
+    // max_loop_items with a body of up to ~19 steps; a cycle through a delay node ends here too.
+    'max_steps' => (int) env('WORKFLOW_MAX_STEPS', 2000),
+    // Upper bound for a step's `retry.max` (attempts in all, counted across rescheduled backoffs).
+    'max_retry_attempts' => (int) env('WORKFLOW_MAX_RETRY_ATTEMPTS', 10),
+    // Seconds one execution may run before it continues in a new queued job.
+    'max_duration_seconds' => (int) env('WORKFLOW_MAX_DURATION_SECONDS', 60),
+    // How many times one instance may continue after running out of time before it fails.
+    'max_duration_continuations' => (int) env('WORKFLOW_MAX_DURATION_CONTINUATIONS', 20),
     'max_loop_items' => 100,
+    // Cache store for trigger state every host must share (trigger index, debounce tokens, webhook nonces). Defaults
+    // to the `redis` cache store when the queue runs on Redis (workers may be other processes or hosts), else the app
+    // default store. Set WORKFLOW_TRIGGER_CACHE_STORE when the default is a per-host file cache on several hosts.
+    'trigger_cache_store' => env('WORKFLOW_TRIGGER_CACHE_STORE', env('QUEUE_CONNECTION') === 'redis' ? 'redis' : null),
+    // Minutes a sensitive change waits before it goes live when no second publisher exists (guardrails B3).
+    'cooling_off_minutes' => (int) env('WORKFLOW_COOLING_OFF_MINUTES', 60),
 ];

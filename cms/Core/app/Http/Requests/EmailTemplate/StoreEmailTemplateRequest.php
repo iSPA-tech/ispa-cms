@@ -9,12 +9,17 @@
 namespace Cms\Core\Http\Requests\EmailTemplate;
 
 use Cms\Core\Http\RedirectFailedTrait;
+use Cms\Core\Models\EmailTemplate;
+use Cms\Core\Services\Mail\MailLayoutAllowlist;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Validates input for creation of an email template.
  *
- * Rules: Requires name, group, key_name (max 255), and content; optional language_id, blade_layout, variables, sample_data, description.
+ * Rules: Requires name, group, key_name (max 255), and content; optional language_id, mail_class (`system` /
+ * `business`, default business), blade_layout (only a view on `core.mail_templates.layouts`), variables, sample_data,
+ * description.
  *
  * @package Cms\Core\Http\Requests\EmailTemplate
  * @author  iSPA Team
@@ -47,7 +52,8 @@ class StoreEmailTemplateRequest extends FormRequest
             'key_name' => 'required|string|max:255',
             'content' => 'required|string',
             'language_id' => 'nullable|integer|exists:languages,id',
-            'blade_layout' => 'nullable|string|max:255',
+            'mail_class' => ['nullable', 'string', Rule::in(EmailTemplate::MAIL_CLASSES)],
+            'blade_layout' => ['nullable', 'string', 'max:255', Rule::in(MailLayoutAllowlist::layouts())],
             'variables' => 'nullable|array',
             'sample_data' => 'nullable|array',
             'description' => 'nullable|string',

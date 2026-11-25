@@ -6,6 +6,7 @@
  */
 
 import ajax from '@/ajax'
+import { dropAllGrants } from '@/libs/securityTokens'
 
 export const searchFilterUsers = async (params) => {
     return await ajax.get('user/search', { params: params }).then((res) => res.data || {})
@@ -80,12 +81,15 @@ export const getAccount = async () => {
 }
 
 export const signOutAccount = async () => {
+    // Step-up grants live in memory; they never outlive the account (review fix 36).
+    dropAllGrants()
     return await ajax.post('account/sign-out').then((res) => {
         return res.data || []
     })
 }
 
 export const signInAsUser = async (uuid = '') => {
+    dropAllGrants()
     return await ajax.post('account/sign-in-as', { uuid }).then((res) => {
         return res.data || {}
     })

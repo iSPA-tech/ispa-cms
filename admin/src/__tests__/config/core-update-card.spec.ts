@@ -231,6 +231,57 @@ describe('core update card', () => {
         expect(w.find('[data-testid="core-update-command"]').exists()).toBe(false)
     })
 
+    it('a code owner of root gets one chown command for the web account, copyable, and a check-again button', async () => {
+        answer(status({
+            can_update: false,
+            preflight: { ok: false, issues: [{ code: 'CORE_NO_RUNNER', message: 'raw' }] },
+            runner: null,
+            runner_setup: { user: 'root', line: 'x', base: '/srv/my site', root_owner: true },
+            web_user: 'www-data',
+        }))
+        const writeText = vi.fn().mockResolvedValue(undefined)
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+        const w = await mountCard()
+        const command = "sudo chown -R www-data:www-data '/srv/my site'"
+        expect(w.get('[data-testid="core-update-owner-fix"]').text()).toContain('text.modules.core_update.fix_owner|{"user":"www-data"}')
+        expect(w.get('[data-testid="core-update-owner-command"]').text()).toBe(command)
+        await w.get('[data-testid="core-update-copy-owner"]').trigger('click')
+        await flushPromises()
+        expect(writeText).toHaveBeenCalledWith(command)
+        expect(w.get('[data-testid="core-update-copy-owner"]').text()).toContain('action.copied')
+
+        // Fixed on the server: "Check again" reads the card once more.
+        answer(status({ can_update: true, runner_setup: { user: 'www-data', line: 'x', base: '/srv/my site', root_owner: false }, web_user: 'www-data' }))
+        await w.get('[data-testid="core-update-recheck"]').trigger('click')
+        await flushPromises()
+        expect(ajaxMock.get).toHaveBeenCalledTimes(2)
+        expect(w.find('[data-testid="core-update-blocked"]').exists()).toBe(false)
+        expect(w.get('[data-testid="core-update-open"]').attributes('disabled')).toBeUndefined()
+    })
+
+    it('another code owner with no runner gets the chown command and still the crontab line', async () => {
+        answer({ ...noRunner(), web_user: 'www-data' })
+        const w = await mountCard()
+        expect(w.get('[data-testid="core-update-owner-command"]').text()).toBe('sudo chown -R www-data:www-data /srv/site')
+        expect(w.find('[data-testid="core-update-setup-line"]').exists()).toBe(true)
+    })
+
+    it('no chown command while a runner of a separate code owner works, or without the web account', async () => {
+        answer(status({
+            can_update: false,
+            preflight: { ok: false, issues: [{ code: 'CORE_CODE_DIR_SHARED', message: 'raw' }] },
+            runner: { seen_at: '2026-11-22T10:00:00+07:00', user: 'deploy' },
+            runner_setup: { user: 'deploy', line: 'x', base: '/srv/site', root_owner: false },
+            web_user: 'www-data',
+        }))
+        let w = await mountCard()
+        expect(w.find('[data-testid="core-update-owner-fix"]').exists()).toBe(false)
+        expect(w.find('[data-testid="core-update-recheck"]').exists()).toBe(true)
+        answer(noRunner())
+        w = await mountCard()
+        expect(w.find('[data-testid="core-update-owner-fix"]').exists()).toBe(false)
+    })
+
     it('a shared code folder gets its own text, its prompt section and no command hint', async () => {
         answer(status({
             can_update: false,

@@ -8,19 +8,17 @@
 
 namespace Cms\Core\Workflows\Runtime\Runners;
 
-use Cms\Core\Jobs\RunWorkflowInstanceJob;
 use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
-use Illuminate\Support\Facades\Bus;
 
 /**
  * Executes a delay step that pauses workflow execution for a specified duration.
  *
- * For short delays (<=1s) sleeps synchronously. For longer delays in queued contexts,
- * re-dispatches the workflow job with the appropriate delay. Fails if async execution
- * is required but not available.
+ * For short delays (<=1s) sleeps synchronously. For longer delays returns a rescheduled
+ * result; the executor then stops the current execution and re-dispatches the run
+ * to continue from the next step after the delay.
  *
  * @see StepRunner
  * @package Cms\Core\Workflows\Runtime\Runners
@@ -40,9 +38,6 @@ class DelayRunner implements StepRunner
         $seconds = (int) ($step->stepConfig['seconds'] ?? 0);
         $seconds = max(0, $seconds);
 
-        $isQueued = (bool) $context->getVarPath('__runtime.queued', false);
-        $instanceId = $context->getVarPath('__runtime.instance_id');
-
         $logs = [
             ['level' => 'info', 'message' => "Delay requested: {$seconds}s"],
         ];
@@ -55,15 +50,7 @@ class DelayRunner implements StepRunner
             return StepRunResult::success(['delayed' => $seconds], $logs);
         }
 
-        if ($isQueued && $instanceId) {
-            Bus::dispatch((new RunWorkflowInstanceJob($instanceId))->delay(now()->addSeconds($seconds)));
-            $logs[] = ['level' => 'info', 'message' => "Re-dispatched with {$seconds}s delay"];
-
-            return StepRunResult::success(['delayed' => $seconds, 'rescheduled' => true], $logs);
-        }
-
-        $logs[] = ['level' => 'error', 'message' => 'Delay requires async execution'];
-
-        return StepRunResult::failed('Delay requires async execution', $logs);
+        // The executor saves the cursor, stops this execution and re-dispatches the run with the delay.
+        return StepRunResult::rescheduled($seconds, ['delayed' => $seconds, 'rescheduled' => true], $logs);
     }
 }

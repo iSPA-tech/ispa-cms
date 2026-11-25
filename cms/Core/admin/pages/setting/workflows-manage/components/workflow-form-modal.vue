@@ -40,25 +40,6 @@
                 </a-form-item>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2">
-                <a-form-item :label="$t('text.workflow.form.trigger_event')" name="trigger_event">
-                    <a-auto-complete
-                        v-model:value="form.trigger_event"
-                        :options="triggerOptions"
-                        :placeholder="'order.created'"
-                        allow-clear
-                    />
-                </a-form-item>
-                <a-form-item :label="$t('text.workflow.form.target_entity')" name="target_entity_type">
-                    <a-auto-complete
-                        v-model:value="form.target_entity_type"
-                        :options="targetOptions"
-                        :placeholder="'App\\\\Models\\\\Order'"
-                        allow-clear
-                    />
-                </a-form-item>
-            </div>
-
             <a-form-item :label="$t('validation.attributes.tags')">
                 <a-select
                     v-model:value="form.tags"
@@ -81,6 +62,29 @@
                     <a-switch v-model:checked="form.is_active" />
                 </a-form-item>
             </div>
+            <a-collapse :bordered="false" class="mt-2 bg-transparent" data-testid="workflow-form-advanced">
+                <a-collapse-panel key="advanced" :header="$t('text.workflow.form.advanced')" force-render>
+                    <p class="mb-3 text-xs text-gray-500">{{ $t('text.workflow.form.advanced_hint') }}</p>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <a-form-item :label="$t('text.workflow.form.trigger_event')" name="trigger_event">
+                            <a-auto-complete
+                                v-model:value="form.trigger_event"
+                                :options="triggerOptions"
+                                :placeholder="'order.created'"
+                                allow-clear
+                            />
+                        </a-form-item>
+                        <a-form-item :label="$t('text.workflow.form.target_entity')" name="target_entity_type">
+                            <a-auto-complete
+                                v-model:value="form.target_entity_type"
+                                :options="targetOptions"
+                                :placeholder="'App\\\\Models\\\\Order'"
+                                allow-clear
+                            />
+                        </a-form-item>
+                    </div>
+                </a-collapse-panel>
+            </a-collapse>
         </a-form>
 
         <template #footer>
@@ -178,20 +182,6 @@ const formRules = computed(() => ({
             trigger: 'blur',
         },
     ],
-    trigger_event: [
-        {
-            required: true,
-            message: t('validation.required', { a: t('text.workflow.form.trigger_event') }),
-            trigger: 'blur',
-        },
-    ],
-    target_entity_type: [
-        {
-            required: true,
-            message: t('validation.required', { a: t('text.workflow.form.target_entity') }),
-            trigger: 'blur',
-        },
-    ],
 }))
 
 const resetForm = () => {
@@ -261,7 +251,12 @@ const openEdit = (workflow) => {
     nextTick(() => formRef.value?.clearValidate?.())
 }
 
+// A workflow that starts from a step of the "Start" group needs no event or record type; the API still wants both.
+const DEFAULT_TRIGGER_EVENT = 'manual'
+const DEFAULT_TARGET_ENTITY = 'none'
+
 const submitForm = () => {
+    if (state.loading) return
     formRef.value
         ?.validate()
         .then(async () => {
@@ -269,8 +264,8 @@ const submitForm = () => {
             const payload = {
                 name: form.name,
                 slug: form.slug,
-                trigger_event: form.trigger_event,
-                target_entity_type: form.target_entity_type,
+                trigger_event: (form.trigger_event || '').trim() || DEFAULT_TRIGGER_EVENT,
+                target_entity_type: (form.target_entity_type || '').trim() || DEFAULT_TARGET_ENTITY,
                 description: form.description,
                 is_active: form.is_active,
                 tags: form.tags,
@@ -292,6 +287,7 @@ const submitForm = () => {
                     closeForm()
                     emit('saved', {
                         workflow: res?.data || null,
+                        slug: payload.slug,
                         mode: state.isEdit ? 'edit' : 'create',
                         openBuilder: !state.isEdit,
                     })

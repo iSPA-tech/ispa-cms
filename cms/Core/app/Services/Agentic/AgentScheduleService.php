@@ -205,10 +205,17 @@ class AgentScheduleService
             throw new \InvalidArgumentException("Agent schedule [{$schedule->id}] is not queued for execution.");
         }
 
+        // Guardrails B7: the site-wide pause stops agent schedule runs too (the job records it as the schedule's error).
+        if (app(\Cms\Core\Services\Workflow\Guard\WorkflowGlobalPause::class)->active()) {
+            throw new \Cms\Core\Services\Workflow\Exceptions\WorkflowGloballyPaused();
+        }
+
         $project = $this->workflowProjectService->ensureWrapper($schedule);
 
         $instance = WorkflowInstance::query()->create([
             'project_id' => $project->id,
+            // The wrapper's published version (ensureWrapper() publishes it); the executor refuses a run without one.
+            'version_id' => $project->published_version_id,
             'target_type' => $this->resolveWorkflowTargetType($schedule),
             'target_id' => $this->resolveWorkflowTargetId($schedule),
             'status' => 'pending',

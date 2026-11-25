@@ -57,7 +57,7 @@ class SqliteDumper implements DatabaseDumper
             if ($in === false || $out === false) {
                 throw new \RuntimeException('BACKUP_DUMP_FAILED: cannot open files');
             }
-            chmod($targetFile, 0600);
+            chmod($targetFile, 0660);
             $deflate = deflate_init(ZLIB_ENCODING_GZIP, ['level' => 6]);
             $hash = hash_init('sha256');
             while (! feof($in)) {

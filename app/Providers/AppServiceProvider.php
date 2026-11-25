@@ -136,7 +136,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ModuleDeploymentPreflightRegistry::class);
 
         $this->app->singleton(StepRunnerRegistry::class, function ($app) {
-            $configured = (array)config('core.workflow.step_runners', []);
+            $configured = \Cms\Core\Workflows\Nodes\NodeRegistry::runnerMap();
             $aliases = (array)config('core.workflow_step_aliases', []);
             $registry = new StepRunnerRegistry(new UnknownStepRunner($configured), $aliases);
 

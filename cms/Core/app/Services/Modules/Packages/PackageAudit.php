@@ -37,7 +37,9 @@ use Symfony\Component\Console\Output\BufferedOutput;
  *  - no file above `max_file_bytes` (LIMITS); for an extracted package also at most `max_unpacked_bytes` in all.
  *
  * Source tree and extracted package differ only where the builder itself changes the tree:
- *  - source: `tests`, `node_modules`, `.git*`, `.DS_Store` and `._*` are skipped (the builder never packages them) and
+ *  - source: `tests`, `node_modules`, `.git*`, `.DS_Store` and `._*` are skipped (the builder never packages them), so
+ * are the module's non-runtime notes (`docs/`, `guidelines/`, `reports/`, `the module notes`, `the module notes` at the module
+ *    root) and SQL dumps under `database/seeders/sql/` that no seeder loads (its PHP translation sidecars stay), and
  *    a `frontend-build/` folder is refused (the builder writes it);
  *  - extracted: nothing is skipped (every file that would be installed is audited) and `frontend-build/` is accepted
  *    when module.json declares `frontend.entries` (the builder wrote it); the unpacked total is checked too (the
@@ -406,10 +408,10 @@ final class PackageAudit
         sort($names, SORT_STRING);
         $out = [];
         foreach ($names as $name) {
-            if (!$extracted && self::excludedFromBuild($name)) {
+            $relative = $prefix === '' ? $name : $prefix . '/' . $name;
+            if (!$extracted && self::excludedPathFromBuild($relative)) {
                 continue;
             }
-            $relative = $prefix === '' ? $name : $prefix . '/' . $name;
             $full = $dir . '/' . $relative;
             if ($relative === FrontendBuilder::BUILD_DIR && !$allowBuilt) {
                 throw new PackageBuildException(PackageBuildException::FRONTEND_BUILD, 'Module contains ' . $relative . '/: the package builder writes that folder from frontend.entries; remove it from the source.');
@@ -442,6 +444,30 @@ final class PackageAudit
     {
         return $name === 'tests' || $name === 'node_modules' || $name === '.DS_Store'
             || str_starts_with($name, '.git') || str_starts_with($name, '._');
+    }
+
+    /** Module-root entries that are notes for people and agents, never read at runtime. */
+    public const NON_RUNTIME_ROOT_ENTRIES = ['docs', 'guidelines', 'reports', 'AGENTS.md', 'CLAUDE.md'];
+
+    /**
+     * Whether a path relative to the module folder is excluded from packages built from source: any segment named by
+     * excludedFromBuild(), a NON_RUNTIME_ROOT_ENTRIES entry at the module root, or a `.sql` dump directly under
+     * `database/seeders/sql/` (seeders read the PHP sidecars there, never the dumps). PackageStaticScan skips the same.
+     */
+    public static function excludedPathFromBuild(string $relative): bool
+    {
+        $segments = explode('/', $relative);
+        foreach ($segments as $segment) {
+            if (self::excludedFromBuild($segment)) {
+                return true;
+            }
+        }
+        if (in_array($segments[0], self::NON_RUNTIME_ROOT_ENTRIES, true)) {
+            return true;
+        }
+
+        return count($segments) === 4 && $segments[0] === 'database' && $segments[1] === 'seeders' && $segments[2] === 'sql'
+            && str_ends_with(strtolower($segments[3]), '.sql');
     }
 
     /**

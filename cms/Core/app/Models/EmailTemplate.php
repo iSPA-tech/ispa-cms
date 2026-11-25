@@ -27,6 +27,7 @@ use Cms\Core\Constants\CoreTableConstant;
  * @property integer id
  * @property string name
  * @property string group
+ * @property string mail_class  `system` or `business` (workflow mail policy B; see MAIL_CLASSES)
  * @property string blade_layout
  * @property string key_name
  * @property string content
@@ -45,8 +46,21 @@ class EmailTemplate extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /** Notices (message received, welcome, reminders, status): a workflow sends them without a switch. */
+    public const CLASS_SYSTEM = 'system';
+
+    /** Business mail: a workflow `email_send` step sends it only while its switch is on. Column default (and the
+     * reading of an unknown value). */
+    public const CLASS_BUSINESS = 'business';
+
+    public const MAIL_CLASSES = [self::CLASS_SYSTEM, self::CLASS_BUSINESS];
+
+    /** Group of the templates workflow `email_send` steps pick by key. */
+    public const GROUP_WORKFLOW = 'workflow';
+
     /** @var string */
     public $table = CoreTableConstant::EMAIL_TEMPLATES;
+
 
     /**
      * The attributes that are mass assignable.
@@ -54,7 +68,7 @@ class EmailTemplate extends Model
      * @var array
      */
     protected $fillable = [
-        'name', 'group', 'key_name', 'content', 'language_id', 'user_id',
+        'name', 'group', 'mail_class', 'key_name', 'content', 'language_id', 'user_id',
         'blade_layout', 'variables', 'sample_data', 'description',
     ];
 

@@ -8,6 +8,7 @@
 
 namespace Cms\Core\Workflows\Upgrade;
 
+use Cms\Core\Workflows\Nodes\NodeRegistry;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -34,7 +35,7 @@ class StepConfigUpgrader
     public function upgrade(array $stepConfig, string $stepType): array
     {
         $log = [];
-        $config = $stepConfig;
+        $config = $this->upgradeNodeVersion($stepConfig, $stepType, $log);
 
         // Step-specific normalization
         if (in_array($stepType, ['condition', 'decision'], true)) {
@@ -112,6 +113,35 @@ class StepConfigUpgrader
             'config' => $config,
             '_upgrade_log' => $log,
         ];
+    }
+
+    /**
+     * Per-type version hook: a config stored at `_v` (missing = 1) older than the node definition's version is moved
+     * forward one version at a time by NodeDefinition::upgrade(), then stamped with the new `_v`. A config at the
+     * current version (or with no definition, or newer than the site, which save/import refuse) is left unchanged, and
+     * `_v` is never added to a config that did not need an upgrade.
+     *
+     * @param array<string, mixed> $config
+     * @param array<int, array<string, mixed>> $log
+     * @return array<string, mixed>
+     */
+    protected function upgradeNodeVersion(array $config, string $stepType, array &$log): array
+    {
+        $from = $config['_v'] ?? 1;
+        if (!is_int($from) || $from < 1) {
+            return $config;
+        }
+
+        $definition = NodeRegistry::current()->get($stepType);
+        if ($definition === null || $from >= $definition->version) {
+            return $config;
+        }
+
+        $config = $definition->upgrade($from, $config);
+        $config['_v'] = $definition->version;
+        $log[] = ['type' => 'node_version_upgrade', 'from' => $from, 'to' => $definition->version];
+
+        return $config;
     }
 
     /**

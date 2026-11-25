@@ -21,8 +21,9 @@ use Throwable;
 /**
  * Runs one module install created by {@see \Cms\Core\Http\Controllers\V2\Admin\ModuleInstallController}.
  *
- * The worker timeout is `core.module_packages.job_timeout`; the install preflight refuses queues whose `retry_after`
- * is not above it, so an install is never handed to a second worker (`tries = 1`).
+ * The worker timeout is `core.module_packages.job_timeout`. A queue whose `retry_after` is not above it never gets
+ * this job: installs run through the scheduler there ({@see \Cms\Core\Services\Modules\Install\InstallRunDispatcher::usesScheduler()}),
+ * so an install is never handed to a second worker (`tries = 1`).
  */
 final class InstallModuleJob implements ShouldQueue
 {

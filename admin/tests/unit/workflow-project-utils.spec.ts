@@ -56,7 +56,8 @@ describe('workflow project utils', () => {
         const summary = summarizeWorkflowProject({
             nodes: [
                 { id: 'start', type: 'input', data: { name: 'Start' } },
-                { id: 'gate', type: 'decision', data: { step_config: {} } },
+                // A yes/no card made on the canvas stores its handles (useDnd); target-a / target-b link it.
+                { id: 'gate', type: 'decision', data: { step_config: { yes_output: 'target-a', no_output: 'target-b' } } },
                 { id: 'finish', type: 'output', data: { name: 'Finish' } },
             ],
             edges: [
@@ -84,6 +85,7 @@ describe('workflow project utils', () => {
 
         expect(report.isValid).toBe(false)
         expect(report.issueCount).toBeGreaterThan(0)
-        expect(report.checks.find((check) => check.key === 'input-to-output')?.ok).toBe(false)
+        // The designer refactor (2026-11-24) folded the old input-to-output check into "every step is connected".
+        expect(report.checks.find((check) => check.key === 'connected-nodes')?.ok).toBe(false)
     })
 })

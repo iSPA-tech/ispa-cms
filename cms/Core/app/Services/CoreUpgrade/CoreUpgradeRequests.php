@@ -11,8 +11,12 @@ declare(strict_types=1);
 namespace Cms\Core\Services\CoreUpgrade;
 
 use Cms\Core\Models\BackgroundTask;
+use Cms\Core\Models\Backup\Backup;
 use Cms\Core\Models\ModuleInstall;
 use Cms\Core\Services\BackgroundTasks\BackgroundTaskRecorder;
+use Cms\Core\Services\Backup\BackupGate;
+use Cms\Core\Services\Backup\BackupRequiredException;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
@@ -26,6 +30,9 @@ final class CoreUpgradeRequests
 
     /** A request the runner has not claimed after this long times out. */
     public const REQUEST_TIMEOUT_SECONDS = 900;
+
+    /** Key in the task's `result` that holds the uuid of the safety backup the web side took for the request. */
+    public const PREPARED_BACKUP_KEY = 'prepared_backup_uuid';
 
     /** A running task without progress for this long, while no runner holds the lock, is dead. */
     public const RUNNER_QUIET_SECONDS = 120;
@@ -178,6 +185,54 @@ final class CoreUpgradeRequests
         }
 
         return $task;
+    }
+
+    /**
+     * Take the safety backup of the waiting upgrade request as the web user (`cms:core-upgrade-backup`, started by
+     * the scheduler): the web user owns storage/backups, so the backup works even when the runner
+     * cannot write there. The backup uuid goes into the task's `result` while the task stays `queued`, so the runner
+     * claims it as before and reuses the backup ({@see CoreUpgrader::usePreparedBackup()}). A failed backup fails the
+     * task and removes the request, so nothing is upgraded without a backup.
+     *
+     * @return string `idle` (no upgrade waiting, or its backup is ready), `busy` (another backup run), `prepared`, `failed`.
+     */
+    public function prepareBackup(BackupGate $gate): string
+    {
+        $tick = new CoreRunnerTick($this->base);
+        $request = $tick->readRequest();
+        if ($request === null || $request['action'] !== 'upgrade') {
+            return 'idle';
+        }
+        $lock = Cache::lock('core-upgrade-prepare-backup', 3600);
+        if (! $lock->get()) {
+            return 'busy';
+        }
+        try {
+            $task = BackgroundTask::query()
+                ->where('uuid', $request['task_uuid'])
+                ->where('type', self::TASK_TYPE)
+                ->where('status', BackgroundTask::STATUS_QUEUED)
+                ->first();
+            if ($task === null || is_string($task->result[self::PREPARED_BACKUP_KEY] ?? null)) {
+                return 'idle';
+            }
+            try {
+                $backup = $gate->ensure(Backup::REASON_PRE_CORE_UPGRADE, $task->started_by);
+            } catch (BackupRequiredException $e) {
+                logger()->warning('Core upgrade backup failed.', ['code' => 'CORE_BACKUP_FAILED', 'backup_code' => $e->getMessage(), 'task_uuid' => $task->uuid]);
+                $this->recorder->fail($task, self::failureMessage('CORE_BACKUP_FAILED'), ['code' => 'CORE_BACKUP_FAILED']);
+                $tick->removeRequest($task->uuid);
+
+                return 'failed';
+            }
+            // Only while the task is still waiting: a runner that already claimed it took its own backup.
+            BackgroundTask::query()->whereKey($task->getKey())->where('status', BackgroundTask::STATUS_QUEUED)
+                ->update(['result' => json_encode(array_merge((array) $task->result, [self::PREPARED_BACKUP_KEY => (string) $backup->uuid]))]);
+
+            return 'prepared';
+        } finally {
+            $lock->release();
+        }
     }
 
     /**

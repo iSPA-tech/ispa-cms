@@ -55,5 +55,16 @@ return [
         'copyright_safe_news_fact_extraction' => 'Trích xuất dữ kiện tin (an toàn bản quyền)',
         'copyright_safe_news_drafting' => 'Soạn tin (an toàn bản quyền)',
         'copyright_safe_news_legal_editorial_review' => 'Rà soát pháp lý và biên tập tin',
+        // Workflow AI nodes (cms/Core/config/workflow_nodes/ai.php): one task per node type.
+        'workflow_ai_prompt' => 'Quy trình: câu lệnh AI',
+        'workflow_ai_classify' => 'Quy trình: phân loại bằng AI',
+        'workflow_ai_extract' => 'Quy trình: trích xuất dữ liệu bằng AI',
+        'workflow_ai_translate' => 'Quy trình: dịch bằng AI',
+        'workflow_ai_rewrite' => 'Quy trình: viết lại bằng AI',
+        'workflow_ai_score' => 'Quy trình: chấm điểm bằng AI',
+        'workflow_ai_summarize' => 'Quy trình: tóm tắt bằng AI',
+        'workflow_ai_guardrail' => 'Quy trình: kiểm tra an toàn nội dung bằng AI',
+        // Human nodes (cms/Core/config/workflow_nodes/human.php): the jev_review node's judge call.
+        'workflow_jev_review' => 'Quy trình: JEV đánh giá nội dung',
     ],
 ];

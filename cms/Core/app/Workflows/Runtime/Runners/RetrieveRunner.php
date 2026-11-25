@@ -13,6 +13,9 @@ use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Schema\ModelSchemaRegistry;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -24,6 +27,10 @@ use Traversable;
  * Builds a query with configurable where clauses, ordering, and limits using expression
  * evaluation, and stores the result (single model or collection) in a context variable.
  * Supports soft-delete inclusion.
+ *
+ * The model must pass WorkflowCallableGuard and the run's delegate must be allowed `viewAny` on it; `where` and
+ * `orderBy` may only name the columns ModelSchemaRegistry offers (never a hidden one), so a filter cannot be used to
+ * guess a secret. Rows are stored as signed snapshots ({@see WorkflowModelRefs::nestedSnapshot()}).
  *
  * @see StepRunner
  * @package Cms\Core\Workflows\Runtime\Runners
@@ -62,8 +69,21 @@ class RetrieveRunner implements StepRunner
             return StepRunResult::failed('retrieve: invalid model class');
         }
 
+        $refusal = app(WorkflowCallableGuard::class)->modelStepRefusal($context, 'viewAny', $modelClass);
+        if ($refusal !== null) {
+            return StepRunResult::failed('retrieve: ' . $refusal);
+        }
+
         if (!is_string($storeAs) || !str_starts_with($storeAs, 'vars.')) {
             return StepRunResult::failed('retrieve: storeAs must start with vars.');
+        }
+
+        $columns = $this->filterableColumns($modelClass);
+        foreach ([...(array) ($config['where'] ?? []), ...(array) ($config['orderBy'] ?? [])] as $clause) {
+            $field = is_array($clause) ? ($clause['field'] ?? null) : null;
+            if ($field !== null && $field !== '' && (!is_string($field) || !isset($columns[$field]))) {
+                return StepRunResult::failed('retrieve: field not allowed: ' . (is_string($field) ? $field : gettype($field)));
+            }
         }
 
         $query = $modelClass::query();
@@ -108,7 +128,7 @@ class RetrieveRunner implements StepRunner
 
         if ($first) {
             $model = $query->first();
-            $snapshot = $model ? $this->snapshot($model) : null;
+            $snapshot = $model ? $this->snapshot($model, $context) : null;
             $context->setVarPath(substr($storeAs, 5), $snapshot);
 
             return StepRunResult::success(
@@ -129,7 +149,7 @@ class RetrieveRunner implements StepRunner
         }
 
         $collection = $query->get();
-        $snapshots = $collection->map(fn($m) => $this->snapshot($m))->all();
+        $snapshots = $collection->map(fn($m) => $this->snapshot($m, $context))->all();
         $context->setVarPath(substr($storeAs, 5), $snapshots);
 
         return StepRunResult::success(
@@ -193,12 +213,39 @@ class RetrieveRunner implements StepRunner
         }
     }
 
-    protected function snapshot(Model $model): array
+    /**
+     * Columns a `where` / `orderBy` may name: those ModelSchemaRegistry offers in the builder (hidden ones are left
+     * out there), minus hidden attributes and encrypted casts.
+     *
+     * @return array<string, true>
+     */
+    protected function filterableColumns(string $modelClass): array
     {
-        return [
-            '__class' => $model::class,
-            '__id' => $model->getKey(),
-            'attributes' => $model->getAttributes(),
-        ];
+        try {
+            $schema = app(ModelSchemaRegistry::class)->getSchema($modelClass);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        /** @var Model $model */
+        $model = new $modelClass();
+        $blocked = array_flip([...$model->getHidden(), ...WorkflowModelRefs::encryptedAttributes($model)]);
+
+        $columns = [];
+        foreach ((array) ($schema['fields'] ?? []) as $field) {
+            $name = is_array($field) ? ($field['name'] ?? null) : null;
+            if (is_string($name) && $name !== '' && !isset($blocked[$name])) {
+                $columns[$name] = true;
+            }
+        }
+
+        return $columns;
+    }
+
+    protected function snapshot(Model $model, WorkflowContext $context): array
+    {
+        // Visible attributes only ($hidden applies, encrypted casts are dropped) plus a signed reference a later
+        // change / delete_object / commit_objects step of this run may use.
+        return WorkflowModelRefs::nestedSnapshot($model, $context);
     }
 }

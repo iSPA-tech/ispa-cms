@@ -38,6 +38,9 @@ const buildCatalogParams = (filters = {}) => {
     appendParam(params, 'enabled', unref(filters.enabled))
     appendParam(params, 'apply_outcome', unref(filters.applyOutcome))
     appendParam(params, 'artifact_type', unref(filters.artifactType))
+    // Approvals: `assigned=me` (given to the signed-in reviewer), `overdue=1` (waiting past its due time).
+    appendParam(params, 'assigned', unref(filters.assigned))
+    appendParam(params, 'overdue', unref(filters.overdue) ? 1 : null)
     appendParam(params, 'profile', unref(filters.profile))
     appendParam(params, 'subject_type', unref(filters.subjectType))
     appendParam(params, 'workflow_id', unref(filters.workflowId))
@@ -224,6 +227,23 @@ export const useAgenticApprovals = (filters = {}, options = {}) => {
             const params = buildCatalogParams(filters)
             const res = await ajax.get(`agentic/approvals${params ? `?${params}` : ''}`)
             return normalizeCatalogResponse(res, { data: [], meta: {} })
+        },
+        keepPreviousData: true,
+        ...options,
+    })
+}
+
+/**
+ * How fast reviewers answer the approvals given to them, for a period (`range` = { from, to } as YYYY-MM-DD):
+ * `{ totals, reviewers, truncated? }`. Empty dates are left out, so the API falls back to its last 30 days.
+ */
+export const useAgenticApprovalSlaSummary = (range = {}, options = {}) => {
+    const period = () => ({ from: unref(range.from) || undefined, to: unref(range.to) || undefined })
+    return useQuery({
+        queryKey: () => ['agentic-approvals-sla-summary', period()],
+        queryFn: async () => {
+            const res = await ajax.get('agentic/approvals/sla-summary', { params: period() })
+            return res?.data?.data || { totals: {}, reviewers: [] }
         },
         keepPreviousData: true,
         ...options,
@@ -441,9 +461,11 @@ export const useRejectAgenticApproval = (options = {}) => {
     const { onSuccess, ...rest } = options
 
     return useMutation({
-        mutationFn: async ({ approvalId, reviewerNote = null }) => {
+        mutationFn: async ({ approvalId, reviewerNote = null, reason = null }) => {
+            // `reason` is sent only when the reviewer picked a declared one: the server refuses it otherwise.
             const res = await ajax.post(`agentic/approvals/${approvalId}/reject`, {
                 reviewer_note: reviewerNote,
+                ...(reason ? { reason } : {}),
             })
             return normalizeMutationResponse(res)
         },
@@ -467,6 +489,65 @@ export const useApplyAgenticApproval = (options = {}) => {
     return useMutation({
         mutationFn: async ({ approvalId }) => {
             const res = await ajax.post(`agentic/approvals/${approvalId}/apply`)
+            return normalizeMutationResponse(res)
+        },
+        onSuccess: (data, variables, ...restArgs) => {
+            queryClient.invalidateQueries({ queryKey: ['agentic-approvals'] })
+            queryClient.invalidateQueries({ queryKey: ['agentic-approval'] })
+            queryClient.invalidateQueries({ queryKey: ['agentic-runs'] })
+            queryClient.invalidateQueries({ queryKey: ['agentic-run'] })
+            if (typeof onSuccess === 'function') {
+                onSuccess(data, variables, ...restArgs)
+            }
+        },
+        ...rest,
+    })
+}
+
+
+/**
+ * Approve a pending approval and apply it in one call.
+ * Resolves with the response envelope; `data.outcome` is applied, approval_stale or apply_failed.
+ */
+export const useApproveApplyAgenticApproval = (options = {}) => {
+    const queryClient = useQueryClient()
+    const { onSuccess, ...rest } = options
+
+    return useMutation({
+        mutationFn: async ({ approvalId, reviewerNote = null }) => {
+            const res = await ajax.post(`agentic/approvals/${approvalId}/approve-apply`, {
+                reviewer_note: reviewerNote,
+            })
+            return normalizeMutationResponse(res)
+        },
+        onSuccess: (data, variables, ...restArgs) => {
+            queryClient.invalidateQueries({ queryKey: ['agentic-approvals'] })
+            queryClient.invalidateQueries({ queryKey: ['agentic-approval'] })
+            queryClient.invalidateQueries({ queryKey: ['agentic-runs'] })
+            queryClient.invalidateQueries({ queryKey: ['agentic-run'] })
+            if (typeof onSuccess === 'function') {
+                onSuccess(data, variables, ...restArgs)
+            }
+        },
+        ...rest,
+    })
+}
+
+/**
+ * Ask the AI to rewrite a pending proposal: the reviewer's feedback, optional extra information and the chosen
+ * rewrite options. Resolves with the response envelope (`data` is the approval, now `changes_requested`).
+ */
+export const useRequestChangesAgenticApproval = (options = {}) => {
+    const queryClient = useQueryClient()
+    const { onSuccess, ...rest } = options
+
+    return useMutation({
+        mutationFn: async ({ approvalId, feedback, addedInfo = null, options: chosen = {} }) => {
+            const res = await ajax.post(`agentic/approvals/${approvalId}/request-changes`, {
+                feedback,
+                added_info: addedInfo || null,
+                options: chosen || {},
+            })
             return normalizeMutationResponse(res)
         },
         onSuccess: (data, variables, ...restArgs) => {

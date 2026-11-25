@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Cms\Core\Tests\Support\WorkflowTestDelegate;
 use Cms\Core\Tests\TestCase;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 
 class DeleteObjectRunnerTest extends TestCase
 {
@@ -23,12 +25,14 @@ class DeleteObjectRunnerTest extends TestCase
             $table->softDeletes();
             $table->timestamps();
         });
+        WorkflowTestDelegate::allow(DOCustomer::class);
     }
 
     public function test_single_model_soft_delete(): void
     {
         $customer = DOCustomer::create(['email' => 'x@example.com']);
-        $ctx = new WorkflowContext($this->makeRoot(), [], ['customer' => $customer]);
+        $ctx = new WorkflowContext($this->makeRoot());
+        $ctx->setVar('customer', WorkflowModelRefs::nestedSnapshot($customer, $ctx));
         $runner = new DeleteObjectRunner();
         $step = new StepDefinition(null, null, 'delete_object', 'del', null, 'Delete', [
             'targetExpr' => 'vars.customer',
@@ -46,7 +50,8 @@ class DeleteObjectRunnerTest extends TestCase
     {
         $a = DOCustomer::create(['email' => 'a@example.com']);
         $b = DOCustomer::create(['email' => 'b@example.com']);
-        $ctx = new WorkflowContext($this->makeRoot(), [], ['customers' => [$a, $b]]);
+        $ctx = new WorkflowContext($this->makeRoot());
+        $ctx->setVar('customers', [WorkflowModelRefs::nestedSnapshot($a, $ctx), WorkflowModelRefs::nestedSnapshot($b, $ctx)]);
         $runner = new DeleteObjectRunner();
         $step = new StepDefinition(null, null, 'delete_object', 'del', null, 'Delete', [
             'targetExpr' => 'vars.customers',

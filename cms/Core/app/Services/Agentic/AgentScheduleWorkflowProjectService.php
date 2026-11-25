@@ -118,6 +118,10 @@ class AgentScheduleWorkflowProjectService
                 ])->save();
             }
 
+            // Runs execute published versions only: publish the generated graph when it changed (B1).
+            app(\Cms\Core\Services\Workflow\Versioning\WorkflowPublishService::class)
+                ->publishSystem($project, 'Agent schedule wrapper updated.');
+
             return $project->fresh(['steps', 'connections']);
         });
     }

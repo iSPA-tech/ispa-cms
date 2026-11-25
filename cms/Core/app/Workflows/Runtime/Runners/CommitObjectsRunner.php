@@ -13,6 +13,7 @@ use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Traversable;
@@ -30,6 +31,8 @@ use Traversable;
  */
 class CommitObjectsRunner implements StepRunner
 {
+    use ResolvesModelTargets;
+
     /**
      * Initialize the runner with an expression engine for evaluating target expressions.
      *
@@ -59,23 +62,20 @@ class CommitObjectsRunner implements StepRunner
             return StepRunResult::failed('commit_objects: targetExpr is required');
         }
 
-        try {
-            $target = $this->engine->evaluate($targetExpr, $context, true);
-        } catch (\Throwable $e) {
-            return StepRunResult::failed('commit_objects: failed to evaluate targetExpr: ' . $e->getMessage());
+        // Only references this run produced (retrieve rows, created/cloned/changed models, the root); anything else,
+        // or one row the run's delegate may not commit, fails the whole step before any row is touched.
+        $models = $this->resolveModelTargets('commit_objects', $targetExpr, $cfg, $context, true, $error);
+        if ($models === null) {
+            return StepRunResult::failed($error);
         }
 
-        $models = $this->normalizeTargets($target);
         $count = 0;
         $logs = [];
 
         foreach ($models as $model) {
-            if (!$model instanceof Model) {
-                continue;
-            }
-
             $saved = $this->saveModel($model, $withEvents);
             if ($saved) {
+                WorkflowModelRefs::remember($context, $model);
                 $count++;
             } else {
                 return StepRunResult::failed('commit_objects: save failed', $logs);
@@ -89,34 +89,6 @@ class CommitObjectsRunner implements StepRunner
         ];
 
         return StepRunResult::success(['committedCount' => $count], $logs);
-    }
-
-    /**
-     * @return array<int, Model>
-     */
-    protected function normalizeTargets(mixed $target): array
-    {
-        if ($target === null) {
-            return [];
-        }
-
-        if ($target instanceof Model) {
-            return [$target];
-        }
-
-        if ($target instanceof Collection) {
-            return $target->all();
-        }
-
-        if ($target instanceof Traversable) {
-            return iterator_to_array($target);
-        }
-
-        if (is_array($target)) {
-            return $target;
-        }
-
-        return [];
     }
 
     protected function saveModel(Model $model, bool $withEvents): bool

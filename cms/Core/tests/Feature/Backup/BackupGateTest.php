@@ -113,3 +113,22 @@ it('throws when every copy failed', function (): void {
         expect($e->getMessage())->toBe(BackupRequiredException::CODE)->and($e->reason())->toBe('BACKUP_ALL_DESTINATIONS_FAILED');
     }
 });
+
+it('accepts a prepared safety backup only when it is stored, of the same reason and recent', function (): void {
+    $gate = ($this->gate)();
+    $backup = $gate->ensure(Backup::REASON_PRE_CORE_UPGRADE, null);
+
+    expect($gate->prepared($backup->uuid, Backup::REASON_PRE_CORE_UPGRADE)?->uuid)->toBe($backup->uuid)
+        ->and($gate->prepared($backup->uuid, Backup::REASON_PRE_INSTALL))->toBeNull()
+        ->and($gate->prepared('00000000-0000-0000-0000-000000000000', Backup::REASON_PRE_CORE_UPGRADE))->toBeNull();
+
+    Backup::query()->whereKey($backup->getKey())->update(['created_at' => now()->subDays(2)]);
+    expect($gate->prepared($backup->uuid, Backup::REASON_PRE_CORE_UPGRADE))->toBeNull();
+
+    Backup::query()->whereKey($backup->getKey())->update(['created_at' => now()]);
+    BackupCopy::query()->where('backup_id', $backup->getKey())->update(['status' => BackupCopy::STATUS_PRUNED]);
+    expect($gate->prepared($backup->uuid, Backup::REASON_PRE_CORE_UPGRADE))->toBeNull();
+
+    $failed = Backup::query()->create(['reason' => Backup::REASON_PRE_CORE_UPGRADE, 'status' => Backup::STATUS_FAILED, 'db_driver' => 'sqlite', 'db_name' => 'x', 'format' => 'sqlite.gz']);
+    expect($gate->prepared($failed->uuid, Backup::REASON_PRE_CORE_UPGRADE))->toBeNull();
+});

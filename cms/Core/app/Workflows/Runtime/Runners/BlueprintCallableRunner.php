@@ -13,6 +13,7 @@ use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
@@ -70,8 +71,23 @@ class BlueprintCallableRunner implements StepRunner
             return StepRunResult::failed('blueprint_callable: callableType must be service|job|command|event');
         }
 
-        if (!is_string($class) || !class_exists($class)) {
+        // Deny by default: only allowlisted callables run (core.workflow_security). Checked on the class name before
+        // it is autoloaded, made or dispatched.
+        if (!is_string($class) || !app(WorkflowCallableGuard::class)->allowsCallable($type, $class, is_string($method) ? $method : null)) {
+            return StepRunResult::failed('blueprint_callable: class not allowed');
+        }
+
+        // Commands may be given by artisan name; the guard already matched them against the registered commands.
+        if ($type !== 'command' && !class_exists($class)) {
             return StepRunResult::failed('blueprint_callable: invalid class');
+        }
+
+        // An async job runs only on an allowlisted queue connection / queue.
+        $execution = is_array($cfg['execution'] ?? null) ? $cfg['execution'] : [];
+        $queue = is_string($execution['queue'] ?? null) ? $execution['queue'] : null;
+        $connection = is_string($execution['connection'] ?? null) ? $execution['connection'] : null;
+        if ($type === 'job' && !app(WorkflowCallableGuard::class)->allowsJobQueue($connection, $queue)) {
+            return StepRunResult::failed('blueprint_callable: queue not allowed');
         }
 
         // Validate storeAs before the callable runs so a bad config never causes the side effect.
@@ -104,20 +120,20 @@ class BlueprintCallableRunner implements StepRunner
                     break;
                 case 'job':
                     [$job, $warnings] = $this->makeJob($class, $argsMapping, $context);
-                    $exec = $cfg['execution']['mode'] ?? 'sync';
+                    $exec = $execution['mode'] ?? 'sync';
                     $mode = $exec === 'async' ? 'async' : 'sync';
                     if ($mode === 'async') {
-                        $dispatch = method_exists($job, 'dispatch') ? [$job, 'dispatch'] : null;
-                        $queuedJob = $dispatch ? $job::dispatch() : Bus::dispatch($job);
-                        if (!empty($cfg['execution']['queue'])) {
-                            $queuedJob?->onQueue($cfg['execution']['queue']);
+                        // Dispatch the job built with the mapped constructor arguments, configured before it is queued.
+                        if ($queue !== null && $queue !== '' && method_exists($job, 'onQueue')) {
+                            $job->onQueue($queue);
                         }
-                        if (!empty($cfg['execution']['connection'])) {
-                            $queuedJob?->onConnection($cfg['execution']['connection']);
+                        if ($connection !== null && $connection !== '' && method_exists($job, 'onConnection')) {
+                            $job->onConnection($connection);
                         }
-                        if (!empty($cfg['execution']['delay'])) {
-                            $queuedJob?->delay($cfg['execution']['delay']);
+                        if (!empty($execution['delay']) && method_exists($job, 'delay')) {
+                            $job->delay($execution['delay']);
                         }
+                        Bus::dispatch($job);
                         $result = ['mode' => 'async', 'queued' => true, 'class' => $class];
                     } else {
                         $syncResult = Bus::dispatchSync($job);
@@ -126,8 +142,16 @@ class BlueprintCallableRunner implements StepRunner
                     $logs[] = ['level' => 'info', 'message' => "job {$mode} dispatched"];
                     break;
                 case 'command':
+                    $guard = app(WorkflowCallableGuard::class);
+                    $commandName = (string) $guard->resolveCommandName($class);
+                    $allowedOptions = $guard->allowedCommandOptions($commandName);
+                    foreach (array_keys(is_array($argsMapping) ? $argsMapping : []) as $option) {
+                        if (!in_array((string) $option, $allowedOptions, true)) {
+                            return StepRunResult::failed("blueprint_callable: command option not allowed: {$option}", $logs);
+                        }
+                    }
                     $args = is_array($argsMapping) ? $this->evaluateArgsMapping($argsMapping, $context) : [];
-                    $exit = Artisan::call($class, $args ?? []);
+                    $exit = Artisan::call($commandName, $args);
                     $output = Artisan::output();
                     $result = ['exit_code' => $exit, 'output' => $output];
                     break;
@@ -178,7 +202,17 @@ class BlueprintCallableRunner implements StepRunner
 
             if ($hasValue) {
                 $expr = $mapping[$name];
-                $args[$name] = $this->engine->evaluate($expr, $context, true);
+                $value = $this->engine->evaluate($expr, $context, true);
+
+                // Expressions only yield model snapshots; an allowlisted callable that declares a model parameter
+                // gets the row back from a reference this run produced (WorkflowModelRefs), never from a forged one.
+                $type = $param->getType();
+                if ($type instanceof \ReflectionNamedType && is_a($type->getName(), \Illuminate\Database\Eloquent\Model::class, true) && is_array($value)) {
+                    [$models] = \Cms\Core\Workflows\Security\WorkflowModelRefs::resolve($context, $value, false);
+                    $value = count($models) === 1 && is_a($models[0], $type->getName()) ? $models[0] : null;
+                }
+
+                $args[$name] = $value;
                 continue;
             }
 
@@ -206,7 +240,8 @@ class BlueprintCallableRunner implements StepRunner
         $ctor = $ref->getConstructor();
         if ($ctor) {
             [$args, $warnings] = $this->resolveArgsForMethod($ctor, $mapping, $context);
-            $job = $ref->newInstanceArgs(array_values($args));
+            // Named arguments: a skipped optional parameter does not shift the ones after it.
+            $job = $ref->newInstanceArgs($args);
             return [$job, $warnings];
         }
         return [new $class(), []];
@@ -236,7 +271,8 @@ class BlueprintCallableRunner implements StepRunner
             return [
                 '__class' => $value::class,
                 '__id' => $value->getKey(),
-                'attributes' => $value->getAttributes(),
+                // attributesToArray() honours $hidden, so hidden fields never reach results or context.
+                'attributes' => $value->attributesToArray(),
             ];
         }
 

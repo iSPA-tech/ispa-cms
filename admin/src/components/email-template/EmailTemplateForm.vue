@@ -6,6 +6,7 @@
                 required
                 name="name"
                 :rules="requiredRules(subjectLabel)"
+                :class="showTechnicalFields ? '' : 'md:col-span-2'"
             >
                 <a-input v-model:value="localForm.name" :placeholder="subjectLabel" />
             </a-form-item>
@@ -21,7 +22,26 @@
                     :placeholder="keyNameLabel"
                 />
             </a-form-item>
-            <a-form-item v-if="showTechnicalFields" :label="bladeLayoutLabel" name="blade_layout">
+            <!-- Mail class (system / business): shown only to screens that pass the choices. -->
+            <a-form-item v-if="mailClassOptions" :label="mailClassLabel" name="mail_class" class="md:col-span-2">
+                <a-radio-group v-model:value="localForm.mail_class" class="!flex flex-col gap-2" data-testid="email-template-mail-class">
+                    <a-radio v-for="option in mailClassOptions" :key="option.value" :value="option.value" :disabled="!!option.disabled" class="!items-start !whitespace-normal">
+                        <span class="block font-medium">{{ option.label }}</span>
+                        <span v-if="option.hint" class="block break-words text-xs text-ink-muted">{{ option.hint }}</span>
+                    </a-radio>
+                </a-radio-group>
+                <template v-if="mailClassHelp" #extra>{{ mailClassHelp }}</template>
+            </a-form-item>
+            <!-- Layout: a pick from the allowed frames when the screen passes them, else the free field of the technical screens. -->
+            <a-form-item v-if="layoutOptions" :label="bladeLayoutLabel" name="blade_layout">
+                <a-select
+                    v-model:value="localForm.blade_layout"
+                    :options="layoutOptions"
+                    :aria-label="bladeLayoutLabel"
+                    data-testid="email-template-layout"
+                />
+            </a-form-item>
+            <a-form-item v-else-if="showTechnicalFields" :label="bladeLayoutLabel" name="blade_layout">
                 <a-input v-model:value="localForm.blade_layout" :placeholder="bladeLayoutLabel" />
             </a-form-item>
             <select-input-language
@@ -98,8 +118,27 @@
                 </div>
             </div>
 
+            <div v-if="variableList" class="md:col-span-2 mb-3 space-y-2" data-testid="email-template-variable-list">
+                <div class="text-sm font-medium">{{ variablesLabel }}</div>
+                <p v-if="variableListHint" class="m-0 break-words text-xs text-ink-muted">{{ variableListHint }}</p>
+                <ul v-if="variableList.length" class="m-0 list-none space-y-1 p-0">
+                    <li v-for="variable in variableList" :key="variable.key" class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
+                        <a-button
+                            size="small"
+                            class="!h-auto !px-1.5 !py-0 font-mono !text-xs"
+                            :title="variableInsertTitle"
+                            data-testid="email-template-variable-insert"
+                            @click="insertVariable(variable.key)"
+                        >
+                            {{ '\{\{' }} {{ variable.key }} {{ '\}\}' }}
+                        </a-button>
+                        <span class="min-w-0 break-words text-ink">{{ variable.description || variable.key }}</span>
+                        <span v-if="variable.sample" class="min-w-0 break-words text-ink-muted">({{ variable.sample }})</span>
+                    </li>
+                </ul>
+            </div>
             <div
-                v-if="!showTechnicalFields"
+                v-else-if="!showTechnicalFields"
                 class="col-span-2 mb-3 pb-2 flex flex-wrap text-xs gap-2"
             >
                 <template
@@ -115,14 +154,16 @@
             </div>
         </div>
 
-        <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-4">
+        <div class="col-span-1 md:col-span-2 grid grid-cols-1 gap-x-4" :class="showPreview ? 'md:grid-cols-2' : ''">
             <a-form-item :label="contentLabel" name="content" :rules="requiredRules(contentLabel)">
-                <a-textarea v-model:value="localForm.content" rows="12" />
+                <div ref="contentBox" @focusin="contentTouched = true">
+                    <a-textarea v-model:value="localForm.content" rows="12" />
+                </div>
                 <template v-if="contentHelp" #help>
                     <SafeHtml :html="contentHelp" />
                 </template>
             </a-form-item>
-            <div>
+            <div v-if="showPreview">
                 <label>{{ previewLabel }}</label>
                 <SafeHtml
                     class="mt-2 p-4 rounded-sm bg-gray-50 border shadow-sm overflow-auto"
@@ -134,7 +175,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import SafeHtml from '@/components/common/SafeHtml.vue'
 
 const props = defineProps({
@@ -155,6 +196,18 @@ const props = defineProps({
     requiredMessage: { type: Function, required: true },
     showTechnicalFields: { type: Boolean, default: true },
     disableKeyName: { type: Boolean, default: false },
+    /** Mail class choices `[{ value, label, hint }]`; the field is shown only when given. */
+    mailClassOptions: { type: Array, default: null },
+    mailClassLabel: { type: String, default: '' },
+    mailClassHelp: { type: String, default: '' },
+    /** Allowed mail frames `[{ value, label }]`; when given, the layout is picked from them instead of typed. */
+    layoutOptions: { type: Array, default: null },
+    /** Variables as the server describes them `[{ key, description, sample }]`; a click inserts one into the content. */
+    variableList: { type: Array, default: null },
+    variableListHint: { type: String, default: '' },
+    variableInsertTitle: { type: String, default: '' },
+    /** The quick preview next to the content; a screen with its own preview turns it off. */
+    showPreview: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['update:modelValue', 'submit'])
@@ -243,6 +296,25 @@ const removeVariable = (index) => {
     const oldKey = (item?.value || '').trim()
     localForm.variables.splice(index, 1)
     removeSampleByKey(oldKey)
+}
+
+/** Put `{{ key }}` where the caret is in the content (at the end when the field was never focused). */
+const contentBox = ref(null)
+const contentTouched = ref(false)
+const insertVariable = (key) => {
+    const token = `{{ ${key} }}`
+    const field = contentBox.value?.querySelector?.('textarea') || null
+    const text = (localForm.content || '').toString()
+    // A field that was never focused has its caret at 0; the token then goes to the end.
+    const placed = !!field && typeof field.selectionStart === 'number' && contentTouched.value
+    const start = placed ? field.selectionStart : text.length
+    const end = placed ? field.selectionEnd : text.length
+    localForm.content = text.slice(0, start) + token + text.slice(end)
+    nextTick(() => {
+        if (!field) return
+        field.focus()
+        field.setSelectionRange(start + token.length, start + token.length)
+    })
 }
 
 const escapeRegExp = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

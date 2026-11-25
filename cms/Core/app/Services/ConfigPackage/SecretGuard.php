@@ -337,6 +337,15 @@ final class SecretGuard
     }
 
     /**
+     * A workflow credential field that holds no secret: a `$bind:<name>` reference to the site's encrypted credential
+     * store (the value never leaves the site; only the name travels in a package).
+     */
+    private function isCredentialReference(mixed $value): bool
+    {
+        return (is_string($value) && preg_match('/^\$bind:[a-z0-9][a-z0-9_.-]{0,63}$/', $value) === 1);
+    }
+
+    /**
      * @param list<string> $paths
      */
     private function walk(mixed $value, string $path, array &$paths): void
@@ -356,7 +365,7 @@ final class SecretGuard
         foreach ($value as $key => $child) {
             $childPath = $path . '.' . $key;
 
-            if (is_string($key) && $this->isSecretKey($key)) {
+            if (is_string($key) && $this->isSecretKey($key) && !$this->isCredentialReference($child)) {
                 $paths[] = $childPath;
 
                 continue;

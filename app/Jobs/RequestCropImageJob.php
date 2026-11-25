@@ -59,7 +59,11 @@ class RequestCropImageJob implements ShouldQueue
                 //  Else return default image path
                 $filePath = public_path('images/default.jpeg');
             }
-            ini_set('memory_limit', '256M');
+            // Raise the limit for the image work, never lower it: the worker process keeps the setting for every later job.
+            $limit = (string) ini_get('memory_limit');
+            if ($limit !== '-1' && ini_parse_quantity($limit) < ini_parse_quantity('256M')) {
+                ini_set('memory_limit', '256M');
+            }
             //  Process to crop image here
             $manager = new ImageManager(new Driver());
             $image = $manager->read($filePath);

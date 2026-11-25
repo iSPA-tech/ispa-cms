@@ -9,9 +9,11 @@ import { markRaw, shallowReactive } from 'vue'
  * - `tasks`: { [toolName]: card meta } task launcher cards ({ icon, titleKey, descKey, module, group, targetEntity });
  * - `artifactTypes`: { [artifactType]: labelKey } readable names of the module's proposal types;
  * - `diffs`: { [artifactType or diff type]: component } the approval diff of the module's artifacts;
- * - `starterTools`: [{ tool, after }] tools placed in the starter tool order right after an existing one.
+ * - `starterTools`: [{ tool, after }] tools placed in the starter tool order right after an existing one;
+ * - `autoApprovedLinks`: { [artifactType]: (approval) => route | null } where an item JEV approved on its own can be
+ *   taken back (the module's own review screen); the inbox shows the link on such rows.
  */
-const state = shallowReactive({ modules: [], tasks: {}, artifactTypes: {}, diffs: {}, starterTools: [] })
+const state = shallowReactive({ modules: [], tasks: {}, artifactTypes: {}, diffs: {}, starterTools: [], autoApprovedLinks: {} })
 
 /**
  * Register what a module adds to the agentic screens (a later registration of the same module key replaces it).
@@ -30,6 +32,7 @@ export function registerAgenticModule(contribution = {}) {
     }
     state.diffs = { ...state.diffs, ...diffs }
     state.starterTools = [...state.starterTools, ...(contribution.starterTools || [])]
+    state.autoApprovedLinks = { ...state.autoApprovedLinks, ...(contribution.autoApprovedLinks || {}) }
 }
 
 /** Registered modules: [{ key, labelKey, aliases, inboxFilter, scope }]. */
@@ -43,6 +46,12 @@ export const agenticArtifactTypeLabelKey = (artifactType) => state.artifactTypes
 
 /** The contributed diff component for an artifact type, else for a diff type, else null (Core's generic diffs). */
 export const agenticDiffComponent = (artifactType, diffType) => state.diffs[artifactType] ?? state.diffs[diffType] ?? null
+
+/** Route to where an automatically approved item of this row's type can be taken back, or null. */
+export function agenticAutoApprovedLink(approval) {
+    const build = state.autoApprovedLinks[approval?.artifact?.artifact_type]
+    return typeof build === 'function' ? build(approval) || null : null
+}
 
 /** Insert the contributed starter tools into a priority list (after their anchor, else at the end). */
 export function withAgenticStarterTools(list) {
@@ -62,4 +71,5 @@ export function resetAgenticRegistry() {
     state.artifactTypes = {}
     state.diffs = {}
     state.starterTools = []
+    state.autoApprovedLinks = {}
 }

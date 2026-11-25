@@ -1030,6 +1030,7 @@
         "kind": "class",
         "constants": {
             "AGENT_APPROVAL": "agent_approvals",
+            "AGENT_APPROVAL_ASSIGNEE": "agent_approval_assignees",
             "AGENT_ARTIFACT": "agent_artifacts",
             "AGENT_MEMORY": "agent_memories",
             "AGENT_POLICY": "agent_policies",
@@ -1527,6 +1528,9 @@
         "methods": {
             "applier": "public function applier(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
             "artifact": "public function artifact(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "assignees": "public function assignees(): Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany",
+            "decider": "public function decider(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "hasAssignmentColumns": "public static function hasAssignmentColumns(): bool",
             "reviewer": "public function reviewer(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
             "run": "public function run(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
         }
@@ -1839,6 +1843,27 @@
             "xl": "public function xl(): Illuminate\\Database\\Eloquent\\Casts\\Attribute"
         }
     },
+    "Cms\\Core\\Models\\Workflows\\WorkflowInstance": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "methods": {
+            "delegatedBy": "public function delegatedBy(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "project": "public function project(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "steps": "public function steps(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "version": "public function version(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
+        }
+    },
     "Cms\\Core\\Models\\Workflows\\WorkflowProject": {
         "kind": "class",
         "extends": "Illuminate\\Database\\Eloquent\\Model",
@@ -1858,7 +1883,11 @@
         },
         "methods": {
             "connections": "public function connections(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
-            "steps": "public function steps(): Illuminate\\Database\\Eloquent\\Relations\\HasMany"
+            "instances": "public function instances(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "publishedVersion": "public function publishedVersion(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "scheduledBy": "public function scheduledBy(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "steps": "public function steps(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
+            "versions": "public function versions(): Illuminate\\Database\\Eloquent\\Relations\\HasMany"
         }
     },
     "Cms\\Core\\Policies\\AbstractModelPolicy": {
@@ -2036,6 +2065,13 @@
             "withInput": "public function withInput(bool $with_input = true): static"
         }
     },
+    "Cms\\Core\\Services\\Agentic\\AgentApprovalDiffBuilder": {
+        "kind": "class",
+        "methods": {
+            "build": "public function build(Cms\\Core\\Models\\Agents\\AgentArtifact $artifact): array",
+            "register": "public function register(string $artifactType, callable $builder): void"
+        }
+    },
     "Cms\\Core\\Services\\Agentic\\Exceptions\\ApprovalStaleException": {
         "kind": "class",
         "extends": "RuntimeException",
@@ -2083,7 +2119,7 @@
         "kind": "final class",
         "methods": {
             "__construct": "public function __construct(Cms\\Core\\Services\\Ai\\AiRuntimeConfigResolver $resolver, ?Cms\\Core\\Services\\Agentic\\AgenticAiProviderFactory $factory = NULL, ?Cms\\Core\\Agents\\Contracts\\AgenticAiProviderInterface $defaultProvider = NULL, ?Cms\\Core\\Services\\Ai\\Usage\\AiGateway $gateway = NULL)",
-            "run": "public function run(string $taskKey, array $payload, ?Cms\\Core\\Agents\\Contracts\\AgenticAiProviderInterface $legacyProvider = NULL): array"
+            "run": "public function run(string $taskKey, array $payload, ?Cms\\Core\\Agents\\Contracts\\AgenticAiProviderInterface $legacyProvider = NULL, ?array $override = NULL): array"
         }
     },
     "Cms\\Core\\Services\\Ai\\JsonSchemaShapeValidator": {
@@ -2164,6 +2200,21 @@
             "resolve": "public function resolve(int $widgetId, int $themeId, string $widgetKey = '', string $themeKey = ''): ?array"
         }
     },
+    "Cms\\Core\\Services\\Workflow\\Presets\\WorkflowPresetCatalog": {
+        "kind": "class",
+        "methods": {
+            "find": "public function find(string $key): ?array",
+            "forKind": "public function forKind(string $kind): array",
+            "kinds": "public static function kinds(): array",
+            "registerModuleConfig": "public static function registerModuleConfig(string $module, string $configKey): void"
+        }
+    },
+    "Cms\\Core\\Services\\Workflow\\Presets\\WorkflowPresetSource": {
+        "kind": "interface",
+        "methods": {
+            "items": "abstract public function items(): array"
+        }
+    },
     "Cms\\Core\\Services\\Workflow\\WorkflowExecutor": {
         "kind": "class",
         "properties": {
@@ -2171,7 +2222,8 @@
         },
         "methods": {
             "__construct": "public function __construct(Cms\\Core\\Models\\Workflows\\WorkflowProject $workflow, Illuminate\\Database\\Eloquent\\Model $target)",
-            "run": "public function run(): void"
+            "run": "public function run(): void",
+            "runGraph": "public function runGraph(Illuminate\\Support\\Collection $steps, Illuminate\\Support\\Collection $connections): void"
         }
     },
     "Cms\\Core\\Traits\\HasUuid": {
@@ -2255,6 +2307,81 @@
             "scopePublished": "public function scopePublished(Illuminate\\Database\\Eloquent\\Builder $query): Illuminate\\Database\\Eloquent\\Builder",
             "scopeWhereStatus": "public function scopeWhereStatus(Illuminate\\Database\\Eloquent\\Builder $query, App\\Enums\\StatusEnum|array|string|null $status): Illuminate\\Database\\Eloquent\\Builder",
             "setStatusAttribute": "public function setStatusAttribute(mixed $value): void"
+        }
+    },
+    "Cms\\Core\\Workflows\\Nodes\\Attributes\\WorkflowNode": {
+        "kind": "final class",
+        "properties": {
+            "approval": "public string $approval",
+            "bindings": "public array $bindings",
+            "defaults": "public array $defaults",
+            "description": "public ?string $description",
+            "dynamic": "public ?string $dynamic",
+            "editor": "public ?string $editor",
+            "group": "public string $group",
+            "icon": "public ?string $icon",
+            "label": "public ?string $label",
+            "outputs": "public array $outputs",
+            "permission": "public ?string $permission",
+            "result": "public ?array $result",
+            "resultType": "public string $resultType",
+            "safety": "public array $safety",
+            "schema": "public array $schema",
+            "taint": "public bool $taint",
+            "taintSink": "public bool $taintSink",
+            "type": "public string $type",
+            "upgrader": "public ?string $upgrader",
+            "version": "public int $version"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $type, int $version = 1, string $group = 'module', array $safety = array ( 0 => 'read',), string $approval = 'off', ?string $permission = NULL, bool $taint = false, ?string $label = NULL, ?string $description = NULL, array $schema = array ( 'type' => 'object',), array $defaults = array (), array $outputs = array ( 0 => 'main',), array $bindings = array (), ?string $upgrader = NULL, ?string $icon = NULL, ?string $editor = NULL, bool $taintSink = true, ?array $result = NULL, string $resultType = 'object', ?string $dynamic = NULL)"
+        }
+    },
+    "Cms\\Core\\Workflows\\Nodes\\NodeRegistry": {
+        "kind": "class",
+        "methods": {
+            "__construct": "public function __construct()",
+            "all": "public function all(): array",
+            "approvalTypes": "public function approvalTypes(): array",
+            "attachModuleRunners": "public function attachModuleRunners(Cms\\Core\\Workflows\\Runtime\\StepRunnerRegistry $runners): void",
+            "current": "public static function current(): self",
+            "definitionRows": "public static function definitionRows(): array",
+            "discover": "public function discover(string $class, ?array &$dropped = NULL): array",
+            "get": "public function get(string $type): ?Cms\\Core\\Workflows\\Nodes\\NodeDefinition",
+            "groups": "public function groups(): array",
+            "has": "public function has(string $type): bool",
+            "isAllowlistedNamespace": "public static function isAllowlistedNamespace(string $class): bool",
+            "registerModuleService": "public static function registerModuleService(string $class): void",
+            "rejected": "public function rejected(): array",
+            "runnerMap": "public static function runnerMap(): array",
+            "types": "public function types(): array"
+        }
+    },
+    "Cms\\Core\\Workflows\\Runtime\\WorkflowContext": {
+        "kind": "class",
+        "constants": {
+            "RUNTIME_KEY": "__runtime"
+        },
+        "methods": {
+            "__construct": "public function __construct(Illuminate\\Database\\Eloquent\\Model $root, array $trigger = array (), array $vars = array (), array $steps = array ())",
+            "fromArray": "public static function fromArray(array $data, Illuminate\\Database\\Eloquent\\Model $root): self",
+            "getRoot": "public function getRoot(): Illuminate\\Database\\Eloquent\\Model",
+            "getStep": "public function getStep(string $stepCode): ?Cms\\Core\\Workflows\\Runtime\\StepState",
+            "getStepResult": "public function getStepResult(string $stepCode, mixed $default = NULL): mixed",
+            "getSteps": "public function getSteps(): array",
+            "getTrigger": "public function getTrigger(): Cms\\Core\\Workflows\\Runtime\\WorkflowTrigger",
+            "getVar": "public function getVar(string $key, mixed $default = NULL): mixed",
+            "getVarPath": "public function getVarPath(string $path, mixed $default = NULL): mixed",
+            "getVars": "public function getVars(): array",
+            "hasVar": "public function hasVar(string $key): bool",
+            "isRuntimePath": "public static function isRuntimePath(string $path): bool",
+            "setRuntime": "public function setRuntime(string $key, mixed $value): void",
+            "setStepResult": "public function setStepResult(string $stepCode, mixed $result, string $status = 'success', array $meta = array ()): void",
+            "setVar": "public function setVar(string $key, mixed $value): void",
+            "setVarPath": "public function setVarPath(string $path, mixed $value): void",
+            "setVars": "public function setVars(array $vars): void",
+            "toArray": "public function toArray(): array",
+            "toJson": "public function toJson(): string"
         }
     }
 }

@@ -10,6 +10,7 @@ use Cms\Core\Http\Requests\Ai\AiRuntimeProvidersRequest;
 use Cms\Core\Http\Requests\Ai\AiRuntimeTasksRequest;
 use Cms\Core\Http\Requests\Ai\AiRuntimeTestRequest;
 use Cms\Core\Responses\AppResponse;
+use Cms\Core\Services\Ai\AiModelChoices;
 use Cms\Core\Services\Ai\AiRuntimeSettingsService;
 use Cms\Core\Services\Ai\AiStructuredExtractionService;
 use Cms\Core\Services\Ai\Usage\AiCallLog;
@@ -27,6 +28,20 @@ final class AiRuntimeController extends AdminController
     public function index(): AppResponse
     {
         return ires()->data($this->settings->overview());
+    }
+
+    /**
+     * Provider + model pairs an AI node or a rewrite may pick (`{value, provider, provider_label, model, price_known}`).
+     * Guarded like the workflow builder's node catalog (`workflow_project.viewAny`), so authors without AI Runtime rights
+     * can use it; never carries an API key or base URI.
+     */
+    public function selectableModels(Request $request, AiModelChoices $choices): AppResponse
+    {
+        if (!$request->user()?->can('workflow_project.viewAny')) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
+        return ires()->data($choices->selectable());
     }
 
     public function updateProviders(AiRuntimeProvidersRequest $request): AppResponse

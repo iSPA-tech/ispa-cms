@@ -92,7 +92,7 @@ class ReasoningStepRunnerTest extends TestCase
             ]));
         $this->app->instance(PostInterface::class, $postRepo);
 
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => ReasoningDummyTarget::class,
             'target_id' => $target->id,
@@ -167,7 +167,7 @@ class ReasoningStepRunnerTest extends TestCase
         $postRepo = Mockery::mock(PostInterface::class);
         $this->app->instance(PostInterface::class, $postRepo);
 
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => ReasoningDummyTarget::class,
             'target_id' => $target->id,
@@ -235,7 +235,7 @@ class ReasoningStepRunnerTest extends TestCase
         $postRepo->shouldReceive('getLatestPosts')->andReturn(collect([]));
         $this->app->instance(PostInterface::class, $postRepo);
 
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => ReasoningDummyTarget::class,
             'target_id' => $target->id,

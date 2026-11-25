@@ -54,7 +54,7 @@ class WorkflowExecutorTest extends TestCase
 
         $this->assertArrayHasKey('class', $workflow->steps->first()->step_config);
 
-        (new WorkflowExecutor($workflow, $target))->run();
+        (new WorkflowExecutor($workflow, $target))->runGraph($workflow->steps, $workflow->connections);
 
         $this->assertGreaterThanOrEqual(1, $this->logger->countLevel('info'));
         $this->assertTrue(
@@ -74,7 +74,7 @@ class WorkflowExecutorTest extends TestCase
 
         $target = $this->makeTarget(1);
 
-        (new WorkflowExecutor($workflow, $target))->run();
+        (new WorkflowExecutor($workflow, $target))->runGraph($workflow->steps, $workflow->connections);
 
         $this->assertTrue($this->logger->hasLevel('debug'));
     }
@@ -95,7 +95,7 @@ class WorkflowExecutorTest extends TestCase
 
         $target = $this->makeTarget(42);
 
-        (new WorkflowExecutor($workflow, $target))->run();
+        (new WorkflowExecutor($workflow, $target))->runGraph($workflow->steps, $workflow->connections);
 
         $this->assertTrue($this->logger->hasLevel('warning'));
     }
@@ -176,7 +176,7 @@ class WorkflowExecutorTest extends TestCase
 
         $this->assertSame([2], $nextIds, 'Decision step should point to yes branch for paid order');
 
-        $executor->run();
+        $executor->runGraph($workflow->steps, $workflow->connections);
 
         $this->assertTrue(
             collect(FakeWorkflowHandler::$calls)->contains(
@@ -249,7 +249,7 @@ class WorkflowExecutorTest extends TestCase
         FakeWorkflowHandler::$calls = [];
         app()->instance(FakeWorkflowHandler::class, new FakeWorkflowHandler());
 
-        (new WorkflowExecutor($workflow, $target))->run();
+        (new WorkflowExecutor($workflow, $target))->runGraph($workflow->steps, $workflow->connections);
 
         $this->assertTrue(
             collect(FakeWorkflowHandler::$calls)->contains(

@@ -34,11 +34,17 @@ class AgentFeedbackNormalizer
      *
      * @param AgentApproval $approval     The rejected approval.
      * @param string|null   $reviewerNote The reviewer's rejection note.
-     * @return AgentMemory|null The created memory entry, or null if note is empty.
+     * @param string|null   $reason       The declared reject reason key the reviewer picked, if any.
+     * @return AgentMemory|null The created memory entry, or null if there is neither note nor reason.
      */
-    public function captureRejectionFeedback(AgentApproval $approval, ?string $reviewerNote): ?AgentMemory
+    public function captureRejectionFeedback(AgentApproval $approval, ?string $reviewerNote, ?string $reason = null): ?AgentMemory
     {
         $note = trim((string) $reviewerNote);
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            // Appended so a prefixed note (`source:`, `style:`, `field:`) keeps its classification.
+            $note = trim($note . ' (reject reason: ' . $reason . ')');
+        }
         if ($note === '') {
             return null;
         }

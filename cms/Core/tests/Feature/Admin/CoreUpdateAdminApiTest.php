@@ -131,6 +131,18 @@ test('GET reports installed, latest, preflight and can_update', function () {
     expect($this->preflight->calls[0])->toBe(['2026.12.0', true]);
 });
 
+test('a site on a legacy pre-CalVer core number is offered the CalVer core upgrade', function () {
+    Sanctum::actingAs(cuUser('cu-web-legacy@test.local', true));
+    // 2026.16.2 predates CalVer (month above 12): it is older than every CalVer release, never newer.
+    $this->upgrader->manifest = new CoreManifest('2026.16.2', '8.1', [], [], '');
+    Cache::put(CoreUpdateChecker::CACHE_KEY, ['version' => '2026.11.07', 'notes_url' => null], 3600);
+
+    $this->getJson($this->url)->assertOk()
+        ->assertJsonPath('data.installed', '2026.16.2')
+        ->assertJsonPath('data.latest', '2026.11.07')
+        ->assertJsonPath('data.can_update', true);
+});
+
 test('GET cannot update when preflight fails, nothing newer, or an upgrade runs', function () {
     Sanctum::actingAs(cuUser('cu-web2@test.local', true));
 
@@ -454,7 +466,33 @@ test('GET reports runner_setup.base', function () {
         ->assertJsonPath('data.runner_setup.root_owner', false);
 });
 
+test('GET reports the web server account for the one-line owner fix', function () {
+    Sanctum::actingAs(cuUser('cu-web-user@test.local', true));
+
+    $expected = posix_geteuid() === 0 ? null : posix_getpwuid(posix_geteuid())['name'];
+    $this->getJson($this->url)->assertOk()->assertJsonPath('data.web_user', $expected);
+});
+
 test('a code owner of root is marked in the runner setup', function () {
     expect(CoreUpgradeRequests::setupFor('/srv/site', 0))->toMatchArray(['user' => 'root', 'base' => '/srv/site', 'root_owner' => true])
         ->and(CoreUpgradeRequests::setupFor('/srv/site', posix_geteuid())['root_owner'])->toBeFalse();
+});
+
+test('POST starts the safety backup at once, so an upgrade needs no cron, and tightens a group-writable code folder', function () {
+    if (posix_geteuid() === 0) {
+        $this->markTestSkipped('root never runs the upgrade');
+    }
+    file_put_contents($this->base.'/artisan', '<?php');
+    $spawned = [];
+    $this->app->instance(\Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher::class, new \Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher($this->base, function (array $command) use (&$spawned): void {
+        $spawned[] = $command;
+    }));
+    Sanctum::actingAs(cuUser('cu-web-start@test.local', true));
+
+    $this->postJson($this->url, ['version' => '2026.12.0', 'confirm_backup' => true])->assertStatus(202);
+
+    $backup = array_values(array_filter($spawned, static fn (array $c): bool => in_array(\Cms\Core\Console\Commands\CoreUpgradeBackupCommand::NAME, $c, true)));
+    clearstatcache();
+    expect($backup)->toHaveCount(1)
+        ->and(fileperms($this->base) & 0777)->toBe(0755);
 });

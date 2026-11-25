@@ -7,8 +7,10 @@
 
 import {
     AgenticAdminConfig,
-    AgenticApprovalDetail,
     AgenticApprovalInbox,
+    AgenticApprovalPage,
+    AgenticApprovalSla,
+    ApprovalsShell,
     AgenticDashboard,
     Category,
     CategoryManage,
@@ -36,6 +38,7 @@ import {
     SettingContact,
     SettingDashboard,
     SettingEmail,
+    SettingEmailTemplates,
     SettingEnumerate,
     SettingEnumerateType,
     SettingHomepage,
@@ -47,6 +50,10 @@ import {
     SettingModules,
     SettingWorkflow,
     SettingWorkflowManage,
+    SettingWorkflowLibrary,
+    SettingWorkflowPackageImport,
+    SettingWorkflowSetup,
+    SettingWorkflowCredentials,
     SettingSocial,
     SettingUpload,
     User,
@@ -233,6 +240,28 @@ export const coreCategoryRouteConfig = {
  * owns it, so it carries no catalog module and stays open with the Widget module off. `widget-library` takes its rule
  * from the menu entry (`navigation-config.js`); the design editor has no menu entry, so it names its rule itself.
  */
+/** Who may open the approvals: the reviewers and everyone who may see the agentic screens. */
+export const APPROVALS_RULE = ['agentic.approve', 'agentic.viewAny']
+
+/**
+ * Approvals waiting for a person ("Chờ duyệt"): a top-level group, so the list is one click from the sidebar. The list
+ * and the detail are the agentic approval screens; `setting/automation/agentic/approvals[/:id]` redirect here.
+ */
+export const coreApprovalsRouteConfig = {
+    text: 'nav.a.approvals',
+    path: 'approvals',
+    load: ApprovalsShell,
+    group: 'approvals',
+    name: 'approvals-group',
+    // The rule sits on each page: the shell does not pass a group rule down to the pages of an extra Core group.
+    children: [
+        { text: 'nav.a.approvals', path: '', name: 'approvals', load: AgenticApprovalInbox, meta: { rule: APPROVALS_RULE } },
+        { text: 'nav.a.approvals', path: ':id(\\d+)', name: 'approval-detail', load: AgenticApprovalPage, meta: { rule: APPROVALS_RULE } },
+        // How fast the assigned reviewers answer; opened from the list header.
+        { text: 'text.agentic.sla.summary_title', path: 'sla', name: 'approvals-sla', load: AgenticApprovalSla, meta: { rule: APPROVALS_RULE } },
+    ],
+}
+
 export const coreWidgetLibraryRouteConfig = {
     text: 'nav.a.widget-library',
     path: 'widget-library',
@@ -297,6 +326,14 @@ export const coreSettingRouteContributions = [
             { text: 'nav.a.setting-contact', path: 'contact', name: 'setting-contact', load: SettingContact },
             { text: 'nav.a.setting-social', path: 'social', name: 'setting-social', load: SettingSocial },
             { text: 'nav.a.setting-email', path: 'email', name: 'setting-email', load: SettingEmail },
+            // Managed e-mail templates (subject, content, mail class, preview); the menu entry is in the shell's category list.
+            {
+                text: 'nav.a.email_templates',
+                path: 'email-templates',
+                name: 'setting-email-templates',
+                load: SettingEmailTemplates,
+                meta: { rule: 'email_template.viewAny' },
+            },
             { text: 'nav.a.setting-homepage', path: 'homepage', name: 'setting-homepage', load: SettingHomepage },
             { text: 'nav.a.setting-ads', path: 'ads', name: 'setting-ads', load: SettingAds },
         ],
@@ -397,7 +434,38 @@ export const coreSettingRouteContributions = [
                 load: SettingWorkflow,
                 children: [
                     { text: 'nav.a.manage', path: 'manage', name: 'setting-workflows-manage', load: SettingWorkflowManage },
+                    // Sample workflows from the iSPA hub: what each one does and may do, then install (always switched off).
+                    {
+                        text: 'text.workflow.library.title',
+                        path: 'library',
+                        name: 'setting-workflows-library',
+                        load: SettingWorkflowLibrary,
+                        meta: { rule: 'workflow_project.viewAny' },
+                    },
+                    // Review and install a workflow package from another site (always installed switched off).
+                    {
+                        text: 'text.workflow.package.title',
+                        path: 'import',
+                        name: 'setting-workflows-import',
+                        load: SettingWorkflowPackageImport,
+                        meta: { rule: 'workflow_project.create' },
+                    },
+                    // The few choices a site makes after installing a sample workflow; `project` is its id or its slug.
+                    {
+                        text: 'text.workflow.setup.nav',
+                        path: 'setup/:project',
+                        name: 'setting-workflows-setup',
+                        load: SettingWorkflowSetup,
+                        meta: { rule: 'workflow_project.viewAny' },
+                    },
                 ],
+            },
+            {
+                text: 'text.workflow_credential.title',
+                path: 'workflow-credentials',
+                name: 'setting-workflow-credentials',
+                load: SettingWorkflowCredentials,
+                meta: { rule: 'workflow_credential.manage' },
             },
             { text: 'text.agentic.cms', path: 'agentic', name: 'setting-agentic', load: AgenticDashboard },
             {
@@ -407,8 +475,20 @@ export const coreSettingRouteContributions = [
                 load: SettingAiRuntime,
                 meta: { settingWide: true },
             },
-            { path: 'agentic/approvals', name: 'setting-agentic-approvals', load: AgenticApprovalInbox },
-            { path: 'agentic/approvals/:id', name: 'setting-agentic-approval-detail', load: AgenticApprovalDetail },
+            // The approvals moved to the sidebar ("Chờ duyệt"); the old addresses and route names keep working.
+            {
+                path: 'agentic/approvals',
+                name: 'setting-agentic-approvals',
+                redirect: (to) =>
+                    /^\d+$/.test(String(to.query?.approval ?? ''))
+                        ? { name: 'approval-detail', params: { id: String(to.query.approval) } }
+                        : { name: 'approvals', query: to.query },
+            },
+            {
+                path: 'agentic/approvals/:id',
+                name: 'setting-agentic-approval-detail',
+                redirect: (to) => ({ name: 'approval-detail', params: { id: to.params.id } }),
+            },
             { path: 'agentic/admin', name: 'setting-agentic-admin', load: AgenticAdminConfig },
         ],
         navigation: [],

@@ -24,7 +24,7 @@ class WorkflowExpressionEngineTest extends TestCase
         $this->assertSame('bar', $engine->evaluate('vars.foo', $ctx));
     }
 
-    public function test_access_nested_relation_and_steps(): void
+    public function test_relations_are_not_reachable_but_steps_are(): void
     {
         $customer = $this->makeCustomer(10, ['name' => 'Alice']);
         $root = $this->makeOrder(1);
@@ -37,7 +37,9 @@ class WorkflowExpressionEngineTest extends TestCase
         $ctx = new WorkflowContext($root, ['event' => 'order.created'], [], $steps);
         $engine = new WorkflowExpressionEngine();
 
-        $this->assertSame('Alice', $engine->evaluate('root.customer.name', $ctx));
+        // Models are snapshots without relations (review 2026-11-24 finding 1), even an eager-loaded one.
+        $this->assertNull($engine->evaluate('root.customer.name', $ctx));
+        $this->assertNull($engine->evaluate('root.customer', $ctx));
         $this->assertSame('abc123', $engine->evaluate('steps.sendDiscord.result.message_id', $ctx));
     }
 

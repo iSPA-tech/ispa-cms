@@ -46,7 +46,7 @@ describe('AgenticSubNav', () => {
         // Verify link targets
         const targets = links.map((l) => JSON.parse(l.attributes('data-to') || '{}'))
         expect(targets[0].name).toBe('setting-agentic')
-        expect(targets[1].name).toBe('setting-agentic-approvals')
+        expect(targets[1].name).toBe('approvals')
         expect(targets[2].name).toBe('setting-agentic-admin')
     })
 

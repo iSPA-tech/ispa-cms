@@ -19,7 +19,7 @@
             >
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0 space-y-1">
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <span class="font-medium text-gray-800 truncate">
                                 {{ workflow.name }}
                             </span>
@@ -36,21 +36,52 @@
                             >
                                 {{ activationState[workflow.id] ? t('text.workflow.list.active') : t('text.workflow.list.inactive') }}
                             </a-tag>
+                            <!-- Guardrails: paused, never published, draft ahead of what runs, changes waiting. -->
+                            <a-tag v-if="pausedInfo(workflow)" :color="pausedInfo(workflow).kind === 'integrity' ? 'red' : 'orange'" data-testid="list-paused">
+                                {{ t('text.workflow.guard.paused.tag') }}
+                            </a-tag>
+                            <template v-if="versionState(workflow).known">
+                                <a-tag v-if="!versionState(workflow).published" data-testid="list-never-published">
+                                    {{ t('text.workflow.guard.draft.never_published_tag') }}
+                                </a-tag>
+                                <a-tag v-else-if="versionState(workflow).draftDiffers" color="gold" data-testid="list-draft-differs">
+                                    {{ t('text.workflow.guard.draft.differs') }}
+                                </a-tag>
+                            </template>
+                            <a-tag
+                                v-if="setupCounts[workflow.id] > 0"
+                                color="gold"
+                                class="cursor-pointer"
+                                role="link"
+                                tabindex="0"
+                                data-testid="list-needs-setup"
+                                @click.stop="$emit('setup', workflow)"
+                                @keydown.enter.stop="$emit('setup', workflow)"
+                            >
+                                {{ t('text.workflow.setup.list_badge', { count: setupCounts[workflow.id] }) }}
+                            </a-tag>
+                            <a-tag v-if="versionState(workflow).pending" color="orange" data-testid="list-pending">
+                                {{ t('text.workflow.guard.pending.count_tag', { count: versionState(workflow).pending }) }}
+                            </a-tag>
                         </div>
+                        <p v-if="pausedInfo(workflow)" class="m-0 text-xs text-amber-700" data-testid="list-paused-reason">
+                            {{ t(pausedInfo(workflow).reasonKey) }}
+                        </p>
                         <p class="text-xs text-gray-500 line-clamp-2">
                             {{ workflow.description || t('text.workflow.list.no_description') }}
                         </p>
                     </div>
                     <div class="flex items-center gap-1">
-                        <a-switch
-                            v-if="canUpdate"
-                            v-model:checked="activationState[workflow.id]"
-                            size="small"
-                            :disabled="workflow.system_managed"
-                            :loading="togglingId === workflow.id"
-                            @change="(value) => $emit('toggle-active', workflow, value)"
-                            @click.stop
-                        />
+                        <!-- The switch hands its click handler the new state, not the event: the card click is stopped one level up. -->
+                        <span v-if="canUpdate" class="inline-flex" @click.stop>
+                            <a-switch
+                                v-model:checked="activationState[workflow.id]"
+                                size="small"
+                                :disabled="workflow.system_managed"
+                                :loading="togglingId === workflow.id"
+                                @change="(value) => $emit('toggle-active', workflow, value)"
+                            />
+                        </span>
                         <a-tooltip>
                             <template #title>{{ workflow.system_managed ? t('text.workflow.list.managed_tooltip') : t('text.workflow.list.design_tooltip') }}</template>
                             <a-button
@@ -59,6 +90,18 @@
                                 :disabled="workflow.system_managed"
                                 :icon="h(BranchesOutlined)"
                                 @click.stop="$emit('open-builder', workflow)"
+                            />
+                        </a-tooltip>
+                        <a-tooltip v-if="canExport">
+                            <template #title>{{ t('text.workflow.package.export_action') }}</template>
+                            <a-button
+                                size="small"
+                                type="text"
+                                :aria-label="t('text.workflow.package.export_action')"
+                                :icon="h(DownloadOutlined)"
+                                :loading="exportingSlug === workflow.slug"
+                                data-testid="workflow-export"
+                                @click.stop="$emit('export', workflow)"
                             />
                         </a-tooltip>
                         <a-tooltip v-if="canUpdate">
@@ -132,9 +175,10 @@
 
 <script setup>
 import dayjs from 'dayjs'
-import { BranchesOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { BranchesOutlined, DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
 import { h } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { pausedInfo, versionState } from '../../../../workflow-guard-report'
 
 defineOptions({
     name: 'WorkflowList',
@@ -155,6 +199,11 @@ defineProps({
         type: Object,
         default: () => ({}),
     },
+    /** `{ [workflowId]: n }`: choices the site still has to make for a workflow (the setup screen). */
+    setupCounts: {
+        type: Object,
+        default: () => ({}),
+    },
     togglingId: {
         type: [Number, String],
         default: null,
@@ -171,13 +220,21 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    canExport: {
+        type: Boolean,
+        default: false,
+    },
+    exportingSlug: {
+        type: String,
+        default: null,
+    },
     deletingId: {
         type: [Number, String],
         default: null,
     },
 })
 
-defineEmits(['select', 'toggle-active', 'open-builder', 'edit', 'delete'])
+defineEmits(['select', 'toggle-active', 'open-builder', 'edit', 'delete', 'export', 'setup'])
 
 const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '—')
 </script>

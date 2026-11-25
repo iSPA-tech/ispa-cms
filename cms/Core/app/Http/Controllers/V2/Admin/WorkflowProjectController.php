@@ -16,6 +16,12 @@ use Cms\Core\Services\BlueprintDiscoveryService;
 use Cms\Core\Constants\CoreTableConstant as Tables;
 use Cms\Core\Http\Controllers\AdminController;
 use Cms\Core\Workflows\Blueprint\BlueprintNormalizer;
+use Cms\Core\Services\Workflow\Exceptions\WorkflowProjectNotPublished;
+use Cms\Core\Models\Workflows\WorkflowVersion;
+use Cms\Core\Services\Workflow\Guard\WorkflowChangeAlerter;
+use Cms\Core\Services\Workflow\Versioning\WorkflowPublishPolicy;
+use Cms\Core\Services\Workflow\Versioning\WorkflowPublishService;
+use Cms\Core\Workflows\Runtime\StepTypeCatalog;
 use Cms\Core\Interfaces\WorkflowProjectInterface;
 use Cms\Core\Http\Requests\WorkflowProject\StoreWorkflowProjectRequest;
 use Cms\Core\Http\Requests\WorkflowProject\UpdateWorkflowProjectRequest;
@@ -67,6 +73,11 @@ class WorkflowProjectController extends AdminController
      */
     public function functionList(BlueprintNormalizer $normalizer)
     {
+        // Review fix 36: the list names the site's services and jobs; only workflow users see it.
+        if (!user()?->can($this->rulePrefix . '.viewAny')) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
         $data = (new BlueprintDiscoveryService())->scan();
         if (request()->boolean('compact')) {
             $data = $normalizer->normalize($data, true);
@@ -183,7 +194,39 @@ class WorkflowProjectController extends AdminController
             ];
         })->filter()->values()->toArray();
 
+        $this->attachGuardState($project);
+
         return $project;
+    }
+
+    /**
+     * Guardrail fields of a project row (B1/B3/B7/B8): published version, whether the draft differs from it, pause
+     * state, waiting sensitive versions and what the caller may do.
+     */
+    protected function attachGuardState($project): void
+    {
+        $user = user();
+        $project->can_publish = false;
+        $project->can_run = false;
+        $project->pending_versions = 0;
+        $project->draft_differs = true;
+        if (!Schema::hasTable((new WorkflowVersion())->getTable())) {
+            return; // a schema without versions (minimal test schemas)
+        }
+
+        $project->can_publish = (bool) $user?->can(WorkflowPublishService::PUBLISH_ABILITY, $project);
+        $project->can_run = (bool) $user?->can('run', $project);
+
+        $publishedId = (int) ($project->published_version_id ?? 0);
+        $project->published_version_id = $publishedId > 0 ? $publishedId : null;
+        $project->published_version_number = $publishedId > 0
+            ? WorkflowVersion::query()->whereKey($publishedId)->value('number')
+            : null;
+        $project->draft_differs = (bool) app(WorkflowPublishService::class)->draftStatus($project)['differs'];
+        $project->paused_reason = $project->getAttribute('paused_reason');
+        $project->paused_at = $project->getAttribute('paused_at');
+        $project->pending_versions = WorkflowVersion::query()->where('project_id', $project->getKey())
+            ->whereIn('status', WorkflowPublishService::WAITING_STATUSES)->count();
     }
 
     protected function resolveNodeType($step): string
@@ -213,9 +256,15 @@ class WorkflowProjectController extends AdminController
             return ires()->error()->message(__('mgs.no.permission'));
         }
 
+        if ($invalid = $this->validateGraph()) {
+            return $invalid;
+        }
+
         DB::beginTransaction();
         try {
             $model = $this->fill();
+            // A new workflow is a draft: it can be turned on only after a version is published (B1).
+            $model->is_active = false;
 
             $model->save();
             $this->syncGraph($model);
@@ -419,26 +468,116 @@ class WorkflowProjectController extends AdminController
         return $condition;
     }
 
+    /**
+     * Refuse a graph payload before anything is written: a node whose `step_type` no runner or legacy value knows
+     * (422 listing the step codes), a step that calls a class or model the workflow allowlist refuses
+     * (core.workflow_security, the same message the runner gives at run time), or a node the catalog refuses
+     * (NodeConfigValidator: schema, `_v`, node permission, taint/approval lint; ApprovalAssignment: unknown assignee
+     * uuids, an unreadable `sla`) or an approval step switched to auto-publish before its JEV calibration is ready
+     * (`auto_approval_not_ready`). Every problem is reported at once:
+     * `message` joins them with `; ` and `data.errors` lists `{step_code, code, message}`.
+     *
+     * @return mixed|null Error response, or null when the graph may be saved.
+     */
+    protected function validateGraph(mixed $project = null)
+    {
+        if (!request()->has('nodes')) {
+            return null;
+        }
+
+        $nodes = request()->input('nodes', []);
+        if (!is_array($nodes)) {
+            return ires()->error()->code(422)->message('nodes must be a list.');
+        }
+
+        $problems = app(WorkflowPublishPolicy::class)->draftProblems($this->requestGraph($nodes), user(), $project instanceof \Cms\Core\Models\Workflows\WorkflowProject ? $project : null);
+        if ($problems === []) {
+            return null;
+        }
+
+        $unknown = array_column(array_filter($problems, static fn (array $p): bool => $p['code'] === 'unknown_type'), 'step_code');
+        $messages = $unknown !== [] ? ['Unknown step type for steps: ' . implode(', ', $unknown) . '.'] : [];
+        foreach ($problems as $problem) {
+            if ($problem['code'] !== 'unknown_type') {
+                $messages[] = $problem['message'];
+            }
+        }
+
+        return ires()->error()->code(422)
+            ->data(['errors' => $problems])
+            ->message(implode('; ', $messages));
+    }
+
+    /**
+     * The request's nodes/edges in the policy's graph shape (step codes; the step type a save would store, or the
+     * type the UI sent when it is not a storable one, so the policy reports it).
+     *
+     * @param array<int|string, mixed> $nodes
+     * @return array{steps: list<array<string, mixed>>, connections: list<array{from: string, to: string}>}
+     */
+    protected function requestGraph(array $nodes): array
+    {
+        $steps = [];
+        foreach ($nodes as $node) {
+            $node = is_array($node) ? $node : [];
+            $data = is_array($node['data'] ?? null) ? $node['data'] : [];
+            $stepCode = $data['step_code'] ?? $node['id'] ?? null;
+            if (!$stepCode) {
+                continue;
+            }
+
+            $sentType = $data['step_type'] ?? null;
+            $nodeType = $node['type'] ?? ($data['node_type'] ?? 'custom');
+            $config = $data['step_config'] ?? ($data['config'] ?? []);
+
+            $steps[] = [
+                'step_code' => (string) $stepCode,
+                'step_type' => $sentType !== null ? $sentType : $this->mapNodeTypeToStepType(is_string($nodeType) ? $nodeType : 'custom', null),
+                'step_config' => is_array($config) ? $config : [],
+                'is_start' => ($nodeType === 'input') || (bool) ($data['is_start'] ?? false),
+            ];
+        }
+
+        return ['steps' => $steps, 'connections' => $this->graphEdgesForLint()];
+    }
+
+    /**
+     * Edges of the request graph as step codes (`[{from, to}]`) for the taint lint.
+     *
+     * @return list<array{from: string, to: string}>
+     */
+    protected function graphEdgesForLint(): array
+    {
+        $nodes = request()->input('nodes', []);
+        $edges = request()->input('edges', []);
+        if (!is_array($nodes) || !is_array($edges)) {
+            return [];
+        }
+
+        $idToCode = [];
+        foreach ($nodes as $node) {
+            if (is_array($node) && is_scalar($node['id'] ?? null)) {
+                $idToCode[(string) $node['id']] = (string) ($node['data']['step_code'] ?? $node['id']);
+            }
+        }
+
+        $result = [];
+        foreach ($edges as $edge) {
+            $from = is_array($edge) && is_scalar($edge['source'] ?? null) ? (string) $edge['source'] : null;
+            $to = is_array($edge) && is_scalar($edge['target'] ?? null) ? (string) $edge['target'] : null;
+            if ($from !== null && $to !== null) {
+                // The output handle decides whether an approval guards the edge (WorkflowPublishPolicy::edges()).
+                $result[] = ['from' => $idToCode[$from] ?? $from, 'to' => $idToCode[$to] ?? $to, 'condition' => $this->normalizeEdgeConditionPayload($edge)];
+            }
+        }
+
+        return $result;
+    }
+
     protected function mapNodeTypeToStepType(string $nodeType, ?string $fallback): string
     {
-        $allowed = [
-            'event',
-            'job',
-            'call_workflow',
-            'decision',
-            'webhook',
-            'ai_action',
-            'script',
-            'set_variable',
-            'delay',
-            'schedule_at',
-            'approval',
-            'loop',
-            'parallel',
-        ];
-
-        // If UI sent a valid step_type, respect it
-        if ($fallback && in_array($fallback, $allowed, true)) {
+        // If the UI sent a step type a runner (or a legacy value) knows, keep it as is.
+        if ($fallback && StepTypeCatalog::isStorable($fallback)) {
             return $fallback;
         }
 
@@ -533,6 +672,20 @@ class WorkflowProjectController extends AdminController
             return $guardResponse;
         }
 
+        if ($invalid = $this->validateGraph($model)) {
+            return $invalid;
+        }
+
+        // Turning a workflow on needs a published version: runs never execute the draft (B1).
+        $wasActive = (bool) $model->is_active;
+        if (request()->boolean('is_active') && !$wasActive) {
+            try {
+                app(WorkflowPublishService::class)->assertCanActivate($model);
+            } catch (WorkflowProjectNotPublished $e) {
+                return ires()->error()->code(422)->errorCode(WorkflowPublishService::NOT_PUBLISHED_CODE)->message($e->getMessage());
+            }
+        }
+
         DB::beginTransaction();
         try {
             $model = $this->fill($model);
@@ -557,6 +710,14 @@ class WorkflowProjectController extends AdminController
             return ires()->error()->message($e->getMessage());
         }
         DB::commit();
+
+        if ((bool) $model->is_active !== $wasActive) {
+            try {
+                app(WorkflowChangeAlerter::class)->notify('activation_changed', $model, ['active' => (bool) $model->is_active], user());
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return ires()
             ->data($this->attachGraph($model))

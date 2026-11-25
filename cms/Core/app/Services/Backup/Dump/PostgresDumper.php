@@ -65,7 +65,7 @@ class PostgresDumper implements DatabaseDumper
                 throw new \RuntimeException('BACKUP_DUMP_FAILED: pg_dump exited with ' . $dump['exitCode']
                     . ': ' . DumpProcessRunner::redact($dump['stderr'], $password));
             }
-            chmod($targetFile, 0600);
+            chmod($targetFile, 0660);
 
             $list = '';
             $restore = $this->runner->run(

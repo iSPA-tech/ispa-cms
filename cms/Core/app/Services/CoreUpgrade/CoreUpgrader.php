@@ -2,6 +2,7 @@
 
 namespace Cms\Core\Services\CoreUpgrade;
 
+use Cms\Core\Services\Modules\Install\ModuleVersionConstraint;
 use App\Support\Modules\RuntimePrecedence;
 use Cms\Core\Events\AuditLogEvent;
 use Cms\Core\Models\BackgroundTask;
@@ -46,6 +47,9 @@ class CoreUpgrader
     /** @var list<string> Non-fatal warnings of the last run() */
     private array $warnings = [];
 
+    /** Safety backup the web side took for the next run() ({@see self::usePreparedBackup()}); used once. */
+    private ?string $preparedBackupUuid = null;
+
     /** Runner-only folder under the base that holds staging, backups and the upgrade state. */
     public const RUNNER_DIR = '.ispa-runner';
 
@@ -78,6 +82,16 @@ class CoreUpgrader
     public function basePath(): string
     {
         return $this->base;
+    }
+
+    /**
+     * Use the safety backup the web side took for this request (`cms:core-upgrade-backup`) instead of taking one in
+     * run(). The runner is the code owner and may not reach the web user's backup folders; the web user always can.
+     * run() still checks the backup ({@see BackupGate::prepared()}) and takes its own when it does not qualify.
+     */
+    public function usePreparedBackup(?string $uuid): void
+    {
+        $this->preparedBackupUuid = $uuid;
     }
 
     /**
@@ -144,15 +158,25 @@ class CoreUpgrader
             $this->assertCodeDir();
             $this->progress($task, 3, 'Checking the site.');
             $this->assertPreflight($this->preflightService()->check($installed, $targetVersion, false, $overwriteModified, null, null, $extraPhpVersions));
-            if (version_compare($targetVersion, $installed->version, '<=')) {
+            if (ModuleVersionConstraint::compare($targetVersion, $installed->version) <= 0) {
                 throw new CoreUpgradeException('CORE_NOT_NEWER', "Version {$targetVersion} is not newer than the installed {$installed->version}.");
             }
 
-            $this->progress($task, 8, 'Taking a safety backup of the database.');
-            try {
-                $backupUuid = (string) $this->backupGate()->ensure(Backup::REASON_PRE_CORE_UPGRADE, $userId)->uuid;
-            } catch (BackupRequiredException $e) {
-                throw new CoreUpgradeException('CORE_BACKUP_FAILED', 'The database backup failed, so nothing was changed.');
+            $prepared = $this->preparedBackupUuid !== null
+                ? $this->backupGate()->prepared($this->preparedBackupUuid, Backup::REASON_PRE_CORE_UPGRADE)
+                : null;
+            $this->preparedBackupUuid = null;
+            if ($prepared !== null) {
+                $this->progress($task, 8, 'Using the safety backup of the database the site took.');
+                $backupUuid = (string) $prepared->uuid;
+            } else {
+                $this->progress($task, 8, 'Taking a safety backup of the database.');
+                $this->assertBackupWritable();
+                try {
+                    $backupUuid = (string) $this->backupGate()->ensure(Backup::REASON_PRE_CORE_UPGRADE, $userId)->uuid;
+                } catch (BackupRequiredException $e) {
+                    throw new CoreUpgradeException('CORE_BACKUP_FAILED', 'The database backup failed, so nothing was changed.');
+                }
             }
 
             $this->progress($task, 20, 'Downloading and verifying the core package.');
@@ -337,7 +361,7 @@ class CoreUpgrader
                 continue;
             }
             $shipped = $this->readJson($tree.'/cms/'.$name.'/module.json')['version'] ?? null;
-            if (is_string($shipped) && version_compare($shipped, (string) $decision['runtime_version'], '>=')) {
+            if (is_string($shipped) && ModuleVersionConstraint::compare($shipped, (string) $decision['runtime_version']) >= 0) {
                 continue;
             }
             if ($shippedList !== null && ! in_array($name, $shippedList, true)) {
@@ -935,6 +959,36 @@ class CoreUpgrader
     private function backupGate(): BackupGate
     {
         return $this->backupGate ?? app(BackupGate::class);
+    }
+
+    /**
+     * Refuse before the backup when this process cannot write the backup folders (the staging folder and the
+     * built-in local destination): with the code owner as runner and the web user owning storage/, that happens when
+     * the ACLs from INSTALL.md are missing. The message names the fix; nothing has changed yet.
+     *
+     * @throws CoreUpgradeException CORE_BACKUP_FAILED
+     */
+    private function assertBackupWritable(): void
+    {
+        $blocked = [];
+        foreach ([(string) config('core.backup.staging_path'), (string) config('core.backup.local_root')] as $dir) {
+            if ($dir === '') {
+                continue;
+            }
+            $probe = $dir;
+            while (! file_exists($probe) && dirname($probe) !== $probe) {
+                $probe = dirname($probe);
+            }
+            if (! is_dir($probe) || ! is_writable($probe)) {
+                $blocked[] = $dir;
+            }
+        }
+        if ($blocked !== []) {
+            $user = function_exists('posix_getpwuid') && function_exists('posix_geteuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? 'the code owner') : 'the code owner';
+            throw new CoreUpgradeException('CORE_BACKUP_FAILED', 'The upgrade cannot write the backup folders ('.implode(', ', $blocked).') as '.$user.', so nothing was changed. '
+                .'Give the web server user and the code owner access to storage/ (INSTALL.md, upgrade runner: setfacl -R -m u:'.$user.':rwX storage; setfacl -R -d -m u:'.$user.':rwX storage), '
+                .'or start the upgrade from the admin, where the site takes the backup itself.');
+        }
     }
 
     private function runner(): ProcessRunner

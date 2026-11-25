@@ -8,6 +8,7 @@
 
 namespace Cms\Core\Workflows\Expression;
 
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -16,7 +17,8 @@ use Illuminate\Support\Collection;
  * Resolves values from nested data structures using dot-notation and bracket paths.
  *
  * Supports arrays, ArrayAccess objects, Eloquent models, Collections, and generic objects,
- * enabling safe traversal of deeply nested workflow context data.
+ * enabling safe traversal of deeply nested workflow context data. A model is read only through its visible
+ * attributes ({@see WorkflowModelRefs::attributes()}): no hidden attribute, encrypted cast or relation.
  *
  * @package Cms\Core\Workflows\Expression
  * @author  iSPA Team
@@ -117,6 +119,11 @@ class DotPathAccessor
             return $value[$segment] ?? null;
         }
 
+        // Before ArrayAccess: a model's offsetGet() would read hidden attributes and load relations.
+        if ($value instanceof Model) {
+            return WorkflowModelRefs::attributes($value)[$segment] ?? null;
+        }
+
         if ($value instanceof \ArrayAccess) {
             return $value->offsetExists($segment) ? $value[$segment] : null;
         }
@@ -127,10 +134,6 @@ class DotPathAccessor
             }
             $index = is_numeric($segment) ? (int) $segment : $segment;
             return $value[$index] ?? null;
-        }
-
-        if ($value instanceof Model) {
-            return $value->getAttribute($segment);
         }
 
         if (is_object($value)) {

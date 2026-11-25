@@ -636,7 +636,7 @@ class ModuleInstaller
 
         $handover = $this->isHandover($name);
         $releaseVersion = $handover ? $this->folderVersion($this->releasePath() . '/' . $name) : null;
-        if ($handover && ($releaseVersion === null || version_compare($manifest->version, $releaseVersion) <= 0)) {
+        if ($handover && ($releaseVersion === null || ModuleVersionConstraint::compare($manifest->version, $releaseVersion) <= 0)) {
             throw new PackageVerificationException(InstallPreflight::DOWNGRADE, 'package is not newer than the release copy');
         }
         if ($handover && @lstat($link) === false) {
@@ -649,7 +649,7 @@ class ModuleInstaller
         if ($oldVersion === null) {
             throw new PackageVerificationException(self::ERROR_UPGRADE_NOT_INSTALLED, 'installed module version can not be read');
         }
-        $order = version_compare($manifest->version, $oldVersion);
+        $order = ModuleVersionConstraint::compare($manifest->version, $oldVersion);
         if ($order === 0) {
             throw new PackageVerificationException(InstallPreflight::SAME_VERSION, 'module already has this version');
         }

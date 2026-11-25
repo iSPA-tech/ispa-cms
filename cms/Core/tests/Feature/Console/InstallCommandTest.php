@@ -357,3 +357,9 @@ it('prints nothing about the runner without core-manifest.json', function () {
         ->doesntExpectOutputToContain('--run-requested')
         ->assertSuccessful();
 });
+
+it('knows the usual web server users, for which admin updates need no setup', function () {
+    expect(\Cms\Core\Console\Commands\InstallCommand::isWebServerUser('www-data'))->toBeTrue()
+        ->and(\Cms\Core\Console\Commands\InstallCommand::isWebServerUser('nginx'))->toBeTrue()
+        ->and(\Cms\Core\Console\Commands\InstallCommand::isWebServerUser('deploy'))->toBeFalse();
+});

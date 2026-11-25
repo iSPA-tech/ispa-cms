@@ -1,0 +1,1 @@
+import{jc as e}from"./config-iyxnoVYD.js";var t=e(Object.getPrototypeOf,Object);export{t};

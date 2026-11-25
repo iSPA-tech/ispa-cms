@@ -49,6 +49,11 @@ final class ContentServiceProvider extends ModuleServiceProvider
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
         $this->app->register(AuthServiceProvider::class);
+
+        // The approval diff of draft proposals made by the content workflow nodes (or any tool proposing a draft).
+        $this->callAfterResolving(\Cms\Core\Services\Agentic\AgentApprovalDiffBuilder::class, static function ($builder): void {
+            $builder->register(\Cms\Content\Services\Agentic\PostDraftArtifactApplier::ARTIFACT_TYPE, new \Cms\Content\Services\Agentic\PostDraftDiff());
+        });
     }
 
     /**
@@ -67,6 +72,34 @@ final class ContentServiceProvider extends ModuleServiceProvider
         }
 
         $this->registerPostComponents();
+        $this->registerWorkflowNodes();
+    }
+
+    /**
+     * Content workflow nodes and the applier of their draft proposals, added to Core's config after every provider
+     * has booted (module providers boot before the app's, so an earlier write could be dropped).
+     */
+    protected function registerWorkflowNodes(): void
+    {
+        $this->app->booted(static function (): void {
+            config([
+                'core.workflow_nodes.allowlisted_namespaces' => array_values(array_unique([
+                    ...(array) config('core.workflow_nodes.allowlisted_namespaces', []),
+                    'Cms\\Content\\Services\\Workflow\\',
+                ])),
+                'core.agentic.artifact_appliers' => (array) config('core.agentic.artifact_appliers', []) + [
+                    \Cms\Content\Services\Agentic\PostDraftArtifactApplier::ARTIFACT_TYPE => \Cms\Content\Services\Agentic\PostDraftArtifactApplier::class,
+                ],
+            ]);
+
+            if (class_exists(\Cms\Core\Workflows\Nodes\NodeRegistry::class)) {
+                \Cms\Core\Workflows\Nodes\NodeRegistry::registerModuleService(\Cms\Content\Services\Workflow\PostWorkflowNodes::class);
+            }
+            // Designer presets (classify labels from the post categories) from config/workflow_presets.php.
+            if (class_exists(\Cms\Core\Services\Workflow\Presets\WorkflowPresetCatalog::class)) {
+                \Cms\Core\Services\Workflow\Presets\WorkflowPresetCatalog::registerModuleConfig('content', 'content.workflow_presets');
+            }
+        });
     }
 
     /**

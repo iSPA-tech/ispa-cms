@@ -14,6 +14,10 @@ use Cms\Core\Services\ConfigPackage\ExportContext;
 use Cms\Core\Services\ConfigPackage\SecretGuard;
 use Cms\Core\Services\ConfigPackage\SectionDiff;
 use Cms\Core\Services\ConfigPackage\SectionExport;
+use App\Models\User;
+use Cms\Core\Workflows\Nodes\NodeConfigValidator;
+use Cms\Core\Workflows\Runtime\StepTypeCatalog;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
 use Cms\Core\Workflows\Upgrade\StepConfigUpgrader;
 use Illuminate\Support\Facades\DB;
 
@@ -27,14 +31,18 @@ use Illuminate\Support\Facades\DB;
  * Safety rules, re-checked on every diff and apply so a forged package cannot bypass them:
  * - a workflow whose rows contain a secret-looking key or ciphertext (SecretGuard) is skipped on export
  *   (`contains_secret`) and blocked on import;
- * - a missing or duplicate `step_code`, an unknown `step_type` (the migration enum) or a connection that points at
- *   a step code outside the workflow is blocked;
+ * - a missing or duplicate `step_code`, an unknown `step_type` (not in StepTypeCatalog::storable()), a
+ *   `blueprint_callable` step whose class the workflow allowlist refuses (WorkflowCallableGuard), or a connection
+ *   that points at a step code outside the workflow is blocked;
  * - a new project is always created with `is_active = false`; an imported workflow never starts by itself and
  *   `is_active` of an existing project is never changed;
  * - an existing project only gets name, description, tags, trigger_event and target_entity_type updated;
  * - its steps and connections are replaced only when the operator chose `<slug>#graph` (off by default); the old
  *   rows are soft deleted (the models use SoftDeletes), never hard deleted;
  * - `step_config` passes through StepConfigUpgrader::upgrade() before it is compared or saved;
+ * - every node is checked against the node catalog (NodeConfigValidator: config schema, `_v` not newer than this
+ *   site, the importing user's node permission when a user is known, taint/approval lint); all problems of a
+ *   workflow are listed in one blocked reason;
  * - import never deletes a project.
  */
 class WorkflowsSection implements SectionAdapter
@@ -42,13 +50,10 @@ class WorkflowsSection implements SectionAdapter
     /** Suffix of the per-project choice key that allows replacing steps and connections (`<slug>#graph`). */
     public const GRAPH_CHOICE_SUFFIX = '#graph';
 
-    /** Values of the `step_type` enum of the workflow_steps migration. */
-    public const STEP_TYPES = [
-        'event', 'job', 'call_workflow', 'decision', 'webhook', 'ai_action', 'script', 'set_variable',
-        'delay', 'schedule_at', 'approval', 'loop', 'parallel',
-    ];
-
     private const METADATA_FIELDS = ['name', 'description', 'tags', 'trigger_event', 'target_entity_type'];
+
+    /** User running the diff/apply; node permissions are checked against them (none known = not checked). */
+    private ?int $actingUserId = null;
 
     /**
      * @inheritDoc
@@ -106,6 +111,7 @@ class WorkflowsSection implements SectionAdapter
      */
     public function diff(array $rows, DiffContext $c): SectionDiff
     {
+        $this->actingUserId = $c->userId;
         $slugCounts = $this->slugCounts($rows);
         $items = [];
 
@@ -127,6 +133,7 @@ class WorkflowsSection implements SectionAdapter
      */
     public function apply(array $rows, ApplyContext $c): ApplyResult
     {
+        $this->actingUserId = $c->userId;
         $counts = ['updated' => 0, 'unchanged' => 0, 'skipped' => 0, 'blocked' => 0];
         $slugCounts = $this->slugCounts($rows);
         $items = [];
@@ -403,6 +410,20 @@ class WorkflowsSection implements SectionAdapter
             $connectionRows[] = ['from' => $from, 'to' => $to, 'condition' => $condition];
         }
 
+        // Node catalog: config schema and `_v`, node permission of the importing user, taint/approval lint.
+        $problems = (new NodeConfigValidator())->validate(
+            array_values(array_map(static fn (array $step): array => [
+                'step_code' => $step['step_code'], 'step_type' => $step['step_type'], 'step_config' => $step['step_config'],
+            ], $stepRows)),
+            array_map(static fn (array $c): array => ['from' => $c['from'], 'to' => $c['to'], 'handle' => NodeConfigValidator::edgeHandle($c['condition'] ?? null)], $connectionRows),
+            $this->actingUserId !== null ? User::query()->find($this->actingUserId) : null,
+        );
+        if ($problems !== []) {
+            $reason = implode('; ', array_column($problems, 'message'));
+
+            return null;
+        }
+
         return [
             'slug' => $slug,
             'metadata' => [
@@ -441,7 +462,7 @@ class WorkflowsSection implements SectionAdapter
         }
 
         $type = $step['step_type'] ?? null;
-        if (!is_string($type) || !in_array($type, self::STEP_TYPES, true)) {
+        if (!is_string($type) || !StepTypeCatalog::isStorable($type)) {
             $reason = 'step ' . $code . ' has an unknown step_type';
 
             return null;
@@ -464,6 +485,19 @@ class WorkflowsSection implements SectionAdapter
 
         if (is_array($config)) {
             $config = $upgrader->upgrade($config, $type)['config'];
+        }
+
+        if ($type === 'blueprint_callable') {
+            $class = is_array($config) ? ($config['class'] ?? null) : null;
+            $callableType = is_array($config) ? ($config['callableType'] ?? null) : null;
+            $method = is_array($config) ? ($config['method'] ?? null) : null;
+
+            if (!is_string($class) || !is_string($callableType)
+                || !app(WorkflowCallableGuard::class)->allowsCallable($callableType, $class, is_string($method) ? $method : null)) {
+                $reason = 'step ' . $code . ': blueprint_callable: class not allowed';
+
+                return null;
+            }
         }
 
         return [

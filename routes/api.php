@@ -256,11 +256,13 @@ Route::group(['prefix' => 'v2', 'namespace' => 'V2'], static function () {
                 Route::get('schema', '\\Cms\\Core\\Http\\Controllers\\Workflow\\ModelSchemaController@schema');
                 Route::get('schema/relation', '\\Cms\\Core\\Http\\Controllers\\Workflow\\ModelSchemaController@relation');
                 Route::get('models', '\\Cms\\Core\\Http\\Controllers\\Workflow\\ModelSchemaController@models');
+                Route::get('node-catalog', '\\Cms\\Core\\Http\\Controllers\\Workflow\\NodeCatalogController@index');
             });
 
             Route::prefix('workflow/instances')->group(function () {
-                Route::get('{id}', '\\Cms\\Core\\Http\\Controllers\\Workflow\\WorkflowInstanceController@show');
-                Route::get('{id}/steps', '\\Cms\\Core\\Http\\Controllers\\Workflow\\WorkflowInstanceController@steps');
+                // Numeric run ids (workflow tables have no uuid column; see guidelines/backend-data-contracts.md).
+                Route::get('{id}', '\\Cms\\Core\\Http\\Controllers\\Workflow\\WorkflowInstanceController@show')->whereNumber('id');
+                Route::get('{id}/steps', '\\Cms\\Core\\Http\\Controllers\\Workflow\\WorkflowInstanceController@steps')->whereNumber('id');
             });
         });
     });

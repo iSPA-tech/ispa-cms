@@ -6,6 +6,7 @@
  */
 
 import ajax from '@/ajax'
+import { clearSaveErrors, recordSaveErrors } from '@/components/workflows/nodeCatalog'
 
 const module = 'setting'
 
@@ -96,7 +97,15 @@ export const storeWorkflow = async (data = {}) => {
 }
 
 export const updateWorkflow = async (id, data = {}) => {
-    return await ajax.put(`workflows/${id}`, data).then((res) => res.data || {})
+    // A refused graph save (422) lists the nodes at fault; the designer highlights them from this shared record.
+    clearSaveErrors()
+    return await ajax
+        .put(`workflows/${id}`, data)
+        .then((res) => res.data || {})
+        .catch((error) => {
+            recordSaveErrors(error)
+            throw error
+        })
 }
 
 export const deleteWorkflow = async (id) => {

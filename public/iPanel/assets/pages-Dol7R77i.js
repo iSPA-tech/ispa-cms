@@ -1,1 +1,0 @@
-import{$ as e,rt as t,t as n,w as r}from"./vue.runtime.esm-bundler-DJ1r71e2.js";import{t as i}from"./_plugin-vue_export-helper-BDNMzG2s.js";n();var a={};function o(n,i){let a=t(`router-view`);return e(),r(a)}var s=i(a,[[`render`,o]]);export{s as default};

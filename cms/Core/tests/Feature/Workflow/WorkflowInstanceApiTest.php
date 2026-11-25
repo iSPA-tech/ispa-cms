@@ -15,6 +15,17 @@ class WorkflowInstanceApiTest extends TestCase
         parent::setUp();
         $this->withoutMiddleware();
         $this->migrateTables();
+
+        // Run history needs the workflow permission (WorkflowInstanceAccessTest covers the refusals).
+        $user = new class extends \App\Models\User {
+            public function permissionKeys(): array
+            {
+                return ['workflow_project.viewAny'];
+            }
+        };
+        $user->forceFill(['id' => 1, 'name' => 'Viewer', 'email' => 'viewer@example.com', 'password' => 'x']);
+        $user->exists = true;
+        \Laravel\Sanctum\Sanctum::actingAs($user);
     }
 
     public function test_show_returns_summary(): void

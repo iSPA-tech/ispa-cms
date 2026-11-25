@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cms\Core\Console\Commands;
 
+use Cms\Core\Services\Modules\Install\ModuleVersionConstraint;
 use Cms\Core\Models\BackgroundTask;
 use Cms\Core\Services\BackgroundTasks\BackgroundTaskRecorder;
 use Cms\Core\Services\CoreUpgrade\CoreRequestRunner;
@@ -55,7 +56,7 @@ class CoreUpgradeCommand extends Command
                 return self::FAILURE;
             }
             // Nothing to do when the target is the installed version, or the hub offers nothing newer.
-            if (version_compare($latest, $installed->version, '==') || ($to === '' && version_compare($latest, $installed->version, '<'))) {
+            if (ModuleVersionConstraint::compare($latest, $installed->version) === 0 || ($to === '' && ModuleVersionConstraint::compare($latest, $installed->version) < 0)) {
                 $this->components->info("The core is already on {$installed->version}; nothing to upgrade.");
 
                 return self::SUCCESS;
@@ -129,7 +130,7 @@ class CoreUpgradeCommand extends Command
     private function runRequested(): int
     {
         $result = app(CoreRequestRunner::class)->tick();
-        if (! in_array($result, ['idle', 'cannot_run', 'busy'], true)) {
+        if (! in_array($result, ['idle', 'cannot_run', 'busy', 'waiting_backup'], true)) {
             $this->line('Core upgrade request: '.$result);
         }
 

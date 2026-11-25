@@ -35,6 +35,8 @@ use Cms\Core\Http\Controllers\V2\Public\SiteStatusController;
 use Cms\Core\Http\Controllers\V2\Admin\AgenticCatalogController;
 use Cms\Core\Http\Controllers\V2\Admin\AgenticRunController;
 use Cms\Core\Http\Controllers\V2\Admin\AgenticApprovalController;
+use Cms\Core\Http\Controllers\V2\Admin\WorkflowRunController;
+use Cms\Core\Http\Controllers\V2\Admin\WorkflowCredentialController;
 use Cms\Core\Http\Controllers\V2\Admin\AgenticScheduleController;
 use Cms\Core\Http\Controllers\V2\Admin\AgenticProvisioningController;
 use Cms\Core\Http\Controllers\V2\Admin\UploadController;
@@ -96,6 +98,13 @@ Route::group(['prefix' => 'v5.x', 'as' => 'v5.'], static function () {
 });
 
 Route::group(['prefix' => 'v2', 'as' => 'v2.'], static function () use ($moduleIsEnabled) {
+    // Public inbound webhook of a `trigger_webhook` workflow project (lane N3): no session, the per-project secret
+    // is checked before any work; throttled per IP here and per project in WebhookTriggerService.
+    Route::post('workflow/webhooks/{token}', \Cms\Core\Http\Controllers\Workflow\WorkflowWebhookController::class)
+        ->where('token', '[A-Za-z0-9]{32,64}')
+        ->middleware('throttle.route:120,1,workflow-webhook:')
+        ->name('workflow.webhook');
+
     // Admin APIs routes
     Route::prefix('admin')->group(static function () use ($moduleIsEnabled) {
         Route::get('qr', [AdminController::class, 'QrGenerate'])
@@ -396,15 +405,99 @@ Route::group(['prefix' => 'v2', 'as' => 'v2.'], static function () use ($moduleI
             Route::controller(AgenticApprovalController::class)
                 ->prefix('agentic')->group(function () {
                     Route::get('approvals', 'index');
+                    Route::get('approvals/sla-summary', 'slaSummary');
                     Route::get('approvals/{approval}', 'show');
                     Route::post('approvals/{approval}/approve', 'approve');
                     Route::post('approvals/{approval}/reject', 'reject');
+                    Route::post('approvals/{approval}/request-changes', 'requestChanges');
                     Route::post('approvals/{approval}/apply', 'apply');
+                    Route::post('approvals/{approval}/approve-apply', 'approveAndApply');
+                    Route::post('approvals/{approval}/undo', 'undo');
+                });
+
+            // Run an authored workflow project by hand or on a cron schedule.
+            Route::controller(WorkflowRunController::class)
+                ->prefix('workflow/projects/{project}')
+                ->where(['project' => '\d+'])
+                ->group(function () {
+                    Route::post('run', 'run')->middleware('throttle.route:20,1,workflow-run:');
+                    Route::put('schedule', 'schedule');
+                    Route::get('instances', 'instances');
+                });
+
+            // Workflow versions (guardrails B1): history, diff, publish, rollback; the project key of the builder routes.
+            Route::controller(\Cms\Core\Http\Controllers\V2\Admin\WorkflowVersionController::class)
+                ->prefix('workflows/{project}/versions')
+                ->where(['project' => '\d+'])
+                ->group(function () {
+                    Route::get('/', 'index');
+                    Route::get('draft-status', 'draftStatus');
+                    Route::get('preview-publish', 'previewPublish');
+                    Route::post('publish', 'publish')->middleware('throttle.route:20,1,workflow-publish:');
+                    Route::get('{uuid}', 'show')->whereUuid('uuid');
+                    Route::get('{uuid}/diff', 'diff')->whereUuid('uuid');
+                    Route::post('{uuid}/rollback', 'rollback')->whereUuid('uuid')->middleware('throttle.route:20,1,workflow-publish:');
+                    // Change control (B3): decisions on a waiting sensitive version.
+                    Route::post('{uuid}/approve', 'approve')->whereUuid('uuid')->middleware('throttle.route:20,1,workflow-publish:');
+                    Route::post('{uuid}/reject', 'reject')->whereUuid('uuid')->middleware('throttle.route:20,1,workflow-publish:');
+                    Route::post('{uuid}/cancel', 'cancel')->whereUuid('uuid')->middleware('throttle.route:20,1,workflow-publish:');
+                });
+
+            // Waiting sensitive versions of every project the caller may publish (B3).
+            Route::get('workflow/versions/pending', [\Cms\Core\Http\Controllers\V2\Admin\WorkflowVersionController::class, 'pending']);
+
+            // Project trigger settings (lane N3): webhook URL/secret (secret shown once) and the error workflow.
+            Route::controller(\Cms\Core\Http\Controllers\V2\Admin\WorkflowTriggerController::class)
+                ->prefix('workflow/projects/{project}')
+                ->where(['project' => '\d+'])
+                ->group(function () {
+                    Route::get('webhook', 'webhook');
+                    Route::post('webhook', 'rotateWebhook')->middleware(['throttle.route:10,1,workflow-webhook-rotate:', 'security.stepup:workflow_publish,consume']);
+                    Route::delete('webhook', 'disableWebhook');
+                    Route::put('error-workflow', 'errorWorkflow');
+                });
+
+            // Switch a project paused by a circuit breaker back on (guardrails B7; project `publish` ability).
+            Route::post('workflow/projects/{project}/resume', [\Cms\Core\Http\Controllers\V2\Admin\WorkflowGuardController::class, 'resume'])
+                ->where(['project' => '\d+'])->middleware('throttle.route:10,1,workflow-resume:');
+
+            // Workflow credentials (`$bind:<name>`): workflow_credential.manage; values go in, never come out.
+            Route::controller(WorkflowCredentialController::class)
+                ->prefix('workflow/credentials')
+                ->group(function () {
+                    Route::get('/', 'index');
+                    // Changing a secret needs a fresh step-up grant (guardrails B6, purpose workflow_credential).
+                    Route::post('/', 'store')->middleware(['throttle.route:30,1,workflow-credential:', 'security.stepup:workflow_credential']);
+                    Route::match(['put', 'patch'], '{uuid}', 'update')->middleware(['throttle.route:30,1,workflow-credential:', 'security.stepup:workflow_credential']);
+                    Route::delete('{uuid}', 'destroy')->middleware(['throttle.route:30,1,workflow-credential:', 'security.stepup:workflow_credential']);
+                    Route::post('{uuid}/test', 'test')->middleware('throttle.route:10,1,workflow-credential-test:');
+                });
+
+            // Reviewer picker of the workflow builder (approval assignees): permission holders by name, or names of uuids.
+            Route::get('workflows/reviewers', [\Cms\Core\Http\Controllers\Workflow\WorkflowReviewerController::class, 'index']);
+
+            // Workflow template library from the hub (phase C): catalog, verified detail, install (inactive, never overwrites).
+            Route::controller(\Cms\Core\Http\Controllers\V2\Admin\WorkflowLibraryController::class)
+                ->prefix('workflows/library')
+                ->group(function () {
+                    Route::get('/', 'index')->middleware('throttle.route:30,1,workflow-library:');
+                    Route::get('{key}', 'show')->where('key', '[A-Za-z0-9][A-Za-z0-9._-]{0,190}')->middleware('throttle.route:30,1,workflow-library:');
+                    Route::post('{key}/install', 'install')->where('key', '[A-Za-z0-9][A-Za-z0-9._-]{0,190}')->middleware('throttle.route:10,1,workflow-library-install:');
+                });
+
+            // Workflow packages (A4): preview (validate + dry run), install (add-only, inactive), export by slug.
+            Route::controller(\Cms\Core\Http\Controllers\V2\Admin\WorkflowPackageController::class)
+                ->prefix('workflow/packages')
+                ->group(function () {
+                    Route::post('preview', 'preview')->middleware('throttle.route:30,1,workflow-package:');
+                    Route::post('install', 'install')->middleware('throttle.route:10,1,workflow-package-install:');
+                    Route::get('export/{slug}', 'export')->where('slug', '[A-Za-z0-9_-]+');
                 });
 
             Route::controller(AiRuntimeController::class)
                 ->prefix('ai-runtime')->group(function () {
                     Route::get('/', 'index');
+                    Route::get('selectable-models', 'selectableModels');
                     Route::put('providers', 'updateProviders');
                     Route::put('tasks', 'updateTasks');
                     Route::put('budget', 'updateBudget');
@@ -431,6 +524,13 @@ Route::group(['prefix' => 'v2', 'as' => 'v2.'], static function () use ($moduleI
                 Route::get('counter', 'counter');
             });
             Route::resource('email', EmailController::class)->except(['create']);
+            // Managed e-mail templates: picker catalog, variables and preview (before the resource, whose {id} would match).
+            Route::controller(EmailTemplateController::class)->prefix('email-template')->group(function () {
+                Route::get('catalog', 'catalog');
+                Route::post('preview', 'preview');
+                Route::get('{id}/variables', 'variables')->where('id', '\d+');
+                Route::post('{id}/preview', 'preview')->where('id', '\d+');
+            });
             Route::resource('email-template', EmailTemplateController::class)->except(['create']);
             // Admin Enumerate
             Route::get('enumerate/search', [EnumerateController::class, 'search']);
@@ -459,6 +559,22 @@ Route::group(['prefix' => 'v2', 'as' => 'v2.'], static function () use ($moduleI
                 Route::get('modules', 'modules');
                 Route::get('catalog', 'catalog');
             });
+            // Permission picker of the workflow step form (workflow editors).
+            Route::get('workflows/permission-options', [\Cms\Core\Http\Controllers\Workflow\WorkflowPermissionOptionsController::class, 'index']);
+            // Ready-made choices of the workflow step form (JEV criteria, score rubrics, classify labels).
+            Route::get('workflows/presets', [\Cms\Core\Http\Controllers\Workflow\WorkflowPresetController::class, 'index']);
+            // Setup questions of an installed sample workflow (only what the site must decide).
+            Route::controller(\Cms\Core\Http\Controllers\Workflow\WorkflowSetupController::class)
+                ->prefix('workflows/{project}/setup')
+                ->where(['project' => '\d+'])
+                ->group(function () {
+                    Route::get('/', 'show');
+                    Route::put('/', 'update')->middleware('throttle.route:30,1,workflow-setup:');
+                    Route::post('test-run', 'testRun')->middleware('throttle.route:20,1,workflow-setup-test:');
+                });
+            // Auto-publish after JEV calibration of one approval step (state, calibration, estimate; project `view`).
+            Route::get('workflows/{project}/steps/{stepCode}/auto-approval', [\Cms\Core\Http\Controllers\Workflow\WorkflowAutoApprovalController::class, 'show'])
+                ->where(['project' => '\d+', 'stepCode' => '[A-Za-z0-9_.:-]{1,120}']);
             // Data scope management (read API + scope changes)
             Route::prefix('data-scope')->middleware('can:data_scope.manage')->controller(\Cms\Core\Http\Controllers\V2\Admin\DataScopeController::class)->group(function () {
                 Route::get('dimensions', 'dimensions');
@@ -688,6 +804,22 @@ Route::group(['prefix' => 'v2', 'as' => 'v2.'], static function () use ($moduleI
                     ->group(function () {
                         Route::get('modules/install-setting', 'show');
                         Route::put('modules/install-setting', 'update')->middleware('throttle.route:10,1');
+                    });
+
+                // Outside hosts workflow steps may call (Webmaster only, audited, 10 changes a minute).
+                Route::controller(\Cms\Core\Http\Controllers\V2\Admin\WorkflowHttpHostsController::class)
+                    ->middleware('admin.webmaster')
+                    ->group(function () {
+                        Route::get('workflow/http-hosts', 'show');
+                        Route::put('workflow/http-hosts', 'update')->middleware('throttle.route:10,1,workflow-http-hosts:');
+                    });
+
+                // Pause every workflow of the site (guardrails B7; Webmaster only, audited, alerted).
+                Route::controller(\Cms\Core\Http\Controllers\V2\Admin\WorkflowGuardController::class)
+                    ->middleware('admin.webmaster')
+                    ->group(function () {
+                        Route::get('workflow/pause-all', 'showPauseAll');
+                        Route::put('workflow/pause-all', 'updatePauseAll')->middleware('throttle.route:10,1,workflow-pause-all:');
                     });
 
                 // Runtime module installs from the platform hub (Webmaster only).

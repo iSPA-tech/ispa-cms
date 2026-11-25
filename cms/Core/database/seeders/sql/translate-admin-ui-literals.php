@@ -1326,7 +1326,7 @@ $labels = [
     ['text', 'text.workflow.editor.expression.required', 'Expression is required.', 'Vui lòng nhập biểu thức.'],
     ['text', 'text.workflow.editor.expression.valid_message', 'Expression is valid.', 'Biểu thức hợp lệ.'],
     ['text', 'text.workflow.editor.invalid', 'Invalid', 'Không hợp lệ'],
-    ['text', 'text.workflow.editor.json_fallback.no_editor_notice', 'This step type has no dedicated editor. Showing JSON config.', 'Loại bước này chưa có trình chỉnh sửa riêng. Đang hiển thị cấu hình JSON.'],
+    ['text', 'text.workflow.editor.json_fallback.no_editor_notice', 'This step has no settings form yet.', 'Bước này chưa có form cài đặt.'],
     ['text', 'text.workflow.editor.json_fallback.placeholder', 'Step configuration (JSON)', 'Cấu hình bước (JSON)'],
     ['text', 'text.workflow.editor.list_operation.collection_hint', 'Use item.* inside filter/map expressions.', 'Dùng item.* bên trong biểu thức lọc/ánh xạ.'],
     ['text', 'text.workflow.editor.list_operation.condition_expr', 'Condition expression', 'Biểu thức điều kiện'],

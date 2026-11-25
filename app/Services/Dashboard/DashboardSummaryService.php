@@ -237,7 +237,13 @@ class DashboardSummaryService
      */
     private function anyStatusIn(string $group): string
     {
-        $list = "'" . implode("','", OrderStatusGroups::all()[$group]) . "'";
+        // A site may run an older Ecommerce (installed from the hub) whose groups lack a newer bucket such as `draft`:
+        // a missing group matches nothing instead of breaking the whole dashboard.
+        $values = array_values(array_filter((array) (OrderStatusGroups::all()[$group] ?? []), 'is_string'));
+        if ($values === []) {
+            return '(1 = 0)';
+        }
+        $list = "'" . implode("','", array_map(static fn (string $value): string => str_replace("'", "''", $value), $values)) . "'";
 
         return '(' . implode(' OR ', array_map(
             static fn (string $col): string => "LOWER(TRIM(COALESCE($col,''))) IN ($list)",

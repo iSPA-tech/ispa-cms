@@ -8,11 +8,12 @@
 <template>
     <a-card v-if="workflow" size="small">
         <template #title>
-            <div class="flex items-center justify-between gap-3">
-                <span class="font-semibold text-gray-700">
+            <!-- The side column is narrow: the name, the state and the designer button wrap instead of being cut off. -->
+            <div class="flex flex-wrap items-center justify-between gap-2 whitespace-normal py-2">
+                <span class="min-w-0 break-words font-semibold text-gray-700">
                     {{ workflow.name }}
                 </span>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                     <a-tag
                         v-if="workflow.system_managed"
                         color="orange"
@@ -40,6 +41,33 @@
         </template>
 
         <div class="space-y-4">
+            <WorkflowPausedAlert
+                :can-publish="abilities.canPublish"
+                :workflow="workflow"
+                @open-builder="$emit('open-builder', workflow)"
+                @resumed="$emit('resumed', workflow)"
+            />
+
+            <!-- Which version runs, whether the draft is ahead of it, and the way into the history. -->
+            <div class="rounded-lg border border-solid border-slate-200 px-3 py-3" data-testid="detail-version">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="min-w-0 space-y-1">
+                        <div class="text-[10px] uppercase tracking-wide text-gray-400">{{ t('text.workflow.guard.draft.section') }}</div>
+                        <div class="text-sm font-medium text-gray-700" data-testid="detail-version-text">{{ versionText }}</div>
+                    </div>
+                    <a-button size="small" :icon="h(HistoryOutlined)" data-testid="detail-history" @click="$emit('history', workflow)">
+                        {{ t('text.workflow.guard.history.open') }}
+                    </a-button>
+                </div>
+                <div v-if="state.draftDiffers || state.pending" class="mt-2 flex flex-wrap gap-2">
+                    <a-tag v-if="state.draftDiffers" color="gold" class="!m-0" data-testid="detail-draft-differs">{{ t('text.workflow.guard.draft.differs') }}</a-tag>
+                    <a-tag v-if="state.pending" color="orange" class="!m-0" data-testid="detail-pending">
+                        {{ t('text.workflow.guard.pending.count_tag', { count: state.pending }) }}
+                    </a-tag>
+                </div>
+                <p v-if="state.known && !state.published" class="m-0 mt-2 text-xs text-gray-500">{{ t('text.workflow.guard.draft.never_published_hint') }}</p>
+            </div>
+
             <div class="grid gap-3 sm:grid-cols-2">
                 <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
                     <div class="text-[10px] uppercase tracking-wide text-gray-400">{{ t('text.workflow.list.trigger') }}</div>
@@ -116,6 +144,15 @@
             >
                 {{ $t('nav.b.edit') }}
             </a-button>
+            <a-button
+                v-if="canExport"
+                :icon="h(DownloadOutlined)"
+                :loading="exportingSlug === workflow.slug"
+                data-testid="workflow-export-detail"
+                @click="$emit('export', workflow)"
+            >
+                {{ t('text.workflow.package.export_action') }}
+            </a-button>
             <a-popconfirm
                 v-if="canDelete && !workflow.system_managed"
                 :title="$t('text.del-confirm')"
@@ -137,10 +174,13 @@
 
 <script setup>
 import dayjs from 'dayjs'
-import { BranchesOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { BranchesOutlined, DeleteOutlined, DownloadOutlined, EditOutlined, HistoryOutlined } from '@ant-design/icons-vue'
 import { computed, h } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { rule } from '@/mixins'
+import { versionState, workflowAbilities } from '../../../../workflow-guard-report'
 import { summarizeWorkflowProject } from '../workflow-project-utils'
+import WorkflowPausedAlert from './workflow-paused-alert.vue'
 
 defineOptions({
     name: 'WorkflowDetailCard',
@@ -165,14 +205,32 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canExport: {
+        type: Boolean,
+        default: false,
+    },
+    exportingSlug: {
+        type: String,
+        default: null,
+    },
     deletingId: {
         type: [Number, String],
         default: null,
     },
 })
 
-defineEmits(['edit', 'delete', 'open-builder'])
+defineEmits(['edit', 'delete', 'open-builder', 'export', 'history', 'resumed'])
 
 const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '—')
 const summary = computed(() => summarizeWorkflowProject(props.workflow || {}))
+
+const abilities = computed(() => workflowAbilities(props.workflow, rule))
+const state = computed(() => versionState(props.workflow))
+const versionText = computed(() => {
+    if (!state.value.known) return t('text.workflow.guard.draft.unknown')
+    if (!state.value.published) return t('text.workflow.guard.draft.never_published')
+    return state.value.number === null
+        ? t('text.workflow.guard.draft.running')
+        : t('text.workflow.guard.draft.running_version', { number: state.value.number })
+})
 </script>

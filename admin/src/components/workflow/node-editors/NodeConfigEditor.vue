@@ -1,26 +1,14 @@
 <template>
-    <div class="node-config-editor">
-        <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-                <p class="text-sm font-semibold text-gray-700 mb-0">{{ t('text.workflow.editor.config.title') }}</p>
-                <span v-if="isAlias" class="text-xs text-amber-600">{{ t('text.workflow.editor.config.legacy_alias') }}</span>
-            </div>
-            <a-switch v-model:checked="showRaw" size="small" :disabled="readOnly">
-                <template #checked>{{ t('text.workflow.editor.mode.raw') }}</template>
-                <template #unchecked>{{ t('text.workflow.editor.mode.editor') }}</template>
-            </a-switch>
+    <div class="flex flex-col gap-2" data-testid="node-config-editor">
+        <div class="flex items-center gap-2">
+            <p class="mb-0 text-sm font-semibold text-gray-700">{{ t('text.workflow.editor.config.title') }}</p>
+            <span v-if="isAlias" class="text-xs text-amber-600">{{ t('text.workflow.editor.config.legacy_alias') }}</span>
         </div>
 
-        <a-alert
-            v-if="readOnly"
-            type="info"
-            show-icon
-            :message="t('text.workflow.editor.config.read_only_notice')"
-            class="mb-3"
-        />
+        <a-alert v-if="readOnly" type="info" show-icon :message="t('text.workflow.editor.config.read_only_notice')" />
 
         <component
-            v-if="EditorComponent && !showRaw"
+            v-if="EditorComponent"
             :is="EditorComponent"
             :step="step"
             :step-type="stepType"
@@ -30,26 +18,28 @@
             :read-only="readOnly"
             @update:model-value="onUpdate"
         />
-        <template v-else>
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-semibold text-gray-700">{{ t('text.workflow.editor.config.step_config_json') }}</p>
-                <span class="text-xs text-gray-500">{{ t('text.workflow.editor.config.raw_editor') }}</span>
+        <a-alert v-else type="info" show-icon :message="t('text.workflow.editor.json_fallback.no_editor_notice')" />
+
+        <!-- Raw settings: Webmasters only, at the end of the form, behind a warning. -->
+        <div v-if="canAdvanced" class="space-y-2 border-0 border-t border-solid border-gray-200 pt-3">
+            <div class="flex flex-wrap items-center gap-x-2">
+                <a-button type="link" class="!h-auto !p-0" :aria-expanded="showAdvanced ? 'true' : 'false'" @click="showAdvanced = !showAdvanced">
+                    {{ showAdvanced ? t('text.workflow.advanced.hide') : t('text.workflow.advanced.title') }}
+                </a-button>
+                <span class="text-xs text-gray-600">{{ t('text.workflow.advanced.webmaster_only') }}</span>
             </div>
-            <a-textarea
-                v-model:value="rawJson"
-                :auto-size="{ minRows: 6, maxRows: 14 }"
-                :placeholder="t('text.workflow.editor.config.raw_placeholder')"
-                @blur="syncRaw"
-                :disabled="readOnly"
-            />
-        </template>
+            <AdvancedConfig v-if="showAdvanced" :value="modelValue" :read-only="readOnly" @update:value="onUpdate" />
+        </div>
     </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getEditorComponent } from './editorRegistry.js'
+import AdvancedConfig from './AdvancedConfig.vue'
+import { resolveEditorComponent } from './editorRegistry.js'
+import { isWebmaster } from '@/hooks/useCan'
+import { useNodeCatalog } from '@/components/workflows/nodeCatalog'
 
 const props = defineProps({
     step: {
@@ -82,45 +72,17 @@ const emit = defineEmits(['update:modelValue'])
 
 const { t } = useI18n()
 
-const EditorComponent = computed(() => getEditorComponent(props.stepType))
-const showRaw = ref(false)
+const { findNode } = useNodeCatalog()
+const EditorComponent = computed(() => resolveEditorComponent(props.stepType, findNode(props.stepType)))
+const canAdvanced = computed(() => isWebmaster())
+const showAdvanced = ref(false)
 
-const rawJson = ref('')
 const isAlias = computed(() => {
     const aliases = ['condition', 'output', 'output_text', 'discord_service', 'service']
     return aliases.includes(props.stepType)
 })
 
-watch(
-    () => props.modelValue,
-    (val) => {
-        try {
-            rawJson.value = JSON.stringify(val || {}, null, 2)
-        } catch (error) {
-            rawJson.value = ''
-        }
-    },
-    { immediate: true, deep: true }
-)
-
 const onUpdate = (value) => {
     emit('update:modelValue', value)
 }
-
-const syncRaw = () => {
-    try {
-        const parsed = rawJson.value ? JSON.parse(rawJson.value) : {}
-        emit('update:modelValue', parsed)
-    } catch (error) {
-        // keep previous value if parse fails
-    }
-}
 </script>
-
-<style scoped>
-.node-config-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-</style>

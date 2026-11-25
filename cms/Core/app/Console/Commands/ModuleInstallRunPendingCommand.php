@@ -21,9 +21,10 @@ use Throwable;
 /**
  * Runs one pending module install (or uninstall) on a site without a queue worker (spec 2026-11-22, decision 5).
  *
- * Scheduled every minute without overlap and in the background (own PHP process), only on sites whose default queue
- * is `sync`. It first closes rows left for the scheduler that nobody claimed in time
- * ({@see InstallRunDispatcher::expireUnclaimed()}); on a real queue it stops there, because a worker runs installs.
+ * Scheduled every minute without overlap and in the background (own PHP process), only on sites where the scheduler
+ * runs installs ({@see InstallRunDispatcher::usesScheduler()}: default queue `sync`, or a `retry_after` not longer than
+ * the install job timeout). It first closes rows left for the scheduler that nobody claimed in time
+ * ({@see InstallRunDispatcher::expireUnclaimed()}); on a safe real queue it stops there, because a worker runs installs.
  * It then closes claims whose process died, then claims the
  * oldest pending row atomically ({@see InstallRunDispatcher::claimNext()}) and runs {@see InstallModuleJob::handle()}.
  * The run is limited to `core.module_packages.job_timeout` seconds; a run that times out or dies with a fatal error
@@ -36,7 +37,7 @@ class ModuleInstallRunPendingCommand extends Command
 
     protected $signature = 'cms:module-install-run-pending';
 
-    protected $description = 'Run one pending module install when the site has no queue worker (queue is sync).';
+    protected $description = 'Run one pending module install when installs run through the scheduler instead of a queue worker.';
 
     /**
      * Claim and run one pending install.

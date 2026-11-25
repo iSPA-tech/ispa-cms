@@ -19,6 +19,7 @@ use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
 use Cms\Core\Workflows\Runtime\RootModelLoader;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
 use Cms\Core\Workflows\Runtime\Runners\AgentActionRunner;
 use Cms\Core\Agents\Tools\AgentToolRegistry;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -113,6 +114,15 @@ class AgenticAdhocDispatchService
         ?User $actor = null,
     ): array {
         $this->ensureToolsDiscovered();
+
+        // A target model WorkflowCallableGuard refuses is dropped (no root, no injected id), never loaded.
+        if (is_string($targetType) && $targetType !== '') {
+            $resolvedType = self::$targetTypeModelMap[$targetType] ?? $targetType;
+            if (class_exists($resolvedType) && !app(WorkflowCallableGuard::class)->allowsModel($resolvedType)) {
+                $targetType = null;
+                $targetId = null;
+            }
+        }
 
         // Auto-inject targetId into toolInput when a target is provided
         if ($targetId !== null && $toolInput === []) {

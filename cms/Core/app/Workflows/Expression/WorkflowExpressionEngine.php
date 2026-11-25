@@ -12,7 +12,10 @@ use Cms\Core\Workflows\Expression\Exceptions\ExpressionEvaluationException;
 use Cms\Core\Workflows\Expression\Exceptions\ExpressionValidationException;
 use Cms\Core\Workflows\Runtime\StepState;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Carbon\Carbon;
+use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Symfony\Component\ExpressionLanguage\SyntaxError;
@@ -23,6 +26,11 @@ use Symfony\Component\ExpressionLanguage\SyntaxError;
  * Wraps Symfony ExpressionLanguage with a sandboxed set of allowed functions (coalesce, len,
  * contains, in, now, formatDate), dot-path variable access, and security guards that prevent
  * object instantiation, static calls, and unauthorized method invocations.
+ *
+ * The scope holds data only: every Eloquent model (the root, or one stored anywhere in vars, steps or the trigger) is
+ * replaced by its snapshot ({@see WorkflowModelRefs::snapshot()}: visible attributes, no encrypted casts, no relations,
+ * plus a signed reference), so an expression can never reach a hidden attribute, a relation or a decrypted value
+ * through a live model.
  *
  * @see DotPathAccessor
  * @package Cms\Core\Workflows\Expression
@@ -76,7 +84,10 @@ class WorkflowExpressionEngine
         $expression = $this->normalizeFunctionNames($expression);
         $this->guardExpression($expression);
 
-        $variables = array_merge($this->buildScope($context), $extraVariables);
+        $variables = array_merge(
+            $this->buildScope($context),
+            array_map(fn ($v) => $this->makeAccessible($this->sanitize($v, $context)), $extraVariables),
+        );
 
         try {
             $result = $this->engine->evaluate($expression, $variables);
@@ -135,11 +146,62 @@ class WorkflowExpressionEngine
         }
 
         return [
-            'root' => $context->getRoot(),
-            'vars' => $this->makeAccessible($context->getVars()),
-            'steps' => $this->makeAccessible($steps),
-            'trigger' => $this->makeAccessible($context->getTrigger()->toArray()),
+            'root' => $this->makeAccessible($this->sanitize($context->getRoot(), $context)),
+            'vars' => $this->makeAccessible($this->sanitize($context->getVars(), $context)),
+            'steps' => $this->makeAccessible($this->sanitize($steps, $context)),
+            'trigger' => $this->makeAccessible($this->sanitize($context->getTrigger()->toArray(), $context)),
         ];
+    }
+
+    /**
+     * Turn a scope value into plain data: models become snapshots, collections and arrayables arrays, other objects
+     * their public properties. Dates stay (formatDate takes them); deeper than 32 levels is cut off.
+     */
+    protected function sanitize(mixed $value, WorkflowContext $context, int $depth = 0): mixed
+    {
+        if ($depth > 32) {
+            return null;
+        }
+
+        if ($value === null || is_scalar($value) || $value instanceof \DateTimeInterface) {
+            return $value;
+        }
+
+        if ($value instanceof Model) {
+            return WorkflowModelRefs::snapshot($value, $context);
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return $value->value;
+        }
+
+        if ($value instanceof \UnitEnum) {
+            return $value->name;
+        }
+
+        if ($value instanceof \ArrayObject) {
+            $value = $value->getArrayCopy();
+        } elseif ($value instanceof Collection) {
+            $value = $value->all();
+        } elseif ($value instanceof Arrayable) {
+            $value = $value->toArray();
+        } elseif ($value instanceof \JsonSerializable) {
+            $value = $value->jsonSerialize();
+        } elseif ($value instanceof \Stringable) {
+            return (string) $value;
+        } elseif (is_object($value)) {
+            $value = get_object_vars($value);
+        }
+
+        if (!is_array($value)) {
+            return $this->sanitize($value, $context, $depth + 1);
+        }
+
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->sanitize($item, $context, $depth + 1);
+        }
+
+        return $value;
     }
 
     /**

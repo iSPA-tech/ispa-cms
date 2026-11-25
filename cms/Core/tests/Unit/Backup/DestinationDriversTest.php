@@ -102,8 +102,8 @@ it('builds a working local disk', function (): void {
         $disk->put('a/b.txt', 'hello');
         expect($disk->get('a/b.txt'))->toBe('hello')
             ->and(is_dir($dir . '/sub'))->toBeTrue()
-            ->and(substr(sprintf('%o', fileperms($dir . '/sub')), -4))->toBe('0700')
-            ->and(substr(sprintf('%o', fileperms($dir . '/sub/a/b.txt')), -4))->toBe('0600');
+            ->and(substr(sprintf('%o', fileperms($dir . '/sub')), -4))->toBe('0770')
+            ->and(substr(sprintf('%o', fileperms($dir . '/sub/a/b.txt')), -4))->toBe('0660');
     } finally {
         if (is_dir($dir)) {
             exec('rm -rf ' . escapeshellarg($dir));

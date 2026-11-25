@@ -408,10 +408,10 @@ final class PackageStaticScan
         sort($names, SORT_STRING);
         $out = [];
         foreach ($names as $name) {
-            if ($sourceTree && PackageAudit::excludedFromBuild($name)) {
+            $relative = $prefix === '' ? $name : $prefix . '/' . $name;
+            if ($sourceTree && PackageAudit::excludedPathFromBuild($relative)) {
                 continue;
             }
-            $relative = $prefix === '' ? $name : $prefix . '/' . $name;
             $full = $dir . '/' . $relative;
             if (is_link($full)) {
                 continue;

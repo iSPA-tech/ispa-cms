@@ -31,4 +31,13 @@ final class EmailTemplatePolicy extends AbstractModelPolicy
     {
         return 'email_template';
     }
+
+    /**
+     * Whether the user may make a template `system` mail (on create, or by changing its class). Workflows send system
+     * mail with no approval and no switch, so only a Webmaster may set it.
+     */
+    public function setSystemClass(mixed $user): bool
+    {
+        return is_object($user) && method_exists($user, 'isWebmaster') && $user->isWebmaster();
+    }
 }

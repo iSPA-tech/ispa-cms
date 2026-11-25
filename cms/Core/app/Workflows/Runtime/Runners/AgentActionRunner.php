@@ -8,6 +8,7 @@
 
 namespace Cms\Core\Workflows\Runtime\Runners;
 
+use Cms\Core\Workflows\Runtime\Runners\Ai\AiUsageMeter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Cms\Core\Models\Agents\AgentRun;
+use Cms\Core\Models\Agents\AgentApproval;
 use Cms\Core\Models\Agents\AgentArtifact;
 use Cms\Core\Models\Agents\AgentProfile;
 use Cms\Core\Models\Agents\AgentRunStep;
@@ -31,6 +33,9 @@ use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
 use Cms\Core\Workflows\Expression\WorkflowExpressionEngine;
 use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
+use Cms\Core\Workflows\Runtime\Runners\Human\ApprovalAssignment;
+use Cms\Core\Workflows\Runtime\Runners\Human\ReviewMeta;
+use Cms\Core\Workflows\Runtime\Runners\Human\WorkflowApprovalGate;
 
 /**
  * Executes an AI agent action step within a workflow.
@@ -77,6 +82,30 @@ class AgentActionRunner implements StepRunner
      */
     public function run(StepDefinition $step, WorkflowContext $context): StepRunResult
     {
+        $result = $this->runAction($step, $context);
+
+        // An agent tool call makes no model call of its own. When the tool reported nothing, record zero spend so the
+        // budget gate does not treat it as unknown spend (which would stop every later AI step under a cost cap).
+        // Tools that call a model through AiTaskRuntime are still metered by its ledger and monthly budget.
+        if ($result->usage() === null) {
+            $toolName = is_string($step->stepConfig['toolName'] ?? null) ? $step->stepConfig['toolName'] : 'unknown';
+            $usage = AiUsageMeter::none('agent_tool:' . $toolName);
+            // A tool that spends through AiTaskRuntime may say what it spent: `usage` (same shape) or `cost_usd`.
+            $output = data_get($result->resultData, 'output') ?? data_get($result->resultData, 'payload.output');
+            if (is_array($output) && is_array($output['usage'] ?? null)) {
+                $usage = array_replace($usage, $output['usage']);
+            } elseif (is_array($output) && is_numeric($output['cost_usd'] ?? null)) {
+                $usage['cost_usd'] = (float) $output['cost_usd'];
+                $usage['calls'] = (float) $output['cost_usd'] > 0 ? 1 : 0;
+            }
+            $result->withUsage($usage);
+        }
+
+        return $result;
+    }
+
+    protected function runAction(StepDefinition $step, WorkflowContext $context): StepRunResult
+    {
         $cfg = $step->stepConfig ?? [];
         $profileSlug = $cfg['agentProfileSlug'] ?? null;
         $toolName = $cfg['toolName'] ?? null;
@@ -100,6 +129,13 @@ class AgentActionRunner implements StepRunner
             return StepRunResult::failed('ai_action: storeAs may not write __runtime');
         }
 
+        // Back here because a reviewer rejected this step's proposal and the author wired `rejected`: route it, never
+        // call the tool again.
+        $rejected = $this->rejectedProposal($step, $context);
+        if ($rejected !== null) {
+            return $this->routeRejected($rejected, $cfg, $context);
+        }
+
         try {
             $this->discoverTool($toolClass, $cfg['moduleScope'] ?? null);
         } catch (\Throwable $e) {
@@ -110,6 +146,10 @@ class AgentActionRunner implements StepRunner
         if (!$profile) {
             return StepRunResult::failed("ai_action: agent profile [{$profileSlug}] not found");
         }
+
+        // Back here after a reviewer asked for a rewrite of this step's proposal: the tool gets the revision.
+        $previousRound = $this->changesRequested($step, $context);
+        $revision = $previousRound !== null ? ReviewMeta::revision($previousRound) : null;
 
         $workflowInstanceId = $context->getVarPath('__runtime.instance_id');
         $targetType = $this->resolveRootType($context->getRoot(), $cfg['moduleScope'] ?? null);
@@ -238,7 +278,7 @@ class AgentActionRunner implements StepRunner
         try {
             $callable = $this->toolRegistry->resolveCallable($bindingData);
             $safeToolInput = array_diff_key($toolInput, array_flip([
-                'input', 'state', 'context', 'run', 'workflowStep', 'root', 'goal', 'actor',
+                'input', 'state', 'context', 'run', 'workflowStep', 'root', 'goal', 'actor', 'revision',
             ]));
             $actor = $run->currentDelegate();
             $rawOutput = ToolExecutionTimeout::execute(
@@ -251,6 +291,8 @@ class AgentActionRunner implements StepRunner
                     'root' => $context->getRoot(),
                     'goal' => $run->input_goal,
                     'actor' => $actor,
+                    // Only a tool whose method declares `$revision` receives it; App::call drops it for the others.
+                    'revision' => $revision,
                 ])),
                 $definitionData->timeoutSeconds,
             );
@@ -304,6 +346,7 @@ class AgentActionRunner implements StepRunner
                 $output,
                 $cfg,
                 $callStartedAt,
+                $previousRound,
             );
         }
 
@@ -476,7 +519,12 @@ class AgentActionRunner implements StepRunner
         mixed $output,
         array $cfg,
         CarbonImmutable $callStartedAt,
+        ?AgentApproval $previousRound = null,
     ): StepRunResult {
+        if ($this->isPlainResultWithoutProposal($output)) {
+            return $this->completeWithoutProposal($context, $run, $agentStep, $toolCall, $toolName, $output, $cfg, $callStartedAt);
+        }
+
         if (!is_array($output) || !isset($output['artifact_type'], $output['payload'])) {
             $toolCall->fill([
                 'status' => 'failed',
@@ -509,11 +557,17 @@ class AgentActionRunner implements StepRunner
             'size_bytes' => strlen((string) json_encode($output)),
         ]);
 
+        $diff = $this->approvalDiffBuilder->build($artifact);
+        $diff['workflow_node'] = $this->proposalMeta($step, $run, $artifact, $output, $cfg, $previousRound);
         $approval = $run->approvals()->create([
             'artifact_id' => $artifact->id,
             'status' => 'pending',
-            'diff_data' => $this->approvalDiffBuilder->build($artifact),
+            'diff_data' => $diff,
         ]);
+        if ($previousRound !== null) {
+            ReviewMeta::linkNext($previousRound, $approval);
+        }
+        $this->openAssignment($approval, $artifact, $toolName, $cfg);
 
         $toolCall->fill([
             'output_artifact_id' => $artifact->id,
@@ -554,6 +608,188 @@ class AgentActionRunner implements StepRunner
         return StepRunResult::paused('awaiting_approval', $result, [
             ['level' => 'info', 'message' => "ai_action created approval [{$approval->id}] for tool [{$toolName}]"],
         ]);
+    }
+
+    /**
+     * Assignee and SLA of the proposal (step keys `assignees`, `sla`; every round gets its own clock). Assignees are
+     * notified; without assignees nobody is, as before. A step saved before the save check with an unreadable `sla`
+     * measures nothing instead of failing the run.
+     *
+     * @param array<string, mixed> $cfg
+     */
+    protected function openAssignment(AgentApproval $approval, AgentArtifact $artifact, string $toolName, array $cfg): void
+    {
+        try {
+            $slaSeconds = ApprovalAssignment::slaSeconds($cfg['sla'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            report($e);
+            $slaSeconds = null;
+        }
+        $summary = data_get($artifact->payload, 'summary');
+
+        app(ApprovalAssignment::class)->open(
+            $approval,
+            ApprovalAssignment::assigneeUuids($cfg['assignees'] ?? null),
+            $slaSeconds,
+            app(\Cms\Core\Services\Agentic\AgentApprovalService::class)->reviewerPermissionOf($approval),
+            'workflow.approval.requested',
+            ['approval_id' => (int) $approval->id, 'title' => mb_substr(is_string($summary) && $summary !== '' ? $summary : $toolName, 0, 200)],
+            true,
+            false,
+        );
+    }
+
+    /**
+     * Review facts of a tool proposal (`diff_data.workflow_node`, kind `proposal`): the fields the reviewer may edit and
+     * whether a rewrite may be requested. A rewrite needs the tool to say `revisable: true`, the step not to set
+     * `allow_revision: false`, a workflow instance to resume, and a round below `max_rounds`.
+     *
+     * @param array<string, mixed> $output
+     * @param array<string, mixed> $cfg
+     * @return array<string, mixed>
+     */
+    protected function proposalMeta(
+        StepDefinition $step,
+        AgentRun $run,
+        AgentArtifact $artifact,
+        array $output,
+        array $cfg,
+        ?AgentApproval $previousRound,
+    ): array {
+        $rounds = ReviewMeta::rounds($previousRound, $cfg['max_rounds'] ?? null);
+        $revisable = ($output['revisable'] ?? false) === true
+            && ($cfg['allow_revision'] ?? true) !== false
+            && $run->workflow_instance_id !== null
+            && $rounds['round'] < $rounds['max_rounds'];
+
+        return [
+            'kind' => 'proposal',
+            'step_code' => WorkflowApprovalGate::stepCode($step),
+            'instance_id' => is_numeric($run->workflow_instance_id) ? (int) $run->workflow_instance_id : null,
+            'editable_fields' => ReviewMeta::editableFields(
+                (array) ($output['editable_fields'] ?? []),
+                ['artifact_type' => $artifact->artifact_type, 'payload' => (array) $artifact->payload],
+            ),
+            'revisable' => $revisable,
+            'revision_options' => ReviewMeta::revisionOptions($output['revision_options'] ?? []),
+            'reject_reasons' => ReviewMeta::rejectReasons($output['reject_reasons'] ?? []),
+            'decided_by' => null,
+        ] + $rounds;
+    }
+
+    /**
+     * This step's previous proposal, when the run came back to the step because a reviewer requested changes.
+     */
+    protected function changesRequested(StepDefinition $step, WorkflowContext $context): ?AgentApproval
+    {
+        $previous = app(WorkflowApprovalGate::class)->waitingApproval($step, $context);
+
+        return $previous !== null && $previous->status === 'changes_requested' ? $previous : null;
+    }
+
+    /**
+     * This step's previous proposal, when the run came back to the step because a reviewer rejected it (only happens
+     * when the step has a `rejected` edge, see AgentApprovalService::reject()).
+     */
+    protected function rejectedProposal(StepDefinition $step, WorkflowContext $context): ?AgentApproval
+    {
+        $previous = app(WorkflowApprovalGate::class)->waitingApproval($step, $context);
+
+        return $previous !== null && $previous->status === 'rejected'
+            && data_get($previous->diff_data, 'workflow_node.kind') === 'proposal' ? $previous : null;
+    }
+
+    /**
+     * Route the `rejected` output: `vars.<storeAs>` = {decision, reason, note, approval_id}.
+     *
+     * @param array<string, mixed> $cfg
+     */
+    protected function routeRejected(AgentApproval $approval, array $cfg, WorkflowContext $context): StepRunResult
+    {
+        $reason = data_get($approval->diff_data, 'workflow_node.reject_reason');
+        $decision = [
+            'decision' => 'rejected',
+            'reason' => is_string($reason) ? $reason : null,
+            'note' => $approval->reviewer_note,
+            'approval_id' => (int) $approval->id,
+        ];
+        if (is_string($cfg['storeAs'] ?? null)) {
+            $context->setVarPath(substr($cfg['storeAs'], 5), $decision);
+        }
+
+        return StepRunResult::success($decision, [
+            ['level' => 'info', 'message' => "ai_action proposal [{$approval->id}] was rejected"],
+        ])->withOutput('rejected');
+    }
+
+    /**
+     * Whether an approval-required tool returned a plain result instead of a proposal: null, a scalar,
+     * or an array carrying neither `artifact_type` nor `payload`. An array with only one of the two
+     * keys, or any other value, is a malformed envelope and still fails the step.
+     */
+    protected function isPlainResultWithoutProposal(mixed $output): bool
+    {
+        if ($output === null || is_scalar($output)) {
+            return true;
+        }
+
+        return is_array($output)
+            && !array_key_exists('artifact_type', $output)
+            && !array_key_exists('payload', $output);
+    }
+
+    /**
+     * Nothing to propose is not a failure: close the agent run and complete the step with the
+     * `no_proposal` output, so the graph can route it (or end the branch when no edge takes it).
+     */
+    protected function completeWithoutProposal(
+        WorkflowContext $context,
+        AgentRun $run,
+        AgentRunStep $agentStep,
+        AgentToolCall $toolCall,
+        string $toolName,
+        mixed $output,
+        array $cfg,
+        CarbonImmutable $callStartedAt,
+    ): StepRunResult {
+        $toolCall->fill([
+            'output_payload' => is_array($output) ? $output : ['value' => $output],
+            'status' => 'completed',
+            'duration_ms' => $this->calculateDurationMs($callStartedAt, CarbonImmutable::now()),
+            'finished_at' => now(),
+        ])->save();
+
+        $agentStep->fill([
+            'observation_summary' => "Tool [{$toolName}] had nothing to propose.",
+            'status' => 'completed',
+        ])->save();
+
+        $run->fill([
+            'status' => 'completed',
+            'terminal_reason' => 'no_proposal',
+            'working_memory' => $run->working_memory ?? [],
+            'reasoning_summary' => 'Deterministic ai_action workflow step found nothing to propose.',
+            'budget_usage' => ['steps' => 1, 'tool_calls' => 1, 'tokens' => 0],
+            'last_checkpoint_at' => now(),
+            'finished_at' => now(),
+        ])->save();
+
+        $result = [
+            'agent_run_id' => $run->id,
+            'agent_run_step_id' => $agentStep->id,
+            'tool_call_id' => $toolCall->id,
+            'tool_name' => $toolName,
+            'no_proposal' => true,
+            'output' => $output,
+        ];
+
+        if (is_string($cfg['storeAs'] ?? null)) {
+            $context->setVarPath(substr($cfg['storeAs'], 5), $result);
+        }
+
+        return StepRunResult::success($result, [
+            ['level' => 'info', 'message' => "ai_action tool [{$toolName}] had nothing to propose"],
+        ])->withOutput('no_proposal');
     }
 
     protected function buildIdempotencyKey(AgentRun $run, AgentRunStep $agentStep, string $toolName): string
@@ -638,7 +874,8 @@ class AgentActionRunner implements StepRunner
             return [
                 '__class' => $value::class,
                 '__id' => $value->getKey(),
-                'attributes' => $value->getAttributes(),
+                // attributesToArray() honours \$hidden, so password hashes and tokens never reach step results.
+                'attributes' => $value->attributesToArray(),
             ];
         }
 

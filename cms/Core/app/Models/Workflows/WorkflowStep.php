@@ -76,6 +76,15 @@ class WorkflowStep extends Model
     ];
 
     /**
+     * Trigger start nodes keep the project's trigger columns in step (schedule, scheduler) and the trigger index fresh.
+     */
+    protected static function booted(): void
+    {
+        static::saved(static fn (self $step) => \Cms\Core\Services\Workflow\Triggers\TriggerConfigSync::stepSaved($step));
+        static::deleted(static fn (self $step) => \Cms\Core\Services\Workflow\Triggers\TriggerConfigSync::stepDeleted($step));
+    }
+
+    /**
      * Get the workflow project that this step belongs to.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

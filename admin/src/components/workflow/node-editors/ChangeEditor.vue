@@ -4,6 +4,7 @@
             <p class="text-sm font-semibold text-gray-700 mb-1">{{ t('text.workflow.editor.target_expr') }}</p>
             <ExpressionEditor
                 v-model:model-value="config.targetExpr"
+                variant="pick"
                 :placeholder="'vars.customer'"
                 :model-class="rootModel"
                 :disabled="readOnly"

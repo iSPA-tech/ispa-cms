@@ -96,6 +96,53 @@
             </p>
         </div>
 
+        <!-- Rewrite on request: the reviewer may send the AI's proposal back, up to a number of rounds -->
+        <div class="space-y-3" data-testid="agent-action-rewrite">
+            <div>
+                <label class="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                    <a-switch
+                        :checked="config.allow_revision !== false"
+                        :disabled="readOnly"
+                        size="small"
+                        data-testid="agent-action-allow-revision"
+                        @update:checked="setAllowRevision"
+                    />
+                    <span class="break-words">{{ t('text.workflow.field.allow_revision') }}</span>
+                </label>
+                <p class="mt-1 mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.field.allow_revision_hint') }}</p>
+            </div>
+            <div v-if="config.allow_revision !== false">
+                <p class="mb-1 break-words text-sm font-semibold text-gray-700">{{ t('text.workflow.field.max_rounds') }}</p>
+                <a-input-number
+                    class="w-full md:w-40"
+                    :value="config.max_rounds ?? null"
+                    :min="1"
+                    :max="5"
+                    :precision="0"
+                    :placeholder="'3'"
+                    :disabled="readOnly"
+                    :aria-label="t('text.workflow.field.max_rounds')"
+                    data-testid="agent-action-max-rounds"
+                    @update:value="setMaxRounds"
+                />
+                <p class="mt-1 mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.editor.agent_action.max_rounds_hint') }}</p>
+            </div>
+        </div>
+
+        <!-- Who reviews the AI's proposal, and how fast: applied to every round of the proposal -->
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="agent-action-review">
+            <div class="min-w-0">
+                <p class="mb-1 break-words text-sm font-semibold text-gray-700">{{ t('text.workflow.field.assignees') }}</p>
+                <ReviewerPicker :model-value="config.assignees" :read-only="readOnly" :label="t('text.workflow.field.assignees')" @update:model-value="setAssignees" />
+                <p class="mt-1 mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.field.assignees_hint') }}</p>
+            </div>
+            <div class="min-w-0">
+                <p class="mb-1 break-words text-sm font-semibold text-gray-700">{{ t('text.workflow.field.sla') }}</p>
+                <SlaDurationInput :model-value="config.sla" :read-only="readOnly" :label="t('text.workflow.field.sla')" @update:model-value="setSla" />
+                <p class="mt-1 mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.field.sla_hint') }}</p>
+            </div>
+        </div>
+
         <a-collapse size="small" ghost>
             <a-collapse-panel key="advanced" :header="t('text.workflow.editor.agent_action.advanced')">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -138,6 +185,9 @@
 <script setup>
 import { reactive, ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ReviewerPicker from '@/components/workflow/inputs/ReviewerPicker.vue'
+import SlaDurationInput from '@/components/workflow/inputs/SlaDurationInput.vue'
+import { formatSla, parseSla } from './schemaForm.js'
 
 const props = defineProps({
     modelValue: {
@@ -164,6 +214,12 @@ const defaultConfig = () => ({
     environment: '',
     policyScope: '',
     toolClass: '',
+    // Rewrite on request: on unless switched off; an empty round cap means the default (3).
+    allow_revision: true,
+    max_rounds: null,
+    // Reviewers (user uuids) and review deadline (`30m` / `4h` / `2d`); empty = whoever may approve, not measured.
+    assignees: [],
+    sla: null,
 })
 
 const config = reactive(defaultConfig())
@@ -222,12 +278,42 @@ const buildPayload = () => {
         }
     })
 
+    // Only what differs from the default is stored, so untouched steps keep their saved config.
+    if (config.allow_revision === false) payload.allow_revision = false
+    const rounds = Number(config.max_rounds)
+    if (config.allow_revision !== false && Number.isInteger(rounds) && rounds >= 1 && rounds <= 5) payload.max_rounds = rounds
+
+    const assignees = Array.isArray(config.assignees) ? config.assignees.filter((uuid) => typeof uuid === 'string' && uuid !== '') : []
+    if (assignees.length) payload.assignees = assignees
+    const sla = parseSla(config.sla)
+    if (sla.amount !== null) payload.sla = formatSla(sla.amount, sla.unit)
+
     payload.toolInput = parseToolInput() || {}
     return payload
 }
 
 const emitConfig = () => {
     emit('update:modelValue', buildPayload())
+}
+
+const setAllowRevision = (checked) => {
+    config.allow_revision = checked !== false
+    emitConfig()
+}
+
+const setMaxRounds = (value) => {
+    config.max_rounds = value === null || value === undefined || value === '' ? null : Math.min(5, Math.max(1, Math.round(Number(value)) || 1))
+    emitConfig()
+}
+
+const setAssignees = (uuids) => {
+    config.assignees = Array.isArray(uuids) ? uuids : []
+    emitConfig()
+}
+
+const setSla = (value) => {
+    config.sla = value || null
+    emitConfig()
 }
 
 const parseToolInput = () => {

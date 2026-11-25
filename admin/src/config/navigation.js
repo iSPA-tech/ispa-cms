@@ -22,6 +22,8 @@ const moduleNavigation = (key) => adminNavigationConfigsByKey[key]
  */
 const BASE_NAV_ORDER = [
     'dashboard',
+    // Core approvals waiting for a person ("Chờ duyệt"), right under the dashboard so they are one click away.
+    'approvals',
     'calendar',
     'education-dashboard',
     'education-question-bank',

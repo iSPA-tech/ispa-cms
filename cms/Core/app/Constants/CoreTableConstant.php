@@ -30,6 +30,9 @@ class CoreTableConstant
     /** Agent execution approval requests and decisions */
     public const AGENT_APPROVAL = 'agent_approvals';
 
+    /** Users a workflow step assigned an approval to (approval_id, user_id) */
+    public const AGENT_APPROVAL_ASSIGNEE = 'agent_approval_assignees';
+
     /** Output files and data produced by agent runs */
     public const AGENT_ARTIFACT = 'agent_artifacts';
 

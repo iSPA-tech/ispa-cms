@@ -126,8 +126,8 @@ final class ModuleCatalog
             && ! EntitlementAttentionProvider::blocksUpdates((string) $entry['name'])) {
             foreach ($entry['versions'] as $version) {
                 $number = (string) $version['version'];
-                if (! $version['revoked'] && version_compare($number, $state['installed_version'], '>')
-                    && ($best === null || version_compare($number, $best, '>'))) {
+                if (! $version['revoked'] && ModuleVersionConstraint::compare($number, $state['installed_version']) > 0
+                    && ($best === null || ModuleVersionConstraint::compare($number, $best) > 0)) {
                     $best = $number;
                 }
             }
@@ -273,7 +273,7 @@ final class ModuleCatalog
             return null;
         }
 
-        return version_compare($runtime, $release, '>') ? $runtime : $release;
+        return ModuleVersionConstraint::compare($runtime, $release) > 0 ? $runtime : $release;
     }
 
     /**

@@ -75,7 +75,13 @@ class SettingController extends AdminController
      *
      * @var list<string>
      */
-    public const PROTECTED_KEYS = [ModuleInstallPolicy::SETTING_KEY];
+    public const PROTECTED_KEYS = [
+        ModuleInstallPolicy::SETTING_KEY,
+        // The workflow outbound host list belongs to WorkflowHttpHostsController (Webmaster only, audited).
+        \Cms\Core\Workflows\Runtime\Runners\Integration\Http\HttpHostAllowlist::SETTING_KEY,
+        // Pause all workflows belongs to WorkflowGuardController / cms:workflow-pause-all (Webmaster, audited, alerted).
+        \Cms\Core\Services\Workflow\Guard\WorkflowGlobalPause::SETTING_KEY,
+    ];
 
     /** Message for a refused write to a protected key. */
     private const PROTECTED_MESSAGE = 'This setting is changed on its own screen, not here.';

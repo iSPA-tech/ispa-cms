@@ -183,7 +183,7 @@ test('two concurrent claims of the same pending run: only one gets it', function
 });
 
 test('on a real queue the command only closes rows left for the scheduler; rows queued for a worker stay', function () {
-    config(['queue.default' => 'redis']);
+    config(['queue.default' => 'redis', 'queue.connections.redis.retry_after' => 3000]);
     $left = sirPendingRow();
     $forWorker = sirPendingRow();
     $forWorker->forceFill(['step_message' => 'Queued.'])->save();
@@ -270,7 +270,7 @@ test('a claim younger than the overlap lock is never stale; the stale limit outl
 });
 
 test('with a real queue only the in-process heartbeat is scheduled, not the runner process', function () {
-    config(['queue.default' => 'redis']);
+    config(['queue.default' => 'redis', 'queue.connections.redis.retry_after' => 3000]);
     $this->app->forgetInstance(\Illuminate\Console\Scheduling\Schedule::class);
     $events = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events());
 
@@ -299,4 +299,61 @@ test('a pending run is not claimed while the core runner holds its lock or a cor
 
     app(\Cms\Core\Services\BackgroundTasks\BackgroundTaskRecorder::class)->succeed($task);
     expect($runs->claimNext()?->uuid)->toBe($row->uuid);
+});
+
+/*
+ * Fix 2026-11-25: a queue whose retry_after is not longer than the install job timeout would
+ * redeliver a long install while it still runs, so installs run through the scheduler there too.
+ */
+
+test('one rule decides the runner: sync or a short retry_after uses the scheduler, a long retry_after the queue', function (string $default, ?int $retryAfter, bool $scheduler) {
+    config(['queue.default' => $default, "queue.connections.{$default}.retry_after" => $retryAfter]);
+
+    expect(app(InstallRunDispatcher::class)->usesScheduler())->toBe($scheduler);
+})->with([
+    'sync' => ['sync', null, true],
+    'redis default retry_after 900' => ['redis', 900, true],
+    'redis retry_after equal to the job timeout' => ['redis', 2700, true],
+    'database default retry_after 90' => ['database', 90, true],
+    'redis retry_after 3000' => ['redis', 3000, false],
+    'redis without retry_after' => ['redis', null, false],
+]);
+
+test('redis with retry_after 900 registers the scheduled runner', function () {
+    config(['queue.default' => 'redis', 'queue.connections.redis.retry_after' => 900]);
+    $this->app->forgetInstance(\Illuminate\Console\Scheduling\Schedule::class);
+    $runner = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+        ->first(fn ($e) => $e->description === ModuleInstallRunPendingCommand::NAME);
+
+    expect($runner)->not->toBeNull()
+        ->and($runner->expression)->toBe('* * * * *')
+        ->and($runner->withoutOverlapping)->toBeTrue()
+        ->and($runner->runInBackground)->toBeTrue();
+});
+
+test('redis with retry_after 900: the install is left for the scheduler and the command claims and runs it', function () {
+    config(['queue.default' => 'redis', 'queue.connections.redis.retry_after' => 900]);
+    app(SchedulerHeartbeat::class)->beat();
+    Sanctum::actingAs(sirWebmaster());
+
+    $uuid = $this->postJson('/api/v2/admin/utilities/modules/install', ['name' => 'Probe', 'version' => '2026.1.0'])
+        ->assertStatus(202)
+        ->json('data.uuid');
+
+    Queue::assertNothingPushed();
+    $row = ModuleInstall::query()->where('uuid', $uuid)->firstOrFail();
+    expect($row->step_message)->toBe(InstallRunDispatcher::STEP_WAITING_FOR_SCHEDULER);
+
+    $this->mock(ModuleInstaller::class, function ($mock) use ($uuid): void {
+        $mock->shouldReceive('run')->once()->withArgs(fn (ModuleInstall $install): bool => $install->uuid === $uuid)
+            ->andReturnUsing(function (ModuleInstall $install): void {
+                $install->forceFill(['status' => ModuleInstall::STATUS_SUCCEEDED, 'finished_at' => now()])->save();
+            });
+    });
+
+    $this->artisan(ModuleInstallRunPendingCommand::NAME)->assertExitCode(0);
+
+    $row->refresh();
+    expect($row->status)->toBe(ModuleInstall::STATUS_SUCCEEDED)
+        ->and($row->started_at)->not->toBeNull();
 });

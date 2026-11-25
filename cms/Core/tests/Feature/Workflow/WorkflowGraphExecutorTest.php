@@ -38,7 +38,7 @@ class WorkflowGraphExecutorTest extends TestCase
     public function test_executes_simple_linear_flow(): void
     {
         [$project, $steps] = $this->buildLinearWorkflow();
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => DummyTarget::class,
             'target_id' => 1,
@@ -56,7 +56,7 @@ class WorkflowGraphExecutorTest extends TestCase
     public function test_executes_branching_with_hint(): void
     {
         [$project, $steps] = $this->buildDecisionWorkflow();
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => DummyTarget::class,
             'target_id' => 1,
@@ -78,7 +78,7 @@ class WorkflowGraphExecutorTest extends TestCase
     public function test_executes_branching_with_legacy_builder_handles(): void
     {
         [$project, $steps] = $this->buildLegacyDecisionWorkflow();
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => DummyTarget::class,
             'target_id' => 1,
@@ -123,7 +123,7 @@ class WorkflowGraphExecutorTest extends TestCase
             'condition' => null,
         ]);
 
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => DummyTarget::class,
             'target_id' => 1,
@@ -144,7 +144,7 @@ class WorkflowGraphExecutorTest extends TestCase
     public function test_cancelling_instance_is_acknowledged_without_running_steps(): void
     {
         [$project] = $this->buildLinearWorkflow();
-        $instance = WorkflowInstance::create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'target_type' => DummyTarget::class,
             'target_id' => 1,

@@ -1,1 +1,0 @@
-import{i as e}from"./config-DK2AR_tV.js";var t=async()=>{let t=(await e.get(`registry`,{silent:!0}))?.data;return{schema_version:t?.schema_version??1,modules:Array.isArray(t?.modules)?t.modules:[]}};export{t as getBackendRegistry};

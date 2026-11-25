@@ -8,11 +8,14 @@
 
 namespace Cms\Core\Workflows\Runtime\Runners;
 
+use Cms\Core\Services\Workflow\Guard\WorkflowAudit;
 use Cms\Core\Workflows\Expression\WorkflowExpressionEngine;
 use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
 use Cms\Core\Workflows\Runtime\WorkflowContext;
+use Cms\Core\Workflows\Security\WorkflowCallableGuard;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -21,6 +24,10 @@ use Illuminate\Database\Eloquent\Model;
  * Evaluates the target model from a context expression, applies field-value changes
  * via expression evaluation, and optionally persists the model to the database.
  *
+ * The target must be a model reference this run produced ({@see WorkflowModelRefs}): never one read from the trigger
+ * payload, and of the step's `model` when the step names one. The model must pass WorkflowCallableGuard and the run's
+ * delegate must be allowed `update` on the row (`create` for a model the run has not saved yet).
+ *
  * @see StepRunner
  * @package Cms\Core\Workflows\Runtime\Runners
  * @author  iSPA Team
@@ -28,6 +35,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ChangeRunner implements StepRunner
 {
+    use ResolvesModelTargets;
+
     /**
      * Initialize the runner with an expression engine for evaluating change values.
      *
@@ -62,19 +71,15 @@ class ChangeRunner implements StepRunner
             return StepRunResult::failed('change: changes are required');
         }
 
-        try {
-            $target = $this->engine->evaluate($targetExpr, $context, true);
-        } catch (\Throwable $e) {
-            return StepRunResult::failed('change: failed to evaluate targetExpr: ' . $e->getMessage());
+        $models = $this->resolveModelTargets('change', $targetExpr, $config, $context, false, $error);
+        if ($models === null || count($models) !== 1) {
+            return StepRunResult::failed($error ?? 'change: target is not a model or resolvable snapshot');
         }
-
-        $model = $this->resolveModel($target);
-        if (!$model) {
-            return StepRunResult::failed('change: target is not a model or resolvable snapshot');
-        }
+        $model = $models[0];
 
         $changedFields = [];
         $logs = [];
+        $values = [];
 
         foreach ($changes as $change) {
             $field = $change['field'] ?? null;
@@ -83,25 +88,38 @@ class ChangeRunner implements StepRunner
                 return StepRunResult::failed('change: each change requires field and valueExpr');
             }
 
+            // Only mass-assignable attributes: $fillable / $guarded decide, like any request writing the model.
+            if (!$model->isFillable($field)) {
+                return StepRunResult::failed("change: field not fillable: {$field}", $logs);
+            }
+
             try {
                 $value = $this->engine->evaluate($valueExpr, $context, true);
             } catch (\Throwable $e) {
                 return StepRunResult::failed("change: failed to evaluate {$field}: " . $e->getMessage(), $logs);
             }
 
-            $model->setAttribute($field, $value);
+            $values[$field] = $value;
             $changedFields[] = $field;
             $logs[] = ['level' => 'info', 'message' => "set {$field}", 'value' => $value];
         }
 
+        // Every field is checked before any is set, so a refused field leaves the model untouched.
+        $model->fill($values);
+
         if ($save) {
             try {
                 $model->save();
+                WorkflowModelRefs::remember($context, $model);
                 $logs[] = ['level' => 'info', 'message' => 'model saved'];
+                WorkflowAudit::recordWritten($context, $step->stepCode, $model::class, WorkflowAudit::modelKey($model), $changedFields, 'change');
             } catch (\Throwable $e) {
                 return StepRunResult::failed('change: save failed: ' . $e->getMessage(), $logs);
             }
         }
+
+        // A later commit_objects of this run saves the unsaved change from the working set.
+        WorkflowModelRefs::remember($context, $model);
 
         return StepRunResult::success(
             [
@@ -109,8 +127,7 @@ class ChangeRunner implements StepRunner
                 'saved' => $save,
                 'model' => $model::class,
                 'id' => $model->getKey(),
-                '__class' => $model::class,
-                '__id' => $model->getKey(),
+                ...WorkflowModelRefs::ref($model, $context),
                 'changed' => $changedFields,
             ],
             array_merge($logs, [[
@@ -119,22 +136,5 @@ class ChangeRunner implements StepRunner
                 'saved' => $save,
             ]])
         );
-    }
-
-    protected function resolveModel(mixed $target): ?Model
-    {
-        if ($target instanceof Model) {
-            return $target;
-        }
-
-        if (is_array($target) && isset($target['__class'], $target['__id'])) {
-            $class = $target['__class'];
-            $id = $target['__id'];
-            if (class_exists($class) && is_subclass_of($class, Model::class)) {
-                return $class::query()->find($id);
-            }
-        }
-
-        return null;
     }
 }

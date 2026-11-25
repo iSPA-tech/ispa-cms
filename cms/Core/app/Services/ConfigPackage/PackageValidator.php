@@ -262,7 +262,12 @@ final class PackageValidator
         foreach ($value as $key => $child) {
             $childPath = "{$path}.{$key}";
 
-            if (is_string($key) && ($key === 'id' || str_ends_with($key, '_id')) && (is_int($child) || (is_string($child) && is_numeric($child)))) {
+            // `id`, snake_case `*_id`, and inside workflows also camelCase `*Id` / `*ID` (a step config's `sourceRunId`).
+            // camelCase stays limited to workflows: settings and table rows were never checked for it, and a site's
+            // own values (a theme's `pageId`) must not start failing every export.
+            $camelId = str_starts_with($path, 'sections.workflows') && is_string($key) && preg_match('/[a-z0-9]I[dD]$/', $key) === 1;
+            if (is_string($key) && ($key === 'id' || str_ends_with($key, '_id') || $camelId)
+                && (is_int($child) || (is_string($child) && is_numeric($child)))) {
                 $errors[] = self::issue('numeric_id', ['path' => $childPath], "{$childPath} is a numeric id; packages reference records by stable keys only.");
 
                 continue;

@@ -3,7 +3,7 @@
     "edition": "open",
     "alias": "content",
     "description": "Deliver articles, media pages, and storytelling blocks for the CMS front office.",
-    "version": "2026.11.08",
+    "version": "2026.11.09",
     "keywords": [],
     "admin": {
         "custom_code": true
@@ -27,6 +27,6 @@
         ]
     },
     "requires": {
-        "core": ">=2026.11.01,<2027.00.00"
+        "core": ">=2026.11.06,<2027.00.00"
     }
 }

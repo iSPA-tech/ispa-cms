@@ -78,8 +78,8 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
     {
         $owner = $this->makeUser('owner');
         $victim = $this->makeUser('victim');
-        $instance = WorkflowInstance::query()->create(['status' => 'running', 'delegated_by_user_id' => $owner->id]);
-        $other = WorkflowInstance::query()->create(['status' => 'running', 'delegated_by_user_id' => $victim->id]);
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['status' => 'running', 'delegated_by_user_id' => $owner->id]);
+        $other = \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['status' => 'running', 'delegated_by_user_id' => $victim->id]);
         RuntimeGuardHijackService::$instanceId = $other->id;
 
         $attacks = [
@@ -133,8 +133,10 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
 
     public function test_blueprint_callable_checks_store_as_before_calling(): void
     {
-        $instance = WorkflowInstance::query()->create(['status' => 'running']);
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['status' => 'running']);
         StoreAsSpyService::$calls = 0;
+        // Workflow callables are deny-by-default (core.workflow_security).
+        config(['core.workflow_security.services' => [StoreAsSpyService::class => ['run']]]);
 
         $cases = [
             'vars.__runtime.x' => 'blueprint_callable: storeAs may not write __runtime',
@@ -218,7 +220,7 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
         ]);
         WorkflowConnection::query()->create(['project_id' => $project->id, 'from_step_id' => $echo->id, 'to_step_id' => $probe->id]);
 
-        $instance = WorkflowInstance::query()->create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'status' => 'pending',
             'delegated_by_user_id' => $owner->id,
@@ -233,6 +235,8 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
             'agent_schedule_id' => 7,
             'instance_id' => $instance->id,
             'queued' => false,
+            // Run-wide step budget (review finding 20): the echo step is the run's first step.
+            'steps' => 1,
             'current_instance_step_id' => $echoStep->id,
         ], $echoStep->result_data['result']['payload']['runtime']);
 
@@ -262,7 +266,7 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
             'position_x' => 2,
         ]);
         WorkflowConnection::query()->create(['project_id' => $project->id, 'from_step_id' => $clear->id, 'to_step_id' => $probe->id]);
-        $instance = WorkflowInstance::query()->create([
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
             'project_id' => $project->id,
             'status' => 'pending',
             'delegated_by_user_id' => $owner->id,
@@ -279,7 +283,7 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
     {
         $owner = $this->makeUser('owner');
         $victim = $this->makeUser('victim');
-        $other = WorkflowInstance::query()->create(['status' => 'running', 'delegated_by_user_id' => $victim->id]);
+        $other = \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['status' => 'running', 'delegated_by_user_id' => $victim->id]);
 
         $result = app(AgenticAdhocDispatchService::class)->dispatchDeterministicTool(
             profile: $this->profile,

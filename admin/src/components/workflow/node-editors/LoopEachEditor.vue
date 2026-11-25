@@ -1,46 +1,50 @@
 <template>
-    <div class="loop-each-editor space-y-3">
+    <div class="space-y-3" data-testid="loop-each-editor">
         <div class="space-y-1">
-            <p class="text-sm font-semibold text-gray-700 mb-1">{{ t('text.workflow.editor.collection_expr') }}</p>
+            <p class="mb-1 text-sm font-semibold text-gray-700">{{ t('text.workflow.field.collectionExpr') }}</p>
             <ExpressionEditor
-                v-model:model-value="config.collectionExpr"
-                :placeholder="'vars.items'"
+                :model-value="config.collectionExpr"
+                variant="pick"
                 :model-class="rootModel"
                 :disabled="readOnly"
+                @update:model-value="(value) => set('collectionExpr', value)"
             />
+            <p class="mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.field.collectionExpr_hint') }}</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-                <p class="text-sm font-semibold text-gray-700 mb-1">{{ t('text.workflow.editor.loop_each.item_var') }}</p>
-                <a-input
-                    v-model:value="config.itemVar"
-                    placeholder="vars.item"
-                    @change="emitConfig"
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="space-y-1">
+                <p class="mb-1 text-sm font-semibold text-gray-700">{{ t('text.workflow.field.itemVar') }}</p>
+                <StoreNameInput
+                    :model-value="config.itemVar"
+                    :label="t('text.workflow.field.itemVar')"
                     :disabled="readOnly"
+                    @update:model-value="(value) => set('itemVar', value)"
                 />
             </div>
-            <div>
-                <p class="text-sm font-semibold text-gray-700 mb-1">{{ t('text.workflow.editor.loop_each.index_var') }}</p>
-                <a-input
-                    v-model:value="config.indexVar"
-                    placeholder="vars.index"
-                    @change="emitConfig"
+            <div class="space-y-1">
+                <p class="mb-1 text-sm font-semibold text-gray-700">{{ t('text.workflow.field.indexVar') }}</p>
+                <StoreNameInput
+                    :model-value="config.indexVar"
+                    :label="t('text.workflow.field.indexVar')"
                     :disabled="readOnly"
+                    @update:model-value="(value) => set('indexVar', value)"
                 />
             </div>
         </div>
+        <p class="mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.field.itemVar_hint') }}</p>
 
         <div class="space-y-1">
-            <p class="text-sm font-semibold text-gray-700 mb-1">{{ t('text.workflow.editor.loop_each.max_items') }}</p>
+            <p class="mb-1 text-sm font-semibold text-gray-700">{{ t('text.workflow.field.maxItems') }}</p>
             <a-input-number
-                v-model:value="config.maxItems"
+                :value="config.maxItems"
                 :min="1"
-                style="width: 160px"
-                @change="emitConfig"
+                class="w-40"
+                :aria-label="t('text.workflow.field.maxItems')"
                 :disabled="readOnly"
+                @update:value="(value) => set('maxItems', value)"
             />
-            <p class="text-xs text-gray-500">{{ t('text.workflow.editor.loop_each.max_items_hint') }}</p>
+            <p class="mb-0 break-words text-xs text-gray-500">{{ t('text.workflow.editor.loop_each.max_items_hint') }}</p>
         </div>
     </div>
 </template>
@@ -49,6 +53,7 @@
 import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ExpressionEditor from '@/components/workflow/inputs/ExpressionEditor.vue'
+import StoreNameInput from '@/components/workflow/inputs/StoreNameInput.vue'
 
 const props = defineProps({
     modelValue: {
@@ -90,8 +95,11 @@ watch(
     { immediate: true, deep: true }
 )
 
-const emitConfig = () => {
+// Settings this form does not show (`_v`, keys of a newer version) are kept as they are.
+const set = (key, value) => {
+    config[key] = value
     emit('update:modelValue', {
+        ...(props.modelValue || {}),
         collectionExpr: config.collectionExpr,
         itemVar: config.itemVar,
         indexVar: config.indexVar,
@@ -99,12 +107,3 @@ const emitConfig = () => {
     })
 }
 </script>
-
-<style scoped>
-.loop-each-editor {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 10px;
-}
-</style>

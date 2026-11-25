@@ -40,15 +40,20 @@
                     <a-switch v-model:checked="showInfrastructureModel" size="small" />
                     <span>{{ t('text.workflow.catalog.show_infra') }}</span>
                 </label>
-                <a-button
-                    v-if="canCreate"
-                    :icon="h(PlusOutlined)"
-                    class="sm:ml-auto"
-                    type="primary"
-                    @click="$emit('create')"
-                >
-                    {{ $t('nav.b.create') }}
-                </a-button>
+                <div class="flex flex-wrap gap-2 sm:ml-auto">
+                    <a-badge v-if="showPending" :count="pendingCount" :offset="[-4, 2]">
+                        <a-button :icon="h(AuditOutlined)" data-testid="workflow-pending-open" @click="$emit('pending')">
+                            {{ t('text.workflow.guard.pending.title') }}
+                        </a-button>
+                    </a-badge>
+                    <!-- Sample workflows from iSPA; bringing in a file is offered on that page. -->
+                    <a-button :icon="h(AppstoreOutlined)" data-testid="workflow-library" @click="$emit('library')">
+                        {{ t('text.workflow.library.open_action') }}
+                    </a-button>
+                    <a-button v-if="canCreate" :icon="h(PlusOutlined)" type="primary" @click="$emit('create')">
+                        {{ $t('nav.b.create') }}
+                    </a-button>
+                </div>
             </div>
         </div>
         <div class="grid gap-3 sm:grid-cols-3">
@@ -72,7 +77,7 @@
 </template>
 
 <script setup>
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { AppstoreOutlined, AuditOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { computed, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -107,6 +112,15 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    /** Accounts that may publish get the list of sensitive changes that are not live yet. */
+    showPending: {
+        type: Boolean,
+        default: false,
+    },
+    pendingCount: {
+        type: Number,
+        default: 0,
+    },
 })
 
 const emit = defineEmits([
@@ -115,6 +129,8 @@ const emit = defineEmits([
     'update:tags',
     'update:show-infrastructure',
     'create',
+    'library',
+    'pending',
 ])
 
 const searchModel = computed({

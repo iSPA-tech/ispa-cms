@@ -40,6 +40,9 @@ export function useAgenticFilters() {
         status: 'pending',
         applyOutcome: undefined,
         artifactType: undefined,
+        // `'me'` lists what was given to the signed-in reviewer; `true` keeps only the overdue ones.
+        assigned: undefined,
+        overdue: undefined,
         page: 1,
         perPage: 6,
     })

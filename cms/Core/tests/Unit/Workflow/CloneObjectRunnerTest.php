@@ -8,7 +8,9 @@ use Cms\Core\Workflows\Runtime\WorkflowContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Cms\Core\Tests\Support\WorkflowTestDelegate;
 use Cms\Core\Tests\TestCase;
+use Cms\Core\Workflows\Security\WorkflowModelRefs;
 
 class CloneObjectRunnerTest extends TestCase
 {
@@ -20,14 +22,14 @@ class CloneObjectRunnerTest extends TestCase
             $table->string('name')->nullable();
             $table->timestamps();
         });
+        WorkflowTestDelegate::allow(CloneCustomer::class);
     }
 
     public function test_clone_without_save(): void
     {
         $source = CloneCustomer::create(['name' => 'Alice']);
-        $ctx = new WorkflowContext($this->makeRoot(), [], [
-            'customer' => $source,
-        ]);
+        $ctx = new WorkflowContext($this->makeRoot());
+        $ctx->setVar('customer', WorkflowModelRefs::nestedSnapshot($source, $ctx));
 
         $runner = new CloneObjectRunner();
         $step = new StepDefinition(null, null, 'clone_object', 'clone', null, 'Clone', [
@@ -40,19 +42,19 @@ class CloneObjectRunnerTest extends TestCase
         $res = $runner->run($step, $ctx);
 
         $this->assertSame('success', $res->status);
+        // vars hold a snapshot with a signed reference, never the live clone.
         $copy = $ctx->getVarPath('copy');
-        $this->assertInstanceOf(CloneCustomer::class, $copy);
-        $this->assertNull($copy->getKey());
-        $this->assertEquals('Alice', $copy->name);
+        $this->assertSame(CloneCustomer::class, $copy['__class']);
+        $this->assertNull($copy['__id']);
+        $this->assertEquals('Alice', $copy['name']);
         $this->assertFalse($res->resultData['saved']);
     }
 
     public function test_clone_with_save(): void
     {
         $source = CloneCustomer::create(['name' => 'Bob']);
-        $ctx = new WorkflowContext($this->makeRoot(), [], [
-            'customer' => $source,
-        ]);
+        $ctx = new WorkflowContext($this->makeRoot());
+        $ctx->setVar('customer', WorkflowModelRefs::nestedSnapshot($source, $ctx));
 
         $runner = new CloneObjectRunner();
         $step = new StepDefinition(null, null, 'clone_object', 'clone', null, 'Clone', [
@@ -65,11 +67,11 @@ class CloneObjectRunnerTest extends TestCase
 
         $this->assertSame('success', $res->status);
         $copy = $ctx->getVarPath('copy');
-        $this->assertInstanceOf(CloneCustomer::class, $copy);
-        $this->assertNotNull($copy->getKey());
-        $this->assertNotEquals($source->getKey(), $copy->getKey());
+        $this->assertSame(CloneCustomer::class, $copy['__class']);
+        $this->assertNotNull($copy['__id']);
+        $this->assertNotEquals($source->getKey(), $copy['__id']);
         $this->assertTrue($res->resultData['saved']);
-        $this->assertEquals($copy->getKey(), $res->resultData['id']);
+        $this->assertEquals($copy['__id'], $res->resultData['id']);
     }
 
     protected function makeRoot(): Model

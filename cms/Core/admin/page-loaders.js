@@ -45,6 +45,8 @@ export const SettingEnvironment = () => import('./pages/setting/environment.vue'
 export const SettingStarterPacks = () => import('./pages/setting/starter-packs.vue').then((m) => m.default)
 export const SettingSecurityTokens = () => import('./pages/setting/security-tokens.vue').then((m) => m.default)
 export const SettingEmail = () => import('./pages/setting/email.vue').then((m) => m.default)
+// Managed e-mail templates: list by group and language, mail class, edit and preview.
+export const SettingEmailTemplates = () => import('./pages/setting/email-templates.vue').then((m) => m.default)
 export const SettingMenu = () => import('./pages/setting/menu.vue').then((m) => m.default)
 export const SettingUpload = () => import('./pages/setting/upload.vue').then((m) => m.default)
 export const SettingEnumerate = () => import('./pages/setting/enumerate.vue').then((m) => m.default)
@@ -68,12 +70,24 @@ export const Storage = () => import('./pages/warehouse/storage.vue').then((m) =>
 export const SettingWorkflow = () => import('./pages/setting/workflows.vue').then((m) => m.default)
 export const SettingWorkflowManage = () =>
     import('./pages/setting/workflows-manage.vue').then((m) => m.default)
+// Sample workflows downloaded from the iSPA hub (list, what a template may do, install).
+export const SettingWorkflowLibrary = () => import('./pages/setting/workflow-library.vue').then((m) => m.default)
+export const SettingWorkflowPackageImport = () =>
+    import('./pages/setting/workflow-package-import.vue').then((m) => m.default)
+// What a site must decide after a sample workflow is installed (who reviews, who is told, when it runs).
+export const SettingWorkflowSetup = () => import('./pages/setting/workflow-setup.vue').then((m) => m.default)
+export const SettingWorkflowCredentials = () =>
+    import('./pages/setting/workflow-credentials.vue').then((m) => m.default)
 export const AgenticDashboard = () =>
     import('./pages/setting/agentic/AgenticDashboard.vue').then((m) => m.default)
 export const AgenticApprovalInbox = () =>
     import('./pages/setting/agentic/AgenticApprovalInbox.vue').then((m) => m.default)
-export const AgenticApprovalDetail = () =>
-    import('./pages/setting/agentic/AgenticApprovalDetail.vue').then((m) => m.default)
+export const AgenticApprovalPage = () =>
+    import('./pages/setting/agentic/AgenticApprovalPage.vue').then((m) => m.default)
+export const AgenticApprovalSla = () =>
+    import('./pages/setting/agentic/AgenticApprovalSla.vue').then((m) => m.default)
+// Group root of the top-level approvals routes: only an outlet for the list and the detail.
+export const ApprovalsShell = () => import('vue-router').then((m) => m.RouterView)
 export const AgenticAdminConfig = () =>
     import('./pages/setting/agentic/AgenticAdminConfig.vue').then((m) => m.default)
 export const SettingAiRuntime = () => import('./pages/setting/ai-runtime.vue').then((m) => m.default)

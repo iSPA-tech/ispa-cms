@@ -40,15 +40,32 @@ final class AiTaskRuntime
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<string, mixed>                  $payload
+     * @param array{provider: string, model: string}|null $override Provider + model for this call; must be on
+     *                                                       {@see AiModelChoices::selectable()}, else RuntimeException.
      * @return array{response: array<string, mixed>, content: string, model: ?string, provider: string, fallback_used: bool, refused_reason: ?string}
      */
     public function run(
         string $taskKey,
         array $payload,
         ?AgenticAiProviderInterface $legacyProvider = null,
+        ?array $override = null,
     ): array {
         $task = $this->resolver->taskOverrides($taskKey);
+
+        if ($override !== null) {
+            // A chosen provider + model (AI node `model_choice`, a reviewer's rewrite option) wins over the task row and
+            // the provider default; fallback models, temperature and metering still come from the task row. Anything
+            // off the selectable list (no key, stale builder config, crafted request) fails before any provider call.
+            $choice = trim((string) ($override['provider'] ?? '')) . ':' . trim((string) ($override['model'] ?? ''));
+            $choices = app(AiModelChoices::class);
+            $parsed = $choices->parse($choice);
+            if ($parsed === null || !$choices->isSelectable($parsed['provider'] . ':' . $parsed['model'])) {
+                throw new \RuntimeException('AI model choice [' . mb_substr($choice, 0, 150) . '] is not available (no API key or unknown model).');
+            }
+            $task['provider'] = $parsed['provider'];
+            $task['model'] = $parsed['model'];
+        }
 
         if ($task['model'] !== null) {
             $payload['model'] = $task['model'];

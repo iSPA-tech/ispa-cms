@@ -47,7 +47,7 @@ it('dumps a real sqlite file to gzip and round-trips it', function (): void {
         ->and($result->tablesDumped)->toBe(3)
         ->and($result->sha256)->toBe(hash_file('sha256', $target))
         ->and($result->sizeBytes)->toBe(filesize($target))
-        ->and(substr(sprintf('%o', fileperms($target)), -4))->toBe('0600')
+        ->and(substr(sprintf('%o', fileperms($target)), -4))->toBe('0660')
         ->and(glob($this->dir . '/staging/*'))->toBeEmpty();
 
     $restored = $this->dir . '/restored.sqlite';

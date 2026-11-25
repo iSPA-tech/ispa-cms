@@ -142,3 +142,59 @@ export function buildApprovalSentence(approval, t, options = {}) {
     const safeLabel = typeLabel && typeLabel !== artifact.artifact_type ? typeLabel : t('text.agentic.approval.sentence_unknown')
     return subject ? t('text.agentic.approval.sentence_generic', { label: safeLabel, subject }) : safeLabel
 }
+
+/**
+ * A length of time in plain words, at most two units: "2 giờ 15 phút", "3 ngày 4 giờ", "45 phút".
+ * Under a minute reads "dưới 1 phút". `short` keeps the largest unit only ("Còn 2 giờ").
+ *
+ * @param {number|null|undefined} seconds Length in seconds.
+ * @param {Function} t Translator.
+ * @param {{short?: boolean}} [options]
+ * @returns {string} Display text, or an em dash when there is no number.
+ */
+export function formatDuration(seconds, t, { short = false } = {}) {
+    const total = Number(seconds)
+    if (seconds === null || seconds === undefined || seconds === '' || !Number.isFinite(total) || total < 0) return '—'
+    if (total < 60) return t('text.agentic.sla.under_minute')
+    const minutes = Math.floor(total / 60)
+    const days = Math.floor(minutes / 1440)
+    const hours = Math.floor((minutes % 1440) / 60)
+    const mins = minutes % 60
+    const parts = []
+    if (days) parts.push(t('text.agentic.sla.days', { n: days }))
+    if (hours) parts.push(t('text.agentic.sla.hours', { n: hours }))
+    if (mins && !days) parts.push(t('text.agentic.sla.minutes', { n: mins }))
+    return (short ? parts.slice(0, 1) : parts.slice(0, 2)).join(' ')
+}
+
+/**
+ * The due chip of an approval: how long is left, how late it is, or how the decision compares to the target time.
+ * Always a text, so "overdue" never depends on the colour alone. Null when nothing is measured.
+ *
+ * @param {Object|null} approval Approval resource (with its optional `assignment`).
+ * @param {Function} t Translator.
+ * @param {number} [now] Current time in milliseconds (injected in tests).
+ * @returns {{text: string, tone: 'ok'|'late'|'neutral', color: string}|null}
+ */
+export function dueChip(approval, t, now = Date.now()) {
+    const assignment = approval?.assignment
+    if (!assignment) return null
+    if (approval.status === 'pending') {
+        const due = assignment.due_at ? dayjs(assignment.due_at) : null
+        if (!due || !due.isValid()) return null
+        const left = Math.round((due.valueOf() - now) / 1000)
+        if (left <= 0 || assignment.overdue) {
+            return { text: t('text.agentic.sla.overdue_by', { time: formatDuration(Math.abs(Math.min(left, 0)), t, { short: true }) }), tone: 'late', color: 'red' }
+        }
+        return { text: t('text.agentic.sla.time_left', { time: formatDuration(left, t, { short: true }) }), tone: 'neutral', color: 'default' }
+    }
+    if (assignment.sla_met === true) return { text: t('text.agentic.sla.on_time'), tone: 'ok', color: 'green' }
+    if (assignment.sla_met === false) return { text: t('text.agentic.sla.late'), tone: 'late', color: 'red' }
+    return null
+}
+
+/** Names of the people an approval was given to, as one line; empty when there are none. */
+export function assigneeNames(approval) {
+    const list = approval?.assignment?.assignees
+    return Array.isArray(list) ? list.map((person) => person?.name).filter(Boolean).join(', ') : ''
+}

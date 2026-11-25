@@ -25,7 +25,7 @@
 
             <!-- Secondary nav -->
             <AgenticSubNav>
-                <template #setting-agentic-approvals>
+                <template #approvals>
                     <span v-if="pendingCount > 0" class="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-warning-soft px-1.5 text-xs text-warning-ink">
                         {{ pendingCount }}
                     </span>

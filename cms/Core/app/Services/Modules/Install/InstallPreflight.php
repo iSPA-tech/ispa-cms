@@ -27,7 +27,7 @@ use Throwable;
  * Reads only: configuration (`core.module_packages.*`, `modules.activator`, `queue.*`), the folders on disk, the
  * migration repository and the hub catalog. Settings it relies on: ModuleInstallPolicy (`core.module_packages.install_enabled` + the admin switch)
  * (env MODULE_INSTALL_ENABLED), `.trusted_keys` / `.revoked_key_ids`, `.job_timeout` (seconds) and the site's
- * default queue connection (`queue.default`, its `retry_after`).
+ * default queue connection (`queue.default`, its `retry_after`), which decide whether the scheduler runs installs.
  *
  * MODULE_ALREADY_PRESENT vs MODULE_NAME_CONFLICT: ALREADY_PRESENT means the very same module folder (exact name)
  * is installed already, in the release folder or as a runtime module; Runtime install only installs new modules.
@@ -678,7 +678,11 @@ final class InstallPreflight
     {
         $unmet = $this->unmetRequirements((array) $entry['requires']);
         if ($unmet !== []) {
-            $add($blocking, self::REQUIRES_UNMET, 'Required modules are missing, disabled or have the wrong version.', [
+            $core = collect($unmet)->first(static fn (array $row): bool => ModuleVersionConstraint::sameModule($row['module'], 'Core') && $row['reason'] === 'version');
+            $message = $core !== null
+                ? "Core {$core['installed_version']} is too old for {$name} (needs {$core['constraint']}). Deploy or upgrade Core first."
+                : 'Required modules are missing, disabled or have the wrong version.';
+            $add($blocking, self::REQUIRES_UNMET, $message, [
                 'unmet' => $unmet,
             ]);
         }
@@ -824,7 +828,7 @@ final class InstallPreflight
             return null;
         }
 
-        $order = version_compare($version, $baseline);
+        $order = ModuleVersionConstraint::compare($version, $baseline);
         if ($order === 0) {
             $add($blocking, self::SAME_VERSION, "Module {$name} {$baseline} is already installed.", ['installed_version' => $baseline]);
 
@@ -887,7 +891,7 @@ final class InstallPreflight
             return null;
         }
 
-        $order = version_compare($version, $installed);
+        $order = ModuleVersionConstraint::compare($version, $installed);
         if ($order === 0) {
             $add($blocking, self::SAME_VERSION, "Module {$name} {$installed} is already installed.", ['installed_version' => $installed]);
 
@@ -1079,32 +1083,24 @@ final class InstallPreflight
     }
 
     /**
-     * A real queue must redeliver later than the install job timeout; a `sync` queue needs a fresh scheduler heartbeat.
+     * Installs run through the scheduler or a queue worker ({@see InstallRunDispatcher::schedulerRunsInstalls()}).
+     * Through the scheduler (queue `sync`, or a `retry_after` not longer than the job timeout) the scheduler must
+     * have run recently. A safe real queue needs nothing more.
+     *
+     * Fix 2026-11-25: a short `retry_after` no longer blocks with QUEUE_TIMEOUT (it blocked every live site on redis
+     * with the 900 s default); it means "runs through the scheduler". QUEUE_SYNC and QUEUE_TIMEOUT are kept as
+     * constants for older clients but no longer reported.
      *
      * @param Closure $add
      * @param array   $blocking
      */
     private function checkQueue(Closure $add, array &$blocking): void
     {
-        $connection = (string) config('queue.default', 'sync');
-        if ($connection === 'sync') {
-            // No queue worker: installs run through the scheduler (spec 2026-11-22), which must have run recently.
-            // QUEUE_SYNC is kept as a constant for older clients but no longer reported.
-            if (! app(SchedulerHeartbeat::class)->isFresh()) {
-                $add($blocking, self::NO_RUNNER, 'The site has no queue worker and its scheduler (cron) has not run in the last few minutes, so nothing would run the install.');
-            }
-
+        if (! InstallRunDispatcher::schedulerRunsInstalls()) {
             return;
         }
-
-        $retryAfter = config("queue.connections.{$connection}.retry_after");
-        $timeout = (int) config('core.module_packages.job_timeout', 2700);
-        if (is_numeric($retryAfter) && (int) $retryAfter <= $timeout) {
-            $add($blocking, self::QUEUE_TIMEOUT, "Queue connection {$connection} redelivers jobs after {$retryAfter}s, which is not longer than the install job timeout ({$timeout}s).", [
-                'connection' => $connection,
-                'retry_after' => (int) $retryAfter,
-                'job_timeout' => $timeout,
-            ]);
+        if (! app(SchedulerHeartbeat::class)->isFresh()) {
+            $add($blocking, self::NO_RUNNER, 'Installs run through the scheduler on this site, and the scheduler (cron) has not run in the last few minutes, so nothing would run the install.');
         }
     }
 }
