@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.11 - 2026-11-26
+- A Core update started from the admin no longer rolls back with a failed health check on servers where the web server and the code owner are different users: the health check compiles its views in a private temporary folder.
+- The Core update card shows its state at a glance: update available, in progress with a progress bar, done, failed, refused or up to date.
+- The switch that allows module installs reads as its own setting.
+
 ## 2026.11.10 - 2026-11-26
 - Sites deployed by iSPA (release folders behind `current`) can update Core from the admin once their deploy writes a core manifest. The update changes only files of the public core package that this site's deploy also took from the core build; it never touches client modules, projects, installed modules, site translations, `vendor/` or the site's built assets, and removes a file only when the deploy's manifest lists it. `VERSION`, the composer files and `runtime_modules.json` stay the deploy's (the card shows the core version from `core-manifest.json`), so the admin keeps rebuilding. It runs inside the live release folder.
 - Such an update stops before any change when the package's Core, Content or Widget is older than the site's, or when it needs PHP packages the site does not have (deploy instead).

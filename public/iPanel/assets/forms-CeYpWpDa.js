@@ -1,1 +1,0 @@
-import{g as e}from"./config-BxjDK0vb.js";var t=(t={})=>{let{errorFields:n=[]}=t,r=``;n.forEach(e=>{r+=`${e.errors[0]}<br>`}),e(r,!0)};export{t};

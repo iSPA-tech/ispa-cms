@@ -176,7 +176,7 @@ function cdoPackage(string $dir, array $override = [], string $lock = '{"package
 }
 
 /** @return array{0: CoreUpgrader, 1: object} upgrader and the fake process runner */
-function cdoUpgrader(string $release, array $pkg): array
+function cdoUpgrader(string $release, array $pkg, ?CoreHealthCheck $health = null): array
 {
     $runner = new class extends ProcessRunner {
         /** @var list<string> */
@@ -193,7 +193,7 @@ function cdoUpgrader(string $release, array $pkg): array
             return 0;
         }
     };
-    $health = new class extends CoreHealthCheck {
+    $health ??= new class extends CoreHealthCheck {
         public function check(): array
         {
             return [];
@@ -315,6 +315,68 @@ test('a deploy-origin release upgrades in place and site files stay byte-identic
         // Views compiled by the runner during the health check belong to the code owner; the web user cannot touch()
         // them (the site answered 500), so they are cleared once the site is healthy.
         ->and(end($runner->commands))->toBe('artisan view:clear');
+});
+
+test('the health check compiles views in a folder of its own, never in the folder the web server uses', function () {
+    // The runner and the web server (www-data) cannot touch each other's compiled views, which Blade
+    // does when a view's source is as new as its compiled copy: the in-process health check then answered 500 and
+    // the update rolled back on a CI-deployed site. The check now compiles into a private temporary folder.
+    $shared = config('view.compiled');
+    $health = new class extends CoreHealthCheck {
+        public ?string $seen = null;
+
+        public bool $existed = false;
+
+        public function check(): array
+        {
+            $this->seen = config('view.compiled');
+            $this->existed = is_dir((string) $this->seen) && is_writable((string) $this->seen);
+            file_put_contents($this->seen.'/compiled.php', 'x');
+
+            return [];
+        }
+    };
+    [$up] = cdoUpgrader($this->release, $this->pkg, $health);
+
+    $up->run('2026.11.55', false);
+
+    expect($health->seen)->not->toBe($shared)
+        ->and($health->existed)->toBeTrue()
+        ->and(config('view.compiled'))->toBe($shared)
+        ->and(is_dir((string) $health->seen))->toBeFalse();
+});
+
+test('the health check keeps the view namespaces and directives the providers registered', function () {
+    // Forgetting the view singletons to switch the compiled folder dropped every view namespace (the theme's
+    // `default::` among them), so GET / answered 500 in the check and every update from the admin rolled back.
+    $views = $this->dir.'/health-views';
+    @mkdir($views, 0755, true);
+    file_put_contents($views.'/hello.blade.php', '@cdoshout(hi) {{ $name }}');
+    \Illuminate\Support\Facades\View::addNamespace('cdohealth', $views);
+    \Illuminate\Support\Facades\Blade::directive('cdoshout', fn (string $e) => "<?php echo strtoupper('{$e}'); ?>");
+    $shared = config('view.compiled');
+    $health = new class extends CoreHealthCheck {
+        public ?string $html = null;
+
+        public ?string $compiled = null;
+
+        public function check(): array
+        {
+            // Finder + blade engine, as a page render uses them, without the site's view composers.
+            $path = app('view')->getFinder()->find('cdohealth::hello');
+            $this->html = trim(app('view')->getEngineResolver()->resolve('blade')->get($path, ['name' => 'site']));
+            $this->compiled = app('blade.compiler')->getCompiledPath($path);
+
+            return [];
+        }
+    };
+    [$up] = cdoUpgrader($this->release, $this->pkg, $health);
+
+    $up->run('2026.11.55', false);
+
+    expect($health->html)->toBe('HI site')
+        ->and(str_starts_with((string) $health->compiled, (string) $shared))->toBeFalse()
+        ->and(str_starts_with(app('blade.compiler')->getCompiledPath($views.'/hello.blade.php'), (string) $shared))->toBeTrue();
 });
 
 test('a package with an older Core than the release is refused before anything changes', function () {

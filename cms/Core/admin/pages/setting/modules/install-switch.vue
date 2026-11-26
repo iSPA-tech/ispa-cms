@@ -17,34 +17,56 @@
             </i-button>
         </div>
         <template v-else>
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 flex-1 space-y-1">
-                    <h3 id="module-install-switch-label" class="m-0 break-words text-base font-semibold">
-                        {{ $t('text.modules.install.setting.label') }}
-                    </h3>
-                    <p
-                        v-if="lockedKey"
-                        id="module-install-switch-help"
-                        class="m-0 flex items-start gap-1.5 text-sm text-ink-muted"
-                        data-testid="install-switch-locked"
+            <!--
+                A setting row of its own: a cog, the label, and on the right the state in words beside the switch
+                (the words wrap under the label on a narrow screen), so on/off never rests on the switch colour alone.
+            -->
+            <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                <div class="flex min-w-0 flex-1 basis-56 items-start gap-3">
+                    <span
+                        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-lg text-ink-muted"
+                        aria-hidden="true"
                     >
-                        <LockOutlined class="mt-1 shrink-0" aria-hidden="true" />
-                        <span class="min-w-0 break-words">{{ $t(lockedKey) }}</span>
-                    </p>
-                    <p v-else id="module-install-switch-help" class="m-0 break-words text-sm text-ink-muted" data-testid="install-switch-help">
-                        {{ $t(checked ? 'text.modules.install.setting.help_on' : 'text.modules.install.setting.help_off') }}
-                    </p>
+                        <SettingOutlined />
+                    </span>
+                    <div class="min-w-0 space-y-1">
+                        <h3 id="module-install-switch-label" class="m-0 break-words text-base font-semibold">
+                            {{ $t('text.modules.install.setting.label') }}
+                        </h3>
+                        <p
+                            v-if="lockedKey"
+                            id="module-install-switch-help"
+                            class="m-0 flex items-start gap-1.5 text-sm text-ink-muted"
+                            data-testid="install-switch-locked"
+                        >
+                            <LockOutlined class="mt-1 shrink-0" aria-hidden="true" />
+                            <span class="min-w-0 break-words">{{ $t(lockedKey) }}</span>
+                        </p>
+                        <p v-else id="module-install-switch-help" class="m-0 break-words text-sm text-ink-muted" data-testid="install-switch-help">
+                            {{ $t(checked ? 'text.modules.install.setting.help_on' : 'text.modules.install.setting.help_off') }}
+                        </p>
+                    </div>
                 </div>
-                <a-switch
-                    class="mt-0.5 shrink-0"
-                    :checked="checked"
-                    :disabled="Boolean(lockedKey) || state.saving"
-                    :loading="state.saving"
-                    aria-labelledby="module-install-switch-label"
-                    aria-describedby="module-install-switch-help"
-                    data-testid="install-switch"
-                    @change="toggle"
-                />
+                <div class="flex shrink-0 items-center gap-2 pl-13 sm:pl-0">
+                    <span
+                        class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                        :class="checked ? 'bg-success-soft text-success-ink' : 'bg-surface-sunken text-ink-muted'"
+                        aria-hidden="true"
+                        data-testid="install-switch-state"
+                    >
+                        {{ $t(checked ? 'text.modules.install.setting.state_on' : 'text.modules.install.setting.state_off') }}
+                    </span>
+                    <a-switch
+                        class="shrink-0"
+                        :checked="checked"
+                        :disabled="Boolean(lockedKey) || state.saving"
+                        :loading="state.saving"
+                        aria-labelledby="module-install-switch-label"
+                        aria-describedby="module-install-switch-help"
+                        data-testid="install-switch"
+                        @change="toggle"
+                    />
+                </div>
             </div>
             <p v-if="state.error" role="alert" class="m-0 break-words text-sm text-danger" data-testid="install-switch-error">
                 {{ state.error }}
@@ -56,7 +78,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LockOutlined } from '@ant-design/icons-vue'
+import { LockOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { getModuleInstallSetting, moduleErrorCodeOf, moduleErrorKey, updateModuleInstallSetting } from '@/libs/module'
 
 /**

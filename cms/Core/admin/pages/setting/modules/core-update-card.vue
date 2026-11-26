@@ -6,43 +6,83 @@
 -->
 
 <template>
-    <section class="i-box space-y-3" data-testid="core-update-card">
-        <!--
-            One line from sm up: "iSPA CMS <installed> · <newer or up to date> · <notes>". Below sm the parts stack and
-            the dots are hidden, so a wrapped line never starts with a dot.
-        -->
-        <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex min-w-0 flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2">
-                <h3 class="m-0 text-base font-semibold" data-testid="core-update-title">
-                    {{ $t('text.modules.core_update.title') }}
-                    <span v-if="showVersion" data-testid="core-update-installed">{{ state.info.installed }}</span>
-                </h3>
-                <template v-if="showVersion && (newer || upToDate)">
-                    <span aria-hidden="true" class="hidden text-sm text-ink-muted sm:inline" data-testid="core-update-dot">·</span>
-                    <span v-if="newer" class="text-sm font-medium" data-testid="core-update-newer">
-                        {{ $t('text.modules.core_update.newer', { version: state.info.latest }) }}
-                    </span>
-                    <span v-else class="text-sm text-ink-muted" data-testid="core-update-up-to-date">
-                        {{ $t('text.modules.core_update.up_to_date') }}
-                    </span>
-                </template>
-                <template v-if="showVersion && state.info.notes_url">
-                    <span aria-hidden="true" class="hidden text-sm text-ink-muted sm:inline" data-testid="core-update-dot">·</span>
+    <!--
+        The look follows the state (data-state): a new version and a running update are tinted with the accent, a
+        finished one is green, a failed one red, a refused one amber; up to date and "kept by iSPA" stay neutral.
+        Every state also has its own icon and a short text badge, so colour is never the only sign.
+    -->
+    <section
+        class="overflow-hidden rounded-xl border bg-surface shadow-xs"
+        :class="look.border"
+        :data-state="tone"
+        data-testid="core-update-card"
+    >
+        <!-- Button under the text below sm, beside it from sm up -->
+        <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between" :class="look.band">
+            <div class="flex min-w-0 items-start gap-3">
+                <span
+                    class="flex size-10 shrink-0 items-center justify-center rounded-full text-lg"
+                    :class="look.icon"
+                    aria-hidden="true"
+                    data-testid="core-update-icon"
+                >
+                    <component :is="look.glyph" :spin="tone === 'progress'" />
+                </span>
+                <div class="min-w-0 space-y-1.5">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h3 class="m-0 text-base font-semibold" data-testid="core-update-title">
+                            {{ $t('text.modules.core_update.title') }}
+                        </h3>
+                        <span
+                            v-if="badge"
+                            class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                            :class="look.badge"
+                            :data-testid="badge.testid"
+                        >
+                            {{ badge.text }}
+                        </span>
+                    </div>
+                    <!-- A site iSPA deploys itself (no package manifest): no version, button, command or issue list -->
+                    <p v-if="managed" class="m-0 text-sm" data-testid="core-update-managed">
+                        {{ $t('text.modules.core_update.managed') }}
+                    </p>
+                    <!-- Installed version, and the new one beside it when the hub offers one -->
+                    <dl v-if="showVersion" class="m-0 flex flex-wrap items-end gap-x-4 gap-y-1" data-testid="core-update-versions">
+                        <div class="min-w-0">
+                            <dt class="text-xs font-normal text-ink-muted">{{ $t('text.modules.core_update.installed') }}</dt>
+                            <dd class="m-0 break-all text-xl font-semibold leading-tight sm:text-2xl" data-testid="core-update-installed">
+                                {{ state.info.installed }}
+                            </dd>
+                        </div>
+                        <!-- The arrow only from sm up: on a phone each version keeps the full line -->
+                        <ArrowRightOutlined v-if="newer" class="hidden pb-1.5 text-ink-muted sm:inline-block" aria-hidden="true" />
+                        <div v-if="newer" class="min-w-0">
+                            <dt class="text-xs font-normal text-ink-muted">{{ $t('text.modules.core_update.latest') }}</dt>
+                            <dd
+                                class="m-0 break-all text-xl font-semibold leading-tight text-primary-ink sm:text-2xl"
+                                data-testid="core-update-latest"
+                            >
+                                {{ state.info.latest }}
+                            </dd>
+                        </div>
+                    </dl>
                     <a
+                        v-if="showVersion && state.info.notes_url"
                         :href="state.info.notes_url"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="text-sm"
+                        class="inline-block text-sm font-medium underline"
                         data-testid="core-update-notes"
                     >
                         {{ $t('text.modules.core_update.notes') }}
                     </a>
-                </template>
+                </div>
             </div>
             <i-button
                 v-if="state.loaded && !running && !managed"
                 variant="primary"
-                size="sm"
+                :size="state.info.can_update ? 'md' : 'sm'"
+                class="shrink-0 self-start sm:self-center"
                 data-testid="core-update-open"
                 :disabled="!state.info.can_update"
                 @click="openConfirm"
@@ -51,128 +91,145 @@
             </i-button>
         </div>
 
-        <div v-if="state.loading && !state.loaded" aria-busy="true" data-testid="core-update-loading">
-            <a-skeleton active :paragraph="{ rows: 1 }" />
-        </div>
-        <div v-else-if="state.error" role="alert" class="space-y-2" data-testid="core-update-error">
-            <p class="m-0 text-sm text-danger">{{ state.error }}</p>
-            <i-button size="sm" data-testid="core-update-retry" @click="load()">
-                {{ $t('text.modules.install.retry') }}
-            </i-button>
-        </div>
-        <!-- A site iSPA deploys itself (no package manifest): no version, button, command or issue list -->
-        <p v-else-if="managed" class="m-0 text-sm" data-testid="core-update-managed">
-            {{ $t('text.modules.core_update.managed') }}
-        </p>
-        <template v-else-if="state.loaded">
-            <!-- Outcome of the last update or restore followed on this page; it stays until the next action -->
-            <a-alert
-                v-if="result.text && !running"
-                :type="result.ok ? 'success' : 'error'"
-                show-icon
-                :message="result.text"
-                data-testid="core-update-result"
-            />
-
-            <p v-if="waiting" class="m-0 text-sm" role="status" data-testid="core-update-waiting">
-                {{ $t('text.modules.core_update.waiting') }}
-            </p>
-            <div v-else-if="running" class="space-y-1" data-testid="core-update-running">
-                <p class="m-0 text-sm">{{ $t('text.modules.core_update.running') }}</p>
-                <a-progress :percent="running.progress" status="active" size="small" data-testid="core-update-progress" />
+        <div v-if="hasBody" class="space-y-3 border-t border-border p-4" data-testid="core-update-body">
+            <div v-if="state.loading && !state.loaded" aria-busy="true" data-testid="core-update-loading">
+                <a-skeleton active :paragraph="{ rows: 1 }" />
             </div>
+            <div v-else-if="state.error" role="alert" class="space-y-2" data-testid="core-update-error">
+                <p class="m-0 text-sm font-medium text-danger-ink">{{ state.error }}</p>
+                <i-button size="sm" data-testid="core-update-retry" @click="load()">
+                    {{ $t('text.modules.install.retry') }}
+                </i-button>
+            </div>
+            <template v-else>
+                <!-- Outcome of the last update or restore followed on this page; it stays until the next action -->
+                <a-alert
+                    v-if="result.text && !running"
+                    :type="result.ok ? 'success' : 'error'"
+                    show-icon
+                    :message="result.text"
+                    data-testid="core-update-result"
+                />
 
-            <div v-if="blocked" class="space-y-2" data-testid="core-update-blocked">
-                <p class="m-0 text-sm">{{ $t('text.modules.core_update.blocked') }}</p>
-                <ul class="m-0 list-disc space-y-1 pl-5 text-sm">
-                    <li v-for="issue in issueRows" :key="issue.code" data-testid="core-update-issue">
-                        {{ issue.text }}
-                        <span v-if="issue.files.length" class="block break-all text-xs text-ink-muted">
-                            {{ issue.files.join(', ') }}
-                        </span>
-                        <!-- Code owned by root: the runner never runs as root, so there is no line to forward -->
-                        <p
-                            v-if="issue.code === 'CORE_NO_RUNNER' && rootOwner"
-                            class="m-0 mt-2"
-                            data-testid="core-update-root-owner"
-                        >
-                            {{ $t('text.modules.core_update.runner_setup_root') }}
-                        </p>
-                        <!-- No runner: the one line the server manager adds, ready to forward -->
-                        <div
-                            v-else-if="issue.code === 'CORE_NO_RUNNER' && setupLine"
-                            class="mt-2 space-y-2"
-                            data-testid="core-update-runner-setup"
-                        >
-                            <p class="m-0">
-                                {{ $t('text.modules.core_update.runner_setup', { user: state.info.runner_setup?.user || '' }) }}
-                            </p>
-                            <code
-                                :ref="(el) => (setupCode = el)"
-                                class="block break-all rounded-md bg-primary-soft px-2 py-1 text-xs text-ink"
-                                data-testid="core-update-setup-line"
-                            >{{ setupLine }}</code>
-                            <i-button size="sm" data-testid="core-update-copy" @click="copyLine">
-                                <span aria-live="polite">
-                                    {{ $t(copied.line ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.action.copy') }}
-                                </span>
-                            </i-button>
-                        </div>
-                    </li>
-                </ul>
                 <!--
-                    Simple hosting: give the site folder to the web server user once and updates run on their own (no
-                    cron). One command, ready to copy, then "Check again".
+                    Queued or running: one live line (the same element for both, so a reader hears the change), a bar,
+                    and the note that nobody has to reload. A queued request has no percentage yet: its bar only pulses.
                 -->
-                <div v-if="ownerCommand" class="space-y-2 text-sm" data-testid="core-update-owner-fix">
-                    <p class="m-0">{{ $t('text.modules.core_update.fix_owner', { user: state.info.web_user }) }}</p>
-                    <code
-                        :ref="(el) => (ownerCode = el)"
-                        class="block break-all rounded-md bg-primary-soft px-2 py-1 text-xs text-ink"
-                        data-testid="core-update-owner-command"
-                    >{{ ownerCommand }}</code>
-                    <i-button size="sm" data-testid="core-update-copy-owner" @click="copyOwner">
-                        <span aria-live="polite">
-                            {{ $t(copied.owner ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.action.copy') }}
-                        </span>
-                    </i-button>
+                <div v-if="running" class="space-y-2" data-testid="core-update-activity">
+                    <p
+                        class="m-0 text-base font-semibold"
+                        role="status"
+                        aria-live="polite"
+                        :data-testid="waiting ? 'core-update-waiting' : 'core-update-running'"
+                    >
+                        {{ $t(waiting ? 'text.modules.core_update.waiting' : 'text.modules.core_update.running') }}
+                    </p>
+                    <div
+                        v-if="waiting"
+                        class="h-2 overflow-hidden rounded-full bg-primary-soft"
+                        aria-hidden="true"
+                        data-testid="core-update-waiting-bar"
+                    >
+                        <div class="h-2 w-1/3 animate-pulse rounded-full bg-primary motion-reduce:animate-none" />
+                    </div>
+                    <a-progress v-else :percent="running.progress" status="active" data-testid="core-update-progress" />
+                    <p class="m-0 text-sm text-ink-muted" data-testid="core-update-auto-refresh">
+                        {{ $t('text.modules.core_update.auto_refresh') }}
+                    </p>
                 </div>
-                <!-- Ready-made instructions for an AI coding agent; collapsed so the person reads them before copying -->
-                <details
-                    v-if="showAgentPrompt"
-                    class="rounded-md border border-border px-2 py-1 text-sm"
-                    data-testid="core-update-agent-prompt"
-                >
-                    <summary class="cursor-pointer font-medium">{{ $t('text.modules.core_update.agent_prompt.title') }}</summary>
-                    <div class="mt-2 space-y-2">
-                        <p class="m-0 text-xs text-ink-muted">{{ $t('text.modules.core_update.agent_prompt.help') }}</p>
-                        <pre
-                            :ref="(el) => (promptPre = el)"
-                            class="m-0 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-md bg-primary-soft px-2 py-1 font-mono text-xs text-ink [overflow-wrap:anywhere]"
-                            data-testid="core-update-prompt-text"
-                        >{{ agentPrompt }}</pre>
-                        <i-button size="sm" data-testid="core-update-copy-prompt" @click="copyPrompt">
+
+                <div v-if="blocked" class="space-y-2" data-testid="core-update-blocked">
+                    <p class="m-0 text-sm font-semibold">{{ $t('text.modules.core_update.blocked') }}</p>
+                    <ul class="m-0 list-disc space-y-1 pl-5 text-sm">
+                        <li v-for="issue in issueRows" :key="issue.code" data-testid="core-update-issue">
+                            {{ issue.text }}
+                            <span v-if="issue.files.length" class="block break-all text-xs text-ink-muted">
+                                {{ issue.files.join(', ') }}
+                            </span>
+                            <!-- Code owned by root: the runner never runs as root, so there is no line to forward -->
+                            <p
+                                v-if="issue.code === 'CORE_NO_RUNNER' && rootOwner"
+                                class="m-0 mt-2"
+                                data-testid="core-update-root-owner"
+                            >
+                                {{ $t('text.modules.core_update.runner_setup_root') }}
+                            </p>
+                            <!-- No runner: the one line the server manager adds, ready to forward -->
+                            <div
+                                v-else-if="issue.code === 'CORE_NO_RUNNER' && setupLine"
+                                class="mt-2 space-y-2"
+                                data-testid="core-update-runner-setup"
+                            >
+                                <p class="m-0">
+                                    {{ $t('text.modules.core_update.runner_setup', { user: state.info.runner_setup?.user || '' }) }}
+                                </p>
+                                <code
+                                    :ref="(el) => (setupCode = el)"
+                                    class="block break-all rounded-md bg-primary-soft px-2 py-1 text-xs text-ink"
+                                    data-testid="core-update-setup-line"
+                                >{{ setupLine }}</code>
+                                <i-button size="sm" data-testid="core-update-copy" @click="copyLine">
+                                    <span aria-live="polite">
+                                        {{ $t(copied.line ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.action.copy') }}
+                                    </span>
+                                </i-button>
+                            </div>
+                        </li>
+                    </ul>
+                    <!--
+                        Simple hosting: give the site folder to the web server user once and updates run on their own (no
+                        cron). One command, ready to copy, then "Check again".
+                    -->
+                    <div v-if="ownerCommand" class="space-y-2 text-sm" data-testid="core-update-owner-fix">
+                        <p class="m-0">{{ $t('text.modules.core_update.fix_owner', { user: state.info.web_user }) }}</p>
+                        <code
+                            :ref="(el) => (ownerCode = el)"
+                            class="block break-all rounded-md bg-primary-soft px-2 py-1 text-xs text-ink"
+                            data-testid="core-update-owner-command"
+                        >{{ ownerCommand }}</code>
+                        <i-button size="sm" data-testid="core-update-copy-owner" @click="copyOwner">
                             <span aria-live="polite">
-                                {{ $t(copied.prompt ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.agent_prompt.copy') }}
+                                {{ $t(copied.owner ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.action.copy') }}
                             </span>
                         </i-button>
                     </div>
-                </details>
-                <div class="flex flex-wrap gap-2">
-                    <i-button v-if="state.info.can_restore" size="sm" data-testid="core-update-restore-open" @click="openRestore">
-                        {{ $t('text.modules.core_update.action.restore') }}
-                    </i-button>
-                    <!-- After a fix on the server: read the card again instead of reloading the page -->
-                    <i-button size="sm" data-testid="core-update-recheck" :loading="state.loading" :disabled="state.loading" @click="recheck">
-                        {{ $t('text.modules.core_update.action.recheck') }}
-                    </i-button>
+                    <!-- Ready-made instructions for an AI coding agent; collapsed so the person reads them before copying -->
+                    <details
+                        v-if="showAgentPrompt"
+                        class="rounded-md border border-border px-2 py-1 text-sm"
+                        data-testid="core-update-agent-prompt"
+                    >
+                        <summary class="cursor-pointer font-medium">{{ $t('text.modules.core_update.agent_prompt.title') }}</summary>
+                        <div class="mt-2 space-y-2">
+                            <p class="m-0 text-xs text-ink-muted">{{ $t('text.modules.core_update.agent_prompt.help') }}</p>
+                            <pre
+                                :ref="(el) => (promptPre = el)"
+                                class="m-0 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-md bg-primary-soft px-2 py-1 font-mono text-xs text-ink [overflow-wrap:anywhere]"
+                                data-testid="core-update-prompt-text"
+                            >{{ agentPrompt }}</pre>
+                            <i-button size="sm" data-testid="core-update-copy-prompt" @click="copyPrompt">
+                                <span aria-live="polite">
+                                    {{ $t(copied.prompt ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.agent_prompt.copy') }}
+                                </span>
+                            </i-button>
+                        </div>
+                    </details>
+                    <div class="flex flex-wrap gap-2">
+                        <i-button v-if="state.info.can_restore" size="sm" data-testid="core-update-restore-open" @click="openRestore">
+                            {{ $t('text.modules.core_update.action.restore') }}
+                        </i-button>
+                        <!-- After a fix on the server: read the card again instead of reloading the page -->
+                        <i-button size="sm" data-testid="core-update-recheck" :loading="state.loading" :disabled="state.loading" @click="recheck">
+                            {{ $t('text.modules.core_update.action.recheck') }}
+                        </i-button>
+                    </div>
+                    <p v-if="showCommandHint" class="m-0 text-sm">
+                        {{ $t('text.modules.core_update.command_hint') }}
+                        <code class="break-all" data-testid="core-update-command">{{ state.info.command }}</code>
+                    </p>
                 </div>
-                <p v-if="showCommandHint" class="m-0 text-sm">
-                    {{ $t('text.modules.core_update.command_hint') }}
-                    <code class="break-all" data-testid="core-update-command">{{ state.info.command }}</code>
-                </p>
-            </div>
-        </template>
+            </template>
+        </div>
 
         <!-- Confirmation: an upgrade only starts after the person confirms there is a backup -->
         <a-drawer
@@ -255,6 +312,17 @@
 <script setup>
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import {
+    ArrowRightOutlined,
+    ArrowUpOutlined,
+    CheckCircleFilled,
+    CheckOutlined,
+    CloseCircleFilled,
+    ExclamationCircleFilled,
+    InfoCircleOutlined,
+    LockOutlined,
+    SyncOutlined,
+} from '@ant-design/icons-vue'
 import ajax from '@/ajax'
 
 defineComponent({
@@ -388,6 +456,55 @@ const showVersion = computed(() => state.loaded && !managed.value && !!state.inf
 const newer = computed(() => !!state.info.latest && compareVersions(state.info.latest, state.info.installed) > 0)
 /** The hub knows the newest version and this site runs it; when the hub does not know, only the version shows. */
 const upToDate = computed(() => !!state.info.latest && !newer.value)
+/**
+ * The one state the card shows, most urgent first: a status that could not be read, a site iSPA keeps, a queued or
+ * running task, how the last task ended, a refused update, a new version, and otherwise calm.
+ * A refusal only raises the card when there is something to do: a new version, or old files waiting to be restored.
+ */
+const tone = computed(() => {
+    if (state.error) return 'danger'
+    if (!state.loaded || managed.value) return 'neutral'
+    if (running.value) return 'progress'
+    if (result.text) return result.ok ? 'success' : 'danger'
+    if (blocked.value && (newer.value || hasIssue('CORE_UPGRADE_INTERRUPTED'))) return 'warning'
+    if (newer.value) return 'available'
+    return 'neutral'
+})
+/** Classes and icon per state; only colour tokens the admin already has. */
+const LOOKS = {
+    available: { border: 'border-primary', band: 'bg-primary-soft', icon: 'bg-primary text-white', badge: 'bg-primary text-white', glyph: ArrowUpOutlined },
+    progress: { border: 'border-primary', band: 'bg-primary-soft', icon: 'bg-primary text-white', badge: 'bg-primary text-white', glyph: SyncOutlined },
+    success: { border: 'border-success', band: 'bg-success-soft', icon: 'bg-success text-white', badge: 'bg-success text-white', glyph: CheckCircleFilled },
+    danger: { border: 'border-danger', band: 'bg-danger-soft', icon: 'bg-danger text-white', badge: 'bg-danger text-white', glyph: CloseCircleFilled },
+    warning: { border: 'border-warning', band: 'bg-warning-soft', icon: 'bg-warning text-white', badge: 'bg-warning text-white', glyph: ExclamationCircleFilled },
+    neutral: { border: 'border-border', band: '', icon: 'bg-surface-sunken text-ink-muted', badge: 'bg-surface-sunken text-ink-muted', glyph: InfoCircleOutlined },
+}
+const look = computed(() => {
+    if (tone.value !== 'neutral') return LOOKS[tone.value]
+    if (managed.value) return { ...LOOKS.neutral, glyph: LockOutlined }
+    if (showVersion.value && upToDate.value) return { ...LOOKS.neutral, icon: 'bg-success-soft text-success-ink', glyph: CheckOutlined }
+    return LOOKS.neutral
+})
+/** The short text beside the title that names the state; none while loading, for a managed site or an unknown newest version. */
+const badge = computed(() => {
+    const of = (key, testid = 'core-update-state', params) => ({ text: t(`text.modules.core_update.${key}`, params), testid })
+    if (state.error || !state.loaded || managed.value) return null
+    if (tone.value === 'progress') return of('badge_progress')
+    if (tone.value === 'success') return of('badge_done')
+    if (tone.value === 'danger') return of('badge_failed')
+    if (tone.value === 'warning') return of('badge_blocked')
+    if (!showVersion.value) return null
+    if (newer.value) return of('newer', 'core-update-newer', { version: state.info.latest })
+    if (upToDate.value) return of('up_to_date', 'core-update-up-to-date')
+    return null
+})
+/** The part under the header exists only when it has something to say. */
+const hasBody = computed(() => {
+    if (state.loading && !state.loaded) return true
+    if (state.error) return true
+    if (!state.loaded || managed.value) return false
+    return !!running.value || !!result.text || blocked.value
+})
 const issueRows = computed(() =>
     issues.value.map((issue) => ({
         code: issue.code,

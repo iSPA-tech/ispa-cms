@@ -1,1 +1,0 @@
-import{A as e,M as t,Q as n,T as r,nt as i,t as a}from"./vue.runtime.esm-bundler-PD0fal8E.js";import"./config-BxjDK0vb.js";a();var o={class:`xl:flex-1 w-full`},s={__name:`media`,setup(a){return t({name:`Media`}),(t,a)=>{let s=i(`router-view`);return n(),r(`div`,o,[e(s)])}}};export{s as default};

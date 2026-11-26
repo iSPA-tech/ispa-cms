@@ -2,6 +2,16 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.07
+
+- **Ships Core module 2026.11.11.**
+- **Core updates**: an update started from the admin no longer rolls back with a failed health check on servers where
+  the web server and the code owner are different users; the health check now compiles views in a private temporary
+  folder.
+- **Core update card**: the card shows each state clearly: update available, in progress (with a progress bar), done,
+  failed, refused and up to date.
+- **Modules page**: the switch that allows module installs reads as its own setting.
+
 ## 2026.11.06
 
 - **Ships Core module 2026.11.10.**

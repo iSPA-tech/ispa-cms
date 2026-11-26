@@ -91,6 +91,8 @@ describe('"Cho phép cài module" switch', () => {
         expect(sw.attributes('disabled')).toBeUndefined()
         expect(w.text()).toContain('text.modules.install.setting.label')
         expect(w.get('[data-testid=install-switch-help]').text()).toBe('text.modules.install.setting.help_off')
+        // The state is written beside the switch, not left to its colour.
+        expect(w.get('[data-testid=install-switch-state]').text()).toBe('text.modules.install.setting.state_off')
         expect(w.find('[data-testid=install-switch-locked]').exists()).toBe(false)
         expect(last(w)).toMatchObject({ state: 'disabled' })
     })
@@ -111,6 +113,7 @@ describe('"Cho phép cài module" switch', () => {
         expect(w.get('[data-testid=install-switch]').attributes('aria-checked')).toBe('true')
         expect(w.get('[data-testid=install-switch]').attributes('disabled')).toBeUndefined()
         expect(w.get('[data-testid=install-switch-help]').text()).toBe('text.modules.install.setting.help_on')
+        expect(w.get('[data-testid=install-switch-state]').text()).toBe('text.modules.install.setting.state_on')
         expect(last(w)).toMatchObject({ state: 'allowed' })
     })
 

@@ -244,7 +244,7 @@ class CoreUpgrader
             }
 
             $this->progress($task, 88, 'Checking the site still answers.');
-            $failures = $this->health()->check();
+            $failures = $this->checkHealthIsolated();
             if ($failures !== []) {
                 throw new CoreUpgradeException('CORE_HEALTH_FAILED', 'The upgraded site did not pass the health check ('.implode('; ', $failures).').', $backupUuid);
             }
@@ -1103,6 +1103,55 @@ class CoreUpgrader
     private function health(): CoreHealthCheck
     {
         return $this->health ?? app(CoreHealthCheck::class);
+    }
+
+    /**
+     * Run the health check with Blade compiling into a private temporary folder.
+     *
+     * The check runs in this (runner) process, which is the code owner, while the web server compiles views as
+     * another user into the shared folder. Blade touch()es a compiled view whose source is as new as it, and only the
+     * file owner may set its time, so either side failed on the other's files: the check answered 500 and the update
+     * rolled back on a CI-deployed site. Kept here (not in CoreHealthCheck) because this class is already loaded when
+     * the swap replaces the check's file. Only the compiler's output folder is switched, on the live compiler: the view
+     * factory and the compiler are kept, so the view namespaces and Blade directives the providers registered stay
+     * (forgetting those singletons left the `default` theme namespace undefined and the check answered 500). The
+     * resolved blade engine is dropped so it does not reuse the compiled-path cache of the shared folder.
+     *
+     * @return list<string>
+     */
+    private function checkHealthIsolated(): array
+    {
+        $shared = config('view.compiled');
+        $dir = sys_get_temp_dir().'/ispa-core-health-views-'.bin2hex(random_bytes(6));
+        @mkdir($dir, 0700, true);
+        $target = is_dir($dir) ? $dir : $shared;
+        $compiler = app()->bound('blade.compiler') ? app('blade.compiler') : null;
+        $setPath = \Closure::bind(static function (object $compiler, string $path): ?string {
+            $old = $compiler->cachePath ?? null;
+            $compiler->cachePath = $path;
+
+            return $old;
+        }, null, \Illuminate\View\Compilers\Compiler::class);
+        $dropEngine = static function (): void {
+            if (app()->resolved('view')) {
+                app('view')->getEngineResolver()->forget('blade');
+            }
+        };
+        config(['view.compiled' => $target]);
+        $previous = $compiler instanceof \Illuminate\View\Compilers\Compiler ? $setPath($compiler, (string) $target) : null;
+        $dropEngine();
+        try {
+            return $this->health()->check();
+        } finally {
+            config(['view.compiled' => $shared]);
+            if ($compiler instanceof \Illuminate\View\Compilers\Compiler && $previous !== null) {
+                $setPath($compiler, $previous);
+            }
+            $dropEngine();
+            if (is_dir($dir)) {
+                (new \Illuminate\Filesystem\Filesystem())->deleteDirectory($dir);
+            }
+        }
     }
 
     private function recorder(): BackgroundTaskRecorder

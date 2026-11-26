@@ -46,48 +46,121 @@ describe('core update card', () => {
         vi.useRealTimers()
     })
 
-    it('one line when newer: iSPA CMS, the installed version, the new version and the notes link', async () => {
+    const stateOf = (w: Awaited<ReturnType<typeof mountCard>>) => w.get('[data-testid="core-update-card"]').attributes('data-state')
+
+    it('a new version stands out: both versions, the "new version" badge, the notes link and the update button', async () => {
         answer(status())
         const w = await mountCard()
         expect(ajaxMock.get).toHaveBeenCalledWith('core-update', expect.anything())
-        expect(w.get('[data-testid="core-update-title"]').text()).toBe('text.modules.core_update.title 2026.11.0')
+        expect(stateOf(w)).toBe('available')
+        expect(w.get('[data-testid="core-update-title"]').text()).toBe('text.modules.core_update.title')
+        // Each version has its own label, so the two numbers are never read as one.
+        const versions = w.get('[data-testid="core-update-versions"]').text()
+        expect(versions).toContain('text.modules.core_update.installed')
+        expect(versions).toContain('text.modules.core_update.latest')
         expect(w.get('[data-testid="core-update-installed"]').text()).toBe('2026.11.0')
+        expect(w.get('[data-testid="core-update-latest"]').text()).toBe('2026.12.0')
         expect(w.get('[data-testid="core-update-newer"]').text()).toBe('text.modules.core_update.newer|{"version":"2026.12.0"}')
-        // The dots are their own items, hidden below sm, so a wrapped line never starts with one.
-        const dots = w.findAll('[data-testid="core-update-dot"]')
-        expect(dots).toHaveLength(2)
-        for (const dot of dots) {
-            expect(dot.text()).toBe('·')
-            expect(dot.classes()).toEqual(expect.arrayContaining(['hidden', 'sm:inline']))
-            expect(dot.attributes('aria-hidden')).toBe('true')
-        }
+        // The state is told by an icon and words too, never by colour alone.
+        expect(w.get('[data-testid="core-update-icon"]').attributes('aria-hidden')).toBe('true')
         expect(w.find('[data-testid="core-update-up-to-date"]').exists()).toBe(false)
         expect(w.get('[data-testid="core-update-notes"]').attributes('href')).toBe('https://example.test/notes')
         expect(w.get('[data-testid="core-update-open"]').attributes('disabled')).toBeUndefined()
         expect(w.find('[data-testid="core-update-blocked"]').exists()).toBe(false)
-        // The old two-column labels are gone (keys kept, no longer shown).
-        expect(w.text()).not.toContain('core_update.installed')
-        expect(w.text()).not.toContain('core_update.latest')
+        // Nothing to report under the header.
+        expect(w.find('[data-testid="core-update-body"]').exists()).toBe(false)
     })
 
-    it('one line when up to date', async () => {
+    it('calm when up to date: one version, the "up to date" badge, the button off', async () => {
         answer(status({ installed: '2026.12.0', can_update: false }))
         const w = await mountCard()
+        expect(stateOf(w)).toBe('neutral')
         expect(w.get('[data-testid="core-update-installed"]').text()).toBe('2026.12.0')
         expect(w.get('[data-testid="core-update-up-to-date"]').text()).toBe('text.modules.core_update.up_to_date')
         expect(w.find('[data-testid="core-update-newer"]').exists()).toBe(false)
+        expect(w.find('[data-testid="core-update-latest"]').exists()).toBe(false)
         expect(w.get('[data-testid="core-update-open"]').attributes('disabled')).toBeDefined()
+        expect(w.find('[data-testid="core-update-body"]').exists()).toBe(false)
     })
 
     it('the version alone when the hub does not know the newest one', async () => {
         answer(status({ latest: null, notes_url: null, can_update: false }))
         const w = await mountCard()
-        expect(w.get('[data-testid="core-update-title"]').text()).toBe('text.modules.core_update.title 2026.11.0')
-        expect(w.find('[data-testid="core-update-newer"]').exists()).toBe(false)
-        expect(w.find('[data-testid="core-update-up-to-date"]').exists()).toBe(false)
-        expect(w.find('[data-testid="core-update-notes"]').exists()).toBe(false)
+        expect(stateOf(w)).toBe('neutral')
+        expect(w.get('[data-testid="core-update-installed"]').text()).toBe('2026.11.0')
+        for (const id of ['newer', 'up-to-date', 'latest', 'notes', 'state']) {
+            expect(w.find(`[data-testid="core-update-${id}"]`).exists()).toBe(false)
+        }
         expect(w.text()).not.toContain('latest_unknown')
-        expect(w.find('[data-testid="core-update-dot"]').exists()).toBe(false)
+    })
+
+    it('queued: the in-progress state, a live waiting line and the note that the page updates by itself', async () => {
+        answer(status({ can_update: false, running: { uuid: 'u1', progress: 0, status: 'queued' } }))
+        const w = await mountCard()
+        expect(stateOf(w)).toBe('progress')
+        expect(w.get('[data-testid="core-update-state"]').text()).toBe('text.modules.core_update.badge_progress')
+        const line = w.get('[data-testid="core-update-waiting"]')
+        expect(line.text()).toBe('text.modules.core_update.waiting')
+        expect(line.attributes('role')).toBe('status')
+        expect(line.attributes('aria-live')).toBe('polite')
+        expect(w.find('[data-testid="core-update-waiting-bar"]').exists()).toBe(true)
+        expect(w.find('[data-testid="core-update-progress"]').exists()).toBe(false)
+        expect(w.get('[data-testid="core-update-auto-refresh"]').text()).toBe('text.modules.core_update.auto_refresh')
+        // The version it is going to stays in view while it waits.
+        expect(w.get('[data-testid="core-update-latest"]').text()).toBe('2026.12.0')
+        expect(w.find('[data-testid="core-update-open"]').exists()).toBe(false)
+    })
+
+    it('a refused update with a new version waiting is raised; with nothing to update it stays calm', async () => {
+        const preflight = { ok: false, issues: [{ code: 'CORE_DISK', message: 'raw' }] }
+        answer(status({ can_update: false, preflight }))
+        const refused = await mountCard()
+        expect(stateOf(refused)).toBe('warning')
+        expect(refused.get('[data-testid="core-update-state"]').text()).toBe('text.modules.core_update.badge_blocked')
+        expect(refused.findAll('[data-testid="core-update-issue"]')).toHaveLength(1)
+
+        answer(status({ installed: '2026.12.0', can_update: false, preflight }))
+        const calm = await mountCard()
+        expect(stateOf(calm)).toBe('neutral')
+        expect(calm.get('[data-testid="core-update-up-to-date"]').text()).toBe('text.modules.core_update.up_to_date')
+        // The reason is still listed.
+        expect(calm.findAll('[data-testid="core-update-issue"]')).toHaveLength(1)
+
+        // Old files waiting to be restored are raised even when the version is the newest.
+        answer(status({ installed: '2026.12.0', can_update: false, can_restore: true, preflight: { ok: false, issues: [{ code: 'CORE_UPGRADE_INTERRUPTED', message: 'raw' }] } }))
+        expect(stateOf(await mountCard())).toBe('warning')
+    })
+
+    it('a status that cannot be read is an error with a retry', async () => {
+        ajaxMock.get.mockRejectedValue(new Error('down'))
+        const w = await mountCard()
+        expect(stateOf(w)).toBe('danger')
+        const error = w.get('[data-testid="core-update-error"]')
+        expect(error.attributes('role')).toBe('alert')
+        expect(error.text()).toContain('text.modules.core_update.load_failed')
+        expect(w.find('[data-testid="core-update-retry"]').exists()).toBe(true)
+        expect(w.find('[data-testid="core-update-open"]').exists()).toBe(false)
+    })
+
+    it('a finished update is a success state', async () => {
+        vi.useFakeTimers()
+        answer(status({ can_update: false, running: { uuid: 'u3', progress: 90, status: 'running' } }))
+        const w = await mountCard()
+        ajaxMock.get.mockImplementation((url: string) =>
+            Promise.resolve({
+                data: {
+                    data: url === 'background-tasks/u3'
+                        ? { uuid: 'u3', status: 'succeeded', result: { to: '2026.12.0' } }
+                        : status({ installed: '2026.12.0', can_update: false }),
+                },
+            }),
+        )
+        await vi.advanceTimersByTimeAsync(5000)
+        await flushPromises()
+        expect(stateOf(w)).toBe('success')
+        expect(w.get('[data-testid="core-update-state"]').text()).toBe('text.modules.core_update.badge_done')
+        expect(w.get('[data-testid="core-update-result"]').text()).toBe('text.modules.core_update.result.updated|{"version":"2026.12.0"}')
+        expect(w.find('[data-testid="core-update-activity"]').exists()).toBe(false)
     })
 
     it('a managed site shows only the title and the managed sentence', async () => {
@@ -101,7 +174,8 @@ describe('core update card', () => {
         const w = await mountCard()
         expect(w.get('[data-testid="core-update-title"]').text()).toBe('text.modules.core_update.title')
         expect(w.get('[data-testid="core-update-managed"]').text()).toBe('text.modules.core_update.managed')
-        for (const id of ['installed', 'newer', 'up-to-date', 'notes', 'open', 'blocked', 'command', 'issue']) {
+        expect(w.get('[data-testid="core-update-card"]').attributes('data-state')).toBe('neutral')
+        for (const id of ['installed', 'latest', 'versions', 'newer', 'up-to-date', 'state', 'notes', 'open', 'blocked', 'command', 'issue', 'body']) {
             expect(w.find(`[data-testid="core-update-${id}"]`).exists()).toBe(false)
         }
         expect(w.text()).not.toContain('2026.3.0')
@@ -383,6 +457,8 @@ describe('core update card', () => {
         expect(ajaxMock.get).toHaveBeenCalledWith('background-tasks/u1', expect.anything())
         const result = w.get('[data-testid="core-update-result"]')
         expect(result.text()).toBe('text.modules.core_update.result.CORE_RUNNER_DIED')
+        expect(w.get('[data-testid="core-update-card"]').attributes('data-state')).toBe('danger')
+        expect(w.get('[data-testid="core-update-state"]').text()).toBe('text.modules.core_update.badge_failed')
         expect(w.text()).not.toContain('/srv/secret')
         expect(w.emitted('finished')).toHaveLength(1)
         // The outcome goes away with the next action.
@@ -394,6 +470,12 @@ describe('core update card', () => {
         answer(status({ can_update: false, running: { uuid: 'u1', progress: 40, status: 'running' } }))
         const w = await mountCard()
         expect(w.get('[data-testid="core-update-progress"]').text()).toBe('40')
+        expect(w.get('[data-testid="core-update-card"]').attributes('data-state')).toBe('progress')
+        const line = w.get('[data-testid="core-update-running"]')
+        expect(line.text()).toBe('text.modules.core_update.running')
+        expect(line.attributes('role')).toBe('status')
+        expect(w.find('[data-testid="core-update-waiting-bar"]').exists()).toBe(false)
+        expect(w.get('[data-testid="core-update-auto-refresh"]').text()).toBe('text.modules.core_update.auto_refresh')
         expect(w.find('[data-testid="core-update-open"]').exists()).toBe(false)
     })
 
