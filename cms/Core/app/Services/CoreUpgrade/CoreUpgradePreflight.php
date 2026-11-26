@@ -161,7 +161,9 @@ class CoreUpgradePreflight
             $add($blocking, 'CORE_NO_RUNNER', 'No upgrade runner has checked in during the last 3 minutes. Add the runner line to the crontab of the user that owns the code: `'.CoreUpgradeRequests::runnerLine($this->base).'`.');
         }
 
-        if ($forAdmin && CoreRunnerTick::releaseLink($this->base) !== null) {
+        // A CI-deployed release (deploy-origin manifest) is upgraded in place inside its release folder; only a
+        // core-package install behind `current` switches releases, which stays on the command line.
+        if ($forAdmin && ! $installed->fromDeploy() && CoreRunnerTick::releaseLink($this->base) !== null) {
             $add($blocking, 'CORE_RELEASE_LAYOUT', 'This site is deployed as releases behind a `current` link; upgrade it from the command line (`./ispa upgrade`).', ['cli_only' => true]);
         }
 

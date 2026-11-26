@@ -9,10 +9,21 @@ use InvalidArgumentException;
  *
  * Format 1: version, php_min, built_at, composer_lock_sha256, checked (posix path => sha256), replaced (paths).
  * Read strictly: a malformed or unsafe manifest is refused, never partly trusted.
+ *
+ * Optional `origin`: `package` (default: the site was installed from a core package, the release script wrote it) or
+ * `deploy` (a CI-deployed release; the deploy hook `hub-modules.sh after` wrote it). For `deploy`, `checked` lists only
+ * the release files whose path is in the public core build's file list (minus files the site regenerates), and an
+ * upgrade from a core package writes only package paths, overwrites an existing file only when `checked` lists it,
+ * removes only `checked` files the new package no longer has, and never swaps vendor/ or the built assets
+ * ({@see CoreFileSwapper::plan()}). Optional `upgraded_from`: the version an admin upgrade replaced (deploy origin).
  */
 final class CoreManifest
 {
     public const FILE = 'core-manifest.json';
+
+    public const ORIGIN_PACKAGE = 'package';
+
+    public const ORIGIN_DEPLOY = 'deploy';
 
     /**
      * @param  array<string, string>  $checked  posix path => lowercase sha256
@@ -24,7 +35,38 @@ final class CoreManifest
         public readonly array $checked,
         public readonly array $replaced,
         public readonly string $composerLockSha256,
+        public readonly string $origin = self::ORIGIN_PACKAGE,
+        public readonly ?string $upgradedFrom = null,
     ) {}
+
+    /** A CI-deployed release whose manifest the deploy hook wrote: the deploy owns vendor/, builds and site files. */
+    public function fromDeploy(): bool
+    {
+        return $this->origin === self::ORIGIN_DEPLOY;
+    }
+
+    /**
+     * The manifest as written to `core-manifest.json` (format 1; `origin` and `upgraded_from` only when set).
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(string $builtAt): array
+    {
+        $data = [
+            'format' => 1, 'version' => $this->version, 'php_min' => $this->phpMin, 'built_at' => $builtAt,
+            'composer_lock_sha256' => $this->composerLockSha256,
+        ];
+        if ($this->origin !== self::ORIGIN_PACKAGE) {
+            $data['origin'] = $this->origin;
+        }
+        if ($this->upgradedFrom !== null) {
+            $data['upgraded_from'] = $this->upgradedFrom;
+        }
+        $checked = $this->checked;
+        ksort($checked, SORT_STRING);
+
+        return $data + ['checked' => $checked === [] ? (object) [] : $checked, 'replaced' => $this->replaced];
+    }
 
     /**
      * The manifest of this site, or null when the site was not installed from a core package.
@@ -90,8 +132,16 @@ final class CoreManifest
             }
             $replaced[] = $file;
         }
+        $origin = $data['origin'] ?? self::ORIGIN_PACKAGE;
+        if (! in_array($origin, [self::ORIGIN_PACKAGE, self::ORIGIN_DEPLOY], true)) {
+            throw new InvalidArgumentException('Core manifest origin is not supported.');
+        }
+        $from = $data['upgraded_from'] ?? null;
+        if ($from !== null && (! is_string($from) || preg_match('/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/', $from) !== 1)) {
+            throw new InvalidArgumentException('Core manifest upgraded_from is invalid.');
+        }
 
-        return new self($data['version'], $data['php_min'], $checked, $replaced, $lock);
+        return new self($data['version'], $data['php_min'], $checked, $replaced, $lock, $origin, $from);
     }
 
     private static function isHash(string $value): bool

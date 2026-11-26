@@ -1223,9 +1223,25 @@ const errorLabel = (code) => {
 const HUB_NOT_RECOGNISED = 'MODULE_HUB_NOT_RECOGNISED'
 
 /**
- * Translated text of a failed request: its machine code, else the given fallback key.
+ * Whole minutes a rate-limited request has to wait, from its `Retry-After` header (seconds), rounded up and at least
+ * one; null when the header is missing or unreadable.
+ */
+const retryAfterMinutes = (error) => {
+    const headers = error?.response?.headers
+    const raw = typeof headers?.get === 'function' ? headers.get('retry-after') : (headers?.['retry-after'] ?? headers?.['Retry-After'])
+    const seconds = Number(raw)
+    return raw === null || raw === undefined || raw === '' || !Number.isFinite(seconds) || seconds <= 0 ? null : Math.max(1, Math.ceil(seconds / 60))
+}
+
+/**
+ * Translated text of a failed request: the wait for a rate-limited one (HTTP 429), else its machine code, else the
+ * given fallback key.
  */
 const errorText = (error, fallbackKey, params = {}) => {
+    if (error?.response?.status === 429) {
+        const minutes = retryAfterMinutes(error)
+        return minutes === null ? t('text.modules.error.too_many_starts_soon') : t('text.modules.error.too_many_starts', { minutes })
+    }
     const code = moduleErrorCodeOf(error)
     if (code === HUB_NOT_RECOGNISED) return t('text.modules.error.hub_not_recognised')
     const key = moduleErrorKey(code)

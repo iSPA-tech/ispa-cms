@@ -419,3 +419,125 @@ test('saving email settings signals queue workers to restart', function () {
 
     expect(Cache::get('illuminate:queue:restart'))->not->toBeNull();
 });
+
+// ── Clear a stored secret (quickUpdate with clear: true) ──────────────
+
+/**
+ * Point the application at a temporary environment file so a clear never touches a real one.
+ */
+function useTempEnvFile(object $test, string $content): void
+{
+    $test->clearEnvDir = sys_get_temp_dir() . '/setting-clear-env-' . bin2hex(random_bytes(6));
+    mkdir($test->clearEnvDir, 0700, true);
+    file_put_contents($test->clearEnvDir . '/.env', $content);
+    app()->useEnvironmentPath($test->clearEnvDir);
+}
+
+afterEach(function () {
+    if (isset($this->clearEnvDir) && is_dir($this->clearEnvDir)) {
+        @unlink($this->clearEnvDir . '/.env');
+        @rmdir($this->clearEnvDir);
+    }
+});
+
+test('quickUpdate with clear empties an env-bound secret, its env line, and audits the key only', function () {
+    $this->withoutMiddleware();
+    actAsAdmin($this);
+    \Illuminate\Support\Facades\Artisan::spy();
+    \Illuminate\Support\Facades\Event::fake([\Cms\Core\Events\AuditLogEvent::class]);
+    useTempEnvFile($this, "APP_NAME=Test\nMAIL_PASSWORD=CLEAR-ME-ENV-SECRET\n");
+
+    $setting = createEncSetting([
+        'setting_key' => 'email.MAIL_PASSWORD',
+        'type' => 'password',
+        'group_name' => 'email',
+        'name' => 'MAIL_PASSWORD',
+        'value' => 'CLEAR-ME-ENV-SECRET',
+        'input_setting' => ['isEnv' => true, 'isPublic' => false],
+    ]);
+
+    $response = $this->putJson("/api/v2/admin/setting/{$setting->id}/quick", ['clear' => true])->assertOk();
+
+    expect(getRawSettingValue($setting->id))->toBeIn([null, ''])
+        ->and($response->getContent())->not->toContain('CLEAR-ME-ENV-SECRET')
+        ->and($response->json('data.has_value'))->toBeFalse()
+        ->and($response->json('data'))->not->toHaveKey('value')
+        ->and((string) file_get_contents($this->clearEnvDir . '/.env'))->toContain('MAIL_PASSWORD=""')
+        ->not->toContain('CLEAR-ME-ENV-SECRET');
+
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \Cms\Core\Events\AuditLogEvent::class,
+        fn (\Cms\Core\Events\AuditLogEvent $e): bool => $e->action === 'config.env.clear'
+            && $e->changed === ['key' => 'email.MAIL_PASSWORD', 'secret' => true]
+    );
+});
+
+test('quickUpdate with clear empties a secret that is not env-bound and audits the key only', function () {
+    $this->withoutMiddleware();
+    actAsAdmin($this);
+    \Illuminate\Support\Facades\Artisan::spy();
+    \Illuminate\Support\Facades\Event::fake([\Cms\Core\Events\AuditLogEvent::class]);
+    useTempEnvFile($this, "APP_NAME=Test\n");
+
+    $setting = createEncSetting([
+        'setting_key' => 'payment.GATEWAY_SECRET',
+        'type' => 'password',
+        'group_name' => 'payment',
+        'name' => 'GATEWAY_SECRET',
+        'value' => 'CLEAR-ME-PLAIN-SECRET',
+        'input_setting' => ['isEnv' => false, 'isPublic' => false],
+    ]);
+
+    $response = $this->putJson("/api/v2/admin/setting/{$setting->id}/quick", ['clear' => true])->assertOk();
+
+    expect(getRawSettingValue($setting->id))->toBeIn([null, ''])
+        ->and($response->getContent())->not->toContain('CLEAR-ME-PLAIN-SECRET')
+        ->and($response->json('data.has_value'))->toBeFalse()
+        ->and((string) file_get_contents($this->clearEnvDir . '/.env'))->toBe("APP_NAME=Test\n");
+
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \Cms\Core\Events\AuditLogEvent::class,
+        fn (\Cms\Core\Events\AuditLogEvent $e): bool => $e->action === 'setting.secret.clear'
+            && $e->changed === ['key' => 'payment.GATEWAY_SECRET', 'secret' => true]
+    );
+});
+
+test('quickUpdate with clear is refused with 422 for a setting that is not a secret', function () {
+    $this->withoutMiddleware();
+    actAsAdmin($this);
+    \Illuminate\Support\Facades\Artisan::spy();
+    \Illuminate\Support\Facades\Event::fake([\Cms\Core\Events\AuditLogEvent::class]);
+
+    $setting = createEncSetting([
+        'setting_key' => 'advanced.THEME_FOLDER',
+        'group_name' => 'advanced',
+        'name' => 'THEME_FOLDER',
+        'value' => 'my-theme',
+        'input_setting' => ['isEnv' => true, 'isPublic' => false],
+    ]);
+
+    $this->putJson("/api/v2/admin/setting/{$setting->id}/quick", ['clear' => true])->assertStatus(422);
+
+    expect(Setting::find($setting->id)->value)->toBe('my-theme');
+    \Illuminate\Support\Facades\Event::assertNotDispatched(\Cms\Core\Events\AuditLogEvent::class);
+});
+
+test('quickUpdate with an empty value and no clear flag still keeps the stored secret', function () {
+    $this->withoutMiddleware();
+    actAsAdmin($this);
+
+    $setting = createEncSetting([
+        'setting_key' => 'email.MAIL_PASSWORD',
+        'type' => 'password',
+        'group_name' => 'email',
+        'name' => 'MAIL_PASSWORD',
+        'value' => 'keep-me',
+        'input_setting' => ['isEnv' => true, 'isPublic' => false],
+    ]);
+    $originalRaw = getRawSettingValue($setting->id);
+
+    $this->putJson("/api/v2/admin/setting/{$setting->id}/quick", ['value' => '', 'type' => 'password'])->assertOk();
+    $this->putJson("/api/v2/admin/setting/{$setting->id}/quick", ['value' => '', 'type' => 'password', 'clear' => false])->assertOk();
+
+    expect(getRawSettingValue($setting->id))->toBe($originalRaw);
+});

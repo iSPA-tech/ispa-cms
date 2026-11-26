@@ -243,3 +243,43 @@ test('the preflight carries the backup default and the last scheduled backup', f
         ->assertJsonPath('data.backup.reason', 'own_tables_only')
         ->assertJsonPath('data.backup.last_backup.source', 'scheduled');
 });
+
+test('starting installs is limited to 10 per 10 minutes per Webmaster: the 4th start passes, the 11th gets 429 with Retry-After', function () {
+    ieFakeHub($this->secret, $this->version);
+    Sanctum::actingAs(ieAdmin('install-webmaster-throttle@test.local', true));
+
+    // Only the first start creates a run; the others are refused as "already running" but still count as starts.
+    foreach (range(1, 10) as $attempt) {
+        $status = $this->postJson('/api/v2/admin/utilities/modules/install', ['name' => 'Probe', 'version' => '2026.1.0'])->status();
+        expect($status)->toBe($attempt === 1 ? 202 : 409, 'start '.$attempt);
+    }
+
+    $refused = $this->postJson('/api/v2/admin/utilities/modules/install', ['name' => 'Probe', 'version' => '2026.1.0'])
+        ->assertStatus(429)
+        ->assertHeader('Retry-After');
+
+    expect((int) $refused->headers->get('Retry-After'))->toBeGreaterThan(0)->toBeLessThanOrEqual(600);
+});
+
+test('start, upload and uninstall share the same abuse limit, and Retry-After is readable by a cross-origin admin', function () {
+    $limits = [];
+    foreach (app('router')->getRoutes() as $route) {
+        $key = implode('|', $route->methods()).' '.$route->uri();
+        foreach ([
+            'POST api/v2/admin/utilities/modules/install' => 'install',
+            'POST api/v2/admin/utilities/modules/upload' => 'upload',
+            'DELETE api/v2/admin/utilities/modules/runtime/{name}' => 'uninstall',
+        ] as $wanted => $label) {
+            if ($key === $wanted) {
+                $limits[$label] = array_values(array_filter($route->gatherMiddleware(), fn ($m) => is_string($m) && str_starts_with($m, 'throttle.route:')));
+            }
+        }
+    }
+
+    expect($limits)->toBe([
+        'install' => ['throttle.route:10,10'],
+        'upload' => ['throttle.route:10,10'],
+        'uninstall' => ['throttle.route:10,10'],
+    ]);
+    expect(config('cors.exposed_headers'))->toContain('Retry-After');
+});

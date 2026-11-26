@@ -31,7 +31,6 @@ import {
     SettingBackups,
     SettingBasic,
     SettingConfigPackages,
-    SettingEnvironment,
     SettingStarterPacks,
     SettingSecurityTokens,
     SettingCache,
@@ -393,14 +392,6 @@ export const coreSettingRouteContributions = [
                 path: 'config-packages',
                 name: 'setting-config-packages',
                 load: SettingConfigPackages,
-                // Webmaster only (enforced by the router guard in base-admin and by the page itself).
-                meta: { webmasterOnly: true },
-            },
-            {
-                text: 'nav.a.setting-environment',
-                path: 'environment',
-                name: 'setting-environment',
-                load: SettingEnvironment,
                 // Webmaster only (enforced by the router guard in base-admin and by the page itself).
                 meta: { webmasterOnly: true },
             },

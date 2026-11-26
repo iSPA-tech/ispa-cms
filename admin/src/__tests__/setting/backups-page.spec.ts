@@ -428,9 +428,9 @@ describe('Backups access', () => {
             },
         })
 
-    it('counts the Webmaster-only hub entries (backups, configuration packages, environment) only for a Webmaster', () => {
+    it('counts the Webmaster-only hub entries (backups, configuration packages) only for a Webmaster', () => {
         state.webmaster = true
-        expect(mountHub().find('[data-testid="setting-hub-system"]').text()).toContain('9 setting.hub.items')
+        expect(mountHub().find('[data-testid="setting-hub-system"]').text()).toContain('8 setting.hub.items')
         state.webmaster = false
         expect(mountHub().find('[data-testid="setting-hub-system"]').text()).toContain('6 setting.hub.items')
     })

@@ -36,6 +36,10 @@ final class CoreIntegrity
      */
     public function customDependencies(CoreManifest $manifest, ?string $base = null): bool
     {
+        // A CI-deployed release: the deploy builds vendor/ from the whole tree and an upgrade never touches it.
+        if ($manifest->fromDeploy()) {
+            return false;
+        }
         $root = $this->root($base);
         $lock = $root.'/composer.lock';
         $current = is_file($lock) ? (string) hash_file('sha256', $lock) : '';

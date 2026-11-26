@@ -1,1 +1,0 @@
-import{i as e}from"./config-iyxnoVYD.js";var t=async()=>{let t=(await e.get(`my-tasks`,{silent:!0}))?.data?.data||{};return{items:Array.isArray(t.items)?t.items:[],total:Number(t.total)||0}};export{t};

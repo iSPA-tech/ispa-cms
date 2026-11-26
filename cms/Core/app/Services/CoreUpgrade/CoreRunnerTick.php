@@ -235,8 +235,9 @@ final class CoreRunnerTick
             return false;
         }
 
+        // Behind a `current` link only a CI-deployed release (deploy-origin manifest), which is upgraded in place.
         return $installed !== null
-            && self::releaseLink($this->base) === null
+            && ($installed->fromDeploy() || self::releaseLink($this->base) === null)
             && self::unwritablePaths($this->base, $installed) === [];
     }
 

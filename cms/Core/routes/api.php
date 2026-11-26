@@ -823,18 +823,23 @@ Route::group(['prefix' => 'v2', 'as' => 'v2.'], static function () use ($moduleI
                     });
 
                 // Runtime module installs from the platform hub (Webmaster only).
+                // Start, upload and uninstall share one abuse limit: 10 requests per route per user in 10 minutes.
+                // Runs are already one at a time (a single unfinished install row), and refused requests count too
+                // (a retry, an upload sent again with its confirmation), so 3 per 10 minutes stopped an owner who
+                // upgraded a few modules in a row (2026-11-25). The admin rebuild stays at 1 per 10 minutes: it is
+                // one long build, never a series.
                 Route::controller(ModuleInstallController::class)
                     ->middleware('admin.webmaster')
                     ->group(function () {
-                        Route::post('modules/install', 'store')->middleware('throttle.route:3,10');
-                        Route::post('modules/upload', 'upload')->middleware('throttle.route:3,10');
+                        Route::post('modules/install', 'store')->middleware('throttle.route:10,10');
+                        Route::post('modules/upload', 'upload')->middleware('throttle.route:10,10');
                         Route::get('modules/installs', 'index');
                         // Runtime module removal.
                         Route::get('modules/runtime/{name}/uninstall', 'uninstallInfo')
                             ->where('name', '[A-Z][A-Za-z0-9]{1,63}');
                         Route::delete('modules/runtime/{name}', 'uninstall')
                             ->where('name', '[A-Z][A-Za-z0-9]{1,63}')
-                            ->middleware('throttle.route:3,10');
+                            ->middleware('throttle.route:10,10');
                         Route::post('modules/admin-rebuild', 'adminRebuild')->middleware('throttle.route:1,10');
                     });
             });

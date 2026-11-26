@@ -146,7 +146,6 @@ const categories = [
             { name: 'setting-modules', rule: 'setting.viewAny' },
             { name: 'setting-backups', webmasterOnly: true },
             { name: 'setting-config-packages', webmasterOnly: true },
-            { name: 'setting-environment', webmasterOnly: true },
             { name: 'setting-starter-packs', rule: 'starter_pack.view' },
             { name: 'setting-security-tokens', rule: '' },
             { name: 'setting-cache', rule: 'setting.viewAny' },

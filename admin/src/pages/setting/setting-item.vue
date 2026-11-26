@@ -31,7 +31,7 @@
                 v-if="isMaskedSecret && !isSelectItem"
                 v-model:value="innerValue"
                 :name="item.name"
-                :placeholder="t('text.setting.secret_value_set_placeholder')"
+                :placeholder="hasStoredSecret ? t('text.setting.secret_value_set_placeholder') : undefined"
                 autocomplete="new-password"
                 data-testid="setting-secret-input"
                 @change="debouncedSecretSync"
@@ -92,12 +92,35 @@
                 @change="immediateSync"
             />
             <p
-                v-if="isMaskedSecret && isSelectItem"
+                v-if="hasStoredSecret && isSelectItem"
                 class="text-xs text-gray-600"
                 data-testid="setting-secret-hint"
             >
                 {{ t('text.setting.secret_value_set_placeholder') }}
             </p>
+            <div v-if="canClearSecret">
+                <a-popconfirm
+                    :cancel-text="$t('nav.b.cancel')"
+                    :disabled="isClearing"
+                    :ok-text="t('text.setting.secret_clear')"
+                    :overlay-style="{ maxWidth: 'min(320px, calc(100vw - 32px))' }"
+                    :title="t('text.setting.secret_clear_confirm')"
+                    ok-type="danger"
+                    @confirm="clearSecret"
+                >
+                    <a-button
+                        :disabled="isClearing"
+                        class="!px-0"
+                        danger
+                        data-testid="setting-secret-clear"
+                        html-type="button"
+                        size="small"
+                        type="link"
+                    >
+                        {{ t('text.setting.secret_clear') }}
+                    </a-button>
+                </a-popconfirm>
+            </div>
             <p class="text-xs text-gray-500/90" v-html="$t(item.input_setting.description)" />
         </div>
 
@@ -116,6 +139,7 @@ import { debounce } from 'lodash-es'
 import { useSettings } from '@/hooks'
 import clsx from 'clsx'
 import ajax from '@/ajax'
+import { message } from 'ant-design-vue'
 
 /** Value the settings API returns for a secret that is stored (the real value is never sent). */
 const MASKED_SECRET_VALUE = '********'
@@ -140,6 +164,10 @@ const isMaskedSecret = computed(() => item?.value === MASKED_SECRET_VALUE)
 const isSelectItem = computed(
     () => (item?.input_setting?.options?.length ?? 0) > 0 || item?.name === 'VITE_TEMPLATE_FOLDER'
 )
+// Set once the stored secret was cleared here: the row then reads as empty until the list is loaded again.
+const isCleared = ref(false)
+const hasStoredSecret = computed(() => isMaskedSecret.value && !isCleared.value)
+const canClearSecret = computed(() => hasStoredSecret.value && rule('setting.update'))
 const unmaskValue = (value) => (value === MASKED_SECRET_VALUE ? '' : value)
 
 const innerValue = ref(unmaskValue(modelValue ?? null))
@@ -185,11 +213,34 @@ const immediateSync = async () => {
             value: innerValue.value,
             type: item.type,
         })
+        .then(() => {
+            // A secret typed after a clear is stored again.
+            if (isMaskedSecret.value && innerValue.value) isCleared.value = false
+        })
         .finally(() => {
             fetchAndCacheGlobalSettings().finally(() => {
                 isLoading.value = false
             })
         })
+}
+
+// Empty a stored secret. A plain save cannot do it: '' and the mask both keep the stored value.
+const isClearing = ref(false)
+const clearSecret = async () => {
+    if (isClearing.value) return
+    isClearing.value = true
+    try {
+        await ajax.put(`setting/${item.id}/quick`, { clear: true })
+        isCleared.value = true
+        innerValue.value = ''
+        message.success(t('text.setting.secret_cleared'))
+        fetchAndCacheGlobalSettings().catch(() => {})
+    } catch (err) {
+        // The ajax layer already shows the server's message; only an unreported failure needs one here.
+        if (!err?.reported) message.error(t('text.setting.secret_clear_failed'))
+    } finally {
+        isClearing.value = false
+    }
 }
 
 watch(
@@ -212,6 +263,8 @@ watch(
     () => item,
     (newItem) => {
         if (newItem) {
+            // A freshly loaded row is the truth again.
+            isCleared.value = false
             if (newItem.value === MASKED_SECRET_VALUE) {
                 innerValue.value = ''
                 return

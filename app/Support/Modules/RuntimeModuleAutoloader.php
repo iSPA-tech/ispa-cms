@@ -72,6 +72,12 @@ final class RuntimeModuleAutoloader
 
                     continue;
                 }
+                if (in_array($name, RuntimePrecedence::listed($basePath), true)) {
+                    // Listed in runtime_modules.json but not preferred (not newer, not installer-placed, or outside
+                    // its Core range): the release copy is the designed fallback, the normal state after a
+                    // deploy syncs a module the admin had upgraded. Not a shadowing folder, so nothing to report.
+                    continue;
+                }
                 self::$collisions[] = $name;
             }
 

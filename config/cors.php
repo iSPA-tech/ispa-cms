@@ -36,6 +36,8 @@ return [
 
     'exposed_headers' => [
         'X-RateLimit-Limit', 'X-RateLimit-Reset', 'X-RateLimit-Remaining',
+        // Lets a cross-origin admin read how long a rate-limited (429) request has to wait.
+        'Retry-After',
         // Marks answers to the read-only demo account so a cross-origin admin can show its banner (Demo project only sends it).
         'X-Demo-Read-Only',
         // Marks answers to the shared demo account of an editable demo site, with its daily reset time (Demo module only).

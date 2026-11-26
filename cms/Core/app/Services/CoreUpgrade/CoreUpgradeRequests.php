@@ -257,7 +257,7 @@ final class CoreUpgradeRequests
      */
     public static function setupFor(string $base, ?int $ownerUid): array
     {
-        $base = rtrim($base, '/\\');
+        $base = self::cronBase($base);
         $user = '';
         if ($ownerUid !== null && function_exists('posix_getpwuid')) {
             $user = (string) (posix_getpwuid($ownerUid)['name'] ?? '');
@@ -276,6 +276,17 @@ final class CoreUpgradeRequests
      */
     public static function runnerLine(string $base): string
     {
-        return '* * * * * cd '.escapeshellarg(rtrim($base, '/\\')).' && php ispa upgrade --run-requested >/dev/null 2>&1';
+        return '* * * * * cd '.escapeshellarg(self::cronBase($base)).' && php ispa upgrade --run-requested >/dev/null 2>&1';
+    }
+
+    /**
+     * The folder the runner cron enters: the `current` link of a release layout (each minute then runs the release
+     * that is live, not the one that was live when the line was written), else the base itself.
+     */
+    public static function cronBase(string $base): string
+    {
+        $base = rtrim($base, '/\\');
+
+        return CoreRunnerTick::releaseLink($base)['link'] ?? $base;
     }
 }

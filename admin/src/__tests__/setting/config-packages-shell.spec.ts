@@ -106,11 +106,11 @@ describe('config packages navigation', () => {
         return Number(match?.[1])
     }
 
-    it('counts the hub entry only for a Webmaster (Backups, Configuration packages and Environment are all Webmaster-only)', () => {
+    it('counts the hub entry only for a Webmaster (Backups and Configuration packages are Webmaster-only)', () => {
         state.webmaster = true
         const withWebmaster = systemCount()
         state.webmaster = false
-        expect(withWebmaster - systemCount()).toBe(3)
+        expect(withWebmaster - systemCount()).toBe(2)
     })
 
     it('lists the sidebar link only for a Webmaster', () => {

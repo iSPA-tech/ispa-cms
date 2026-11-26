@@ -102,7 +102,7 @@
                     <ul class="m-0 pl-4 text-sm">
                         <li v-for="key in secrets.missing" :key="key" class="break-words">{{ secretLabel(secrets.labels, key) }}</li>
                     </ul>
-                    <router-link v-if="hasEnvironmentRoute" :to="{ name: 'setting-environment' }" class="text-sm" data-testid="import-secrets-link">
+                    <router-link v-if="hasSettingsRoute" :to="{ name: 'setting-hub' }" class="text-sm" data-testid="import-secrets-link">
                         {{ t('text.config_package.import_secrets_link') }}
                     </router-link>
                     <p v-else class="m-0 mt-1 text-sm text-ink-muted" data-testid="import-secrets-plain">{{ t('text.config_package.import_secrets_plain') }}</p>
@@ -326,7 +326,8 @@ const applyProgressText = computed(() => {
     if (state?.message && te(state.message)) return t(state.message, state.params || {})
     return t(`text.config_package.apply_status_${state?.status || 'queued'}`)
 })
-const hasEnvironmentRoute = computed(() => !!router && router.hasRoute('setting-environment'))
+// Secrets are entered on the normal settings screens (Email, Advanced, API, Notifications).
+const hasSettingsRoute = computed(() => !!router && router.hasRoute('setting-hub'))
 const currentOverview = computed(() => ({ ...(plan.value?.sections?.[plan.value.section] || {}), warnings: [] }))
 const currentMore = computed(() => Number(plan.value?.sections?.[plan.value.section]?.more) || 0)
 

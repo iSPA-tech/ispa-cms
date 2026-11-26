@@ -2,6 +2,20 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.06
+
+- **Ships Core module 2026.11.10.**
+- **Core updates on sites deployed by CI**: a site whose code is deployed by a CI pipeline can now update Core from
+  the admin. The update replaces only the Core build and keeps the site's own files (`VERSION`, the composer files
+  and the list of runtime modules) as the deploy left them. Views compiled during the update's health check are
+  cleared afterwards.
+- **Module install rate limit**: starting a module install, upload or uninstall is allowed 10 times per 10 minutes.
+  When the limit is reached, the Modules page says how long to wait before trying again.
+- **Settings**: the Environment admin page is removed. A stored secret (password, API key) can now be cleared from
+  its field on the settings screens.
+- **Runtime modules**: a module installed online and also shipped with the site no longer logs an error on every
+  request; the copy shipped with the site is used, as before.
+
 ## 2026.11.05
 
 - **Ships Core module 2026.11.08 and Content module 2026.11.09.**

@@ -298,6 +298,40 @@ describe('install drawer', () => {
         await flushPromises()
         expect(wrapper.find('[data-testid=install-submit-error]').text()).toContain('text.modules.error.unknown')
     })
+
+    // The start limit (HTTP 429): the person is told how long to wait, taken from Retry-After and rounded up.
+    const tooMany = (headers?: Record<string, unknown>) => Promise.reject({ response: { status: 429, headers, data: { message: 'Too Many Attempts.' } } })
+
+    it.each([
+        ['421', 8],
+        ['60', 1],
+        ['5', 1],
+        [61, 2],
+    ])('tells how many minutes to wait when the start limit is reached (Retry-After %s)', async (retryAfter, minutes) => {
+        ajaxMock.post.mockImplementationOnce(() => tooMany({ 'retry-after': retryAfter }))
+        const wrapper = await mountPage()
+        await openInstall(wrapper, 0)
+        await wrapper.find('[data-testid=install-form]').trigger('submit')
+        await flushPromises()
+        const message = wrapper.find('[data-testid=install-submit-error]').text()
+        expect(message).toContain(`text.modules.error.too_many_starts|{"minutes":${minutes}}`)
+        expect(message).not.toContain('start_failed')
+        expect(wrapper.find('[data-testid=install-start]').attributes('disabled')).toBeUndefined()
+    })
+
+    it.each([[undefined], [{}], [{ 'retry-after': 'soon' }], [{ 'retry-after': '0' }]])(
+        'says "a few minutes" when the start limit is reached and the wait is not readable (%o)',
+        async (headers) => {
+            ajaxMock.post.mockImplementationOnce(() => tooMany(headers))
+            const wrapper = await mountPage()
+            await openInstall(wrapper, 0)
+            await wrapper.find('[data-testid=install-form]').trigger('submit')
+            await flushPromises()
+            const message = wrapper.find('[data-testid=install-submit-error]').text()
+            expect(message).toContain('text.modules.error.too_many_starts_soon')
+            expect(message).not.toContain('minutes')
+        },
+    )
 })
 
 describe('upload', () => {
@@ -354,6 +388,17 @@ describe('upload', () => {
         const body = ajaxMock.post.mock.calls[1][1] as FormData
         expect(body.get('confirm_name')).toBe('Billing')
         expect(body.get('confirm_irreversible')).toBe('1')
+    })
+
+    it('tells how many minutes to wait when the upload limit is reached', async () => {
+        ajaxMock.post.mockImplementationOnce(() => Promise.reject({ response: { status: 429, headers: { 'retry-after': '130' }, data: {} } }))
+        const wrapper = await mountPage()
+        await wrapper.find('[data-testid=module-upload-open]').trigger('click')
+        await pick(wrapper, 'upload-zip', 1024, 'm.zip')
+        await pick(wrapper, 'upload-signature', 100, 'm.sig.json')
+        await wrapper.find('[data-testid=upload-form]').trigger('submit')
+        await flushPromises()
+        expect(wrapper.find('[data-testid=upload-error]').text()).toContain('text.modules.error.too_many_starts|{"minutes":3}')
     })
 })
 
@@ -782,6 +827,17 @@ describe('uninstall of an installed runtime module', () => {
         const message = wrapper.find('[data-testid=uninstall-submit-error]').text()
         expect(message).toContain('text.modules.error.has_dependents')
         expect(message).toContain('Content, Billing')
+        expect(wrapper.find('[data-testid=uninstall-start]').attributes('disabled')).toBeUndefined()
+    })
+
+    it('tells how many minutes to wait when the uninstall limit is reached', async () => {
+        ajaxMock.delete.mockImplementationOnce(() => Promise.reject({ response: { status: 429, headers: { 'retry-after': '600' }, data: {} } }))
+        const wrapper = await openUninstallDrawer()
+        await type(wrapper, 'Extra')
+        await wrapper.find('[data-testid=uninstall-form]').trigger('submit')
+        await flushPromises()
+
+        expect(wrapper.find('[data-testid=uninstall-submit-error]').text()).toContain('text.modules.error.too_many_starts|{"minutes":10}')
         expect(wrapper.find('[data-testid=uninstall-start]').attributes('disabled')).toBeUndefined()
     })
 

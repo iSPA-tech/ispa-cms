@@ -198,14 +198,14 @@ describe('config package import tab', () => {
             expect(api.fetchRun).toHaveBeenLastCalledWith('run-1', { page: 1, section: 'menus' })
         })
 
-        it('lists missing secrets with a link when the environment route exists', async () => {
+        it('lists missing secrets with a link to the settings screens when that route exists', async () => {
             const w = await done()
             expect(find(w, 'import-secrets-set').text()).toContain('MAIL_HOST')
             expect(find(w, 'import-secrets-missing').text()).toContain('MAIL_PASSWORD')
             expect(find(w, 'import-secrets-link').exists()).toBe(true)
         })
 
-        it('uses plain text when the environment route is missing', async () => {
+        it('uses plain text when the settings route is missing', async () => {
             routes.has = false
             const w = await done()
             expect(find(w, 'import-secrets-missing').text()).toContain('MAIL_PASSWORD')

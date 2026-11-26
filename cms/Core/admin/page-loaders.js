@@ -41,7 +41,6 @@ export const SettingAds = () => import('./pages/setting/ads.vue').then((m) => m.
 export const SettingAdvanced = () => import('./pages/setting/advanced.vue').then((m) => m.default)
 export const SettingBackups = () => import('./pages/setting/backups.vue').then((m) => m.default)
 export const SettingConfigPackages = () => import('./pages/setting/config-packages.vue').then((m) => m.default)
-export const SettingEnvironment = () => import('./pages/setting/environment.vue').then((m) => m.default)
 export const SettingStarterPacks = () => import('./pages/setting/starter-packs.vue').then((m) => m.default)
 export const SettingSecurityTokens = () => import('./pages/setting/security-tokens.vue').then((m) => m.default)
 export const SettingEmail = () => import('./pages/setting/email.vue').then((m) => m.default)

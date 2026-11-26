@@ -155,7 +155,6 @@ const categoryMap = {
             { name: 'setting-modules', text: 'nav.a.setting-modules', rule: 'setting.viewAny' },
             { name: 'setting-backups', text: 'nav.a.setting-backups', webmasterOnly: true },
             { name: 'setting-config-packages', text: 'nav.a.setting-config-packages', webmasterOnly: true },
-            { name: 'setting-environment', text: 'nav.a.setting-environment', webmasterOnly: true },
             { name: 'setting-starter-packs', text: 'nav.a.starter_packs', rule: 'starter_pack.view' },
             { name: 'setting-security-tokens', text: 'nav.a.setting-security-tokens', rule: '' },
             { name: 'setting-cache', text: 'nav.a.setting-cache', rule: 'setting.viewAny' },

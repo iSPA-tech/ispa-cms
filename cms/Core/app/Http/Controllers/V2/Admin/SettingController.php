@@ -11,7 +11,9 @@ namespace Cms\Core\Http\Controllers\V2\Admin;
 use Throwable;
 use Exception;
 use JsonException;
+use Cms\Core\Events\AuditLogEvent;
 use Cms\Core\Facades\CMSLogger;
+use Cms\Core\Services\Environment\EnvironmentSettingService;
 use Cms\Core\Helpers\RedisHelper;
 use App\Constants\CacheConstants;
 use Illuminate\Support\Facades\DB;
@@ -117,6 +119,10 @@ class SettingController extends AdminController
             return ires()->error()->message(__('mgs.no.permission'));
         }
 
+        if (request()->boolean('clear')) {
+            return $this->clearSecret($id);
+        }
+
         try {
             $data = request()->all();
             $newValue = formatValueByInputType(
@@ -161,6 +167,70 @@ class SettingController extends AdminController
         }
 
         return ires()->message('Updated successfully');
+    }
+
+    /**
+     * Empty a stored secret (quick update with `clear: true`).
+     *
+     * A plain quick update can only replace a secret ('' and '********' keep the stored value), so emptying one
+     * needs this explicit flag. Only masked settings qualify; anything else is refused with 422. Env-bound rows go
+     * through EnvironmentSettingService::clear() (row, `.env` line, caches, audit); other rows are emptied through
+     * Eloquent save() and audited here. The value never reaches the response, a log or the audit entry.
+     *
+     * @param int $id Setting identifier.
+     *
+     * @return mixed
+     */
+    private function clearSecret(int $id): mixed
+    {
+        $setting = $this->model->find($id);
+        if (!$setting) {
+            return ires()->error()->message(__('mgs.id.404'));
+        }
+
+        $key = (string)$setting->setting_key;
+        if ($this->isProtectedKey($key)) {
+            return ires()->error()->code(403)->message(self::PROTECTED_MESSAGE);
+        }
+
+        $inputSetting = is_array($setting->input_setting)
+            ? $setting->input_setting
+            : (array)json_decode($setting->input_setting ?? '{}', true);
+
+        if (!$this->isMaskedSetting($inputSetting, $setting->type, $key, $setting->name)) {
+            return ires()->error()->code(422)->message('Only a secret setting can be cleared.');
+        }
+
+        try {
+            $environment = app(EnvironmentSettingService::class);
+            if ($environment->isAllowed($key)) {
+                $environment->clear($key, (int)user('id'));
+            } else {
+                // SECURITY: Eloquent save() keeps the EncryptedSettingValue cast in the write path.
+                $setting->value = null;
+                $setting->save();
+
+                $this->synchronizeSettingFile(false, str_starts_with($key, 'email.'));
+
+                event(new AuditLogEvent(
+                    'setting.secret.clear',
+                    ['key' => $key, 'secret' => true],
+                    $this->model->model()::class,
+                    (int)$setting->id
+                ));
+            }
+        } catch (Throwable $e) {
+            // The original exception may carry the value (SQL bindings), so neither it nor its message is kept.
+            CMSLogger::error([
+                'message' => 'Clearing a secret setting failed',
+                'key' => $key,
+                'exception_class' => $e::class,
+            ]);
+
+            return ires()->error()->message('Clearing the setting failed.');
+        }
+
+        return ires()->data(['setting_key' => $key, 'has_value' => false])->message('Cleared successfully');
     }
 
     /**

@@ -33,6 +33,12 @@ use Throwable;
  * or above the base): the base is copied to a new release folder (shared `storage`, `runtime`, `.env` stay linked),
  * the upgrade is applied there and `current` is switched atomically; the old release stays as the backup.
  *
+ * CI-deployed release (deploy-origin manifest, written by the deploy hook): upgraded in place inside the live release
+ * like a flat install (the deploy script refuses non-numeric release folders, and earlier releases are its rollback),
+ * with the narrower file plan of {@see CoreFileSwapper::plan()}; refused when the package's Core, Content or Widget is
+ * older than the release's (CORE_PACKAGE_OLDER) or needs PHP packages the release's composer.lock lacks
+ * (CORE_NEEDS_DEPLOY); the placed manifest stays a deploy manifest.
+ *
  * Staging and backups live in `<base>/.ispa-runner/` (runner-only, 0700), never in the shared `storage/` tree: no
  * folder on the path from the base to a staged or backed-up file is writable by anyone but the code owner. Before any
  * work the base and that folder are checked ({@see CoreRunnerTick::codeDirShared()}); a base others could write
@@ -184,8 +190,11 @@ class CoreUpgrader
             $customDeps = $this->customDependencies($installed);
             $this->assertPreflight($this->preflightService()->check($installed, $targetVersion, false, $overwriteModified, $signed->zipSize, $new, $extraPhpVersions));
             $this->assertModulesKeepTheirPlace($staging);
+            if ($installed->fromDeploy()) {
+                $this->assertDeployCompatible($staging);
+            }
 
-            $layout = $this->releaseLink();
+            $layout = $installed->fromDeploy() ? null : $this->releaseLink();
             $tree = $this->treeOf($staging);
             if ($customDeps) {
                 $this->resolveCustomDependencies($new, $tree);
@@ -227,7 +236,7 @@ class CoreUpgrader
             $state['aside'] = $swapper->apply($plan, $tree, $stamp, $new->checked);
 
             $this->progress($task, 70, 'Migrating and rebuilding.');
-            $warnings = $this->warnings = $this->finish($swapDir, $customDeps);
+            $warnings = $this->warnings = $this->finish($swapDir, $customDeps, $installed->fromDeploy());
 
             if ($layout !== null) {
                 $this->placeManifest($staging, $swapDir);
@@ -240,7 +249,12 @@ class CoreUpgrader
                 throw new CoreUpgradeException('CORE_HEALTH_FAILED', 'The upgraded site did not pass the health check ('.implode('; ', $failures).').', $backupUuid);
             }
 
-            if ($layout === null) {
+            if ($layout === null && $installed->fromDeploy()) {
+                // The health check compiled views as the code owner; the web user cannot touch() those files (Blade
+                // sets their mtime), so pages answered 500 until they were cleared (seen on a CI-deployed site).
+                $this->runner()->run([(new PhpExecutableFinder())->find() ?: 'php', 'artisan', 'view:clear'], $this->base, [], true);
+                $this->placeDeployManifest($installed, $new, $plan);
+            } elseif ($layout === null) {
                 $this->placeManifest($staging, $this->base);
             }
             $swapper->dropAside($state['aside']);
@@ -378,6 +392,48 @@ class CoreUpgrader
             sort($rejected, SORT_STRING);
 
             throw new CoreUpgradeException('CORE_MODULE_NEEDS_UPDATE', 'Update these modules first; after this upgrade they would no longer run from their own update: '.implode(', ', $rejected).'.', null, ['modules' => $rejected]);
+        }
+    }
+
+    /**
+     * A CI-deployed release keeps its own vendor/ and modules, so refuse (before the backup tar and the state file,
+     * nothing changed yet) a package whose Core, Content or Widget is older than the release's own copy
+     * (CORE_PACKAGE_OLDER: never downgrade a newer deploy), or whose composer.lock has packages the release's
+     * composer.lock lacks (CORE_NEEDS_DEPLOY: only a deploy installs PHP packages).
+     *
+     * @throws CoreUpgradeException
+     */
+    private function assertDeployCompatible(string $staging): void
+    {
+        $tree = $this->treeOf($staging);
+        $older = [];
+        foreach (['Core', 'Content', 'Widget'] as $name) {
+            $site = $this->readJson($this->base.'/cms/'.$name.'/module.json')['version'] ?? null;
+            $shipped = $this->readJson($tree.'/cms/'.$name.'/module.json')['version'] ?? null;
+            if (is_string($site) && is_string($shipped) && RuntimePrecedence::compareVersions($shipped, $site) < 0) {
+                $older[] = $name.' '.$shipped.' < '.$site;
+            }
+        }
+        if ($older !== []) {
+            throw new CoreUpgradeException('CORE_PACKAGE_OLDER', 'This site already runs newer code than the core package ('.implode(', ', $older).'); it is updated by its deploy.', null, ['modules' => $older]);
+        }
+
+        $names = static function (array $lock): array {
+            $out = [];
+            foreach ((array) ($lock['packages'] ?? []) as $package) {
+                if (is_array($package) && is_string($package['name'] ?? null)) {
+                    $out[strtolower($package['name'])] = true;
+                }
+            }
+
+            return $out;
+        };
+        $needed = $names($this->readJson($tree.'/composer.lock'));
+        $missing = array_keys(array_diff_key($needed, $names($this->readJson($this->base.'/composer.lock'))));
+        if ($missing !== []) {
+            sort($missing, SORT_STRING);
+
+            throw new CoreUpgradeException('CORE_NEEDS_DEPLOY', 'This core version needs PHP packages this site does not have yet ('.implode(', ', array_slice($missing, 0, 10)).'); sync the deploy repository and deploy instead.', null, ['modules' => array_slice($missing, 0, 10)]);
         }
     }
 
@@ -603,6 +659,30 @@ class CoreUpgrader
         rename($temp, $root.'/'.CoreManifest::FILE);
     }
 
+    /**
+     * The manifest after a deploy-origin upgrade (the last file written): the new version, still origin `deploy`,
+     * `checked` = the new package's hashes of the paths the plan may touch here (proven before, or added now), the
+     * release's own composer.lock hash, no replaced folders, and `upgraded_from` so the next deploy can refuse an
+     * older Core.
+     *
+     * @param array{write: list<string>, remove: list<string>, replace: list<string>, skipped: list<string>} $plan
+     */
+    private function placeDeployManifest(CoreManifest $installed, CoreManifest $new, array $plan): void
+    {
+        $written = array_flip($plan['write']);
+        $checked = [];
+        foreach ($new->checked as $path => $hash) {
+            $path = (string) $path;
+            if (! CoreFileSwapper::isProtected($path) && ! in_array($path, CoreFileSwapper::DEPLOY_OWNED_FILES, true)
+                && (isset($installed->checked[$path]) || isset($written[$path]))) {
+                $checked[$path] = $hash;
+            }
+        }
+        $manifest = new CoreManifest($new->version, $new->phpMin, $checked, [], $installed->composerLockSha256, CoreManifest::ORIGIN_DEPLOY, $installed->version);
+        $json = json_encode($manifest->toArray(date('c')), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
+        $this->writeAtomic($this->base.'/'.CoreManifest::FILE, $json, 0644);
+    }
+
     private function switchLink(string $link, string $target): void
     {
         $temp = $link.'.core-'.getmypid();
@@ -616,7 +696,7 @@ class CoreUpgrader
      *
      * @return list<string> Warnings (non-fatal).
      */
-    private function finish(string $root, bool $customDeps): array
+    private function finish(string $root, bool $customDeps, bool $deploy = false): array
     {
         $warnings = [];
         $php = (new PhpExecutableFinder())->find() ?: 'php';
@@ -634,6 +714,30 @@ class CoreUpgrader
         $artisan(['optimize:clear']);
         if ($artisan(['cms:admin-config']) !== 0) {
             $warnings[] = 'Could not write public/iPanel/config.js; run `./ispa build` or `php artisan cms:admin-config`.';
+        }
+        if ($deploy) {
+            // What the deploy does after activation: cached config and routes, translations imported from the new
+            // sidecars, and the admin rebuilt from the new Core admin source (deploy script; best effort).
+            if ($artisan(['config:cache']) !== 0) {
+                $warnings[] = 'Could not cache the configuration; run `php artisan config:cache`.';
+            }
+            if ($artisan(['route:cache']) !== 0) {
+                $artisan(['route:clear']);
+                $warnings[] = 'Could not cache the routes; the site runs with uncached routes.';
+            }
+            if ($artisan(['cms:translation-sync', '--all']) !== 0) {
+                $warnings[] = 'Could not import the new translations; run `php artisan cms:translation-sync --all`.';
+            }
+            if (is_file($root.'/.github/deployment/admin-rebuild.sh')) {
+                try {
+                    $built = (new \Cms\Core\Services\Modules\Install\AdminRebuilder(null, $root))->rebuild();
+                } catch (Throwable $e) {
+                    $built = ['ok' => false, 'message' => $e->getMessage()];
+                }
+                if (($built['ok'] ?? false) !== true) {
+                    $warnings[] = 'The admin was not rebuilt; rebuild it from Quản lý Module or with the next deploy.';
+                }
+            }
         }
 
         $marker = $this->readJson($this->base.'/storage/app/ispa/custom-build.json');

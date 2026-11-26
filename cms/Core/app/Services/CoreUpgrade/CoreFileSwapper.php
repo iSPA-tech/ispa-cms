@@ -13,6 +13,7 @@ use RecursiveIteratorIterator;
  *
  * Only paths of the installed or the new manifest's `checked` set, the `replaced` set, and the removed set
  * (installed checked minus new checked) are ever touched, and never a per-site path ({@see self::isProtected()}).
+ * For a deploy-origin installed manifest ({@see CoreManifest::fromDeploy()}) the plan is narrower: see plan().
  * Replaced folders (`vendor`, `public/build`, `public/iPanel`) are swapped by renaming the old one to
  * `<path>.old-<stamp>`, so they can be put back by a rename and are deleted only after the health check.
  */
@@ -23,6 +24,13 @@ final class CoreFileSwapper
 
     /** Per-site folders an upgrade never touches. */
     public const PROTECTED_PREFIXES = ['storage', 'runtime', 'bootstrap/cache', 'public/storage', 'node_modules', '.git', '.ispa-runner', 'runtime-modules'];
+
+    /**
+     * Files a CI deploy owns even when the deploy hook's manifest lists them: VERSION keys the deploy's admin build and
+     * its i18n paths (a new VERSION breaks every later admin rebuild until the next deploy), the composer files and
+     * the runtime module list belong to the deploy's vendor/ and module set.
+     */
+    public const DEPLOY_OWNED_FILES = ['VERSION', 'composer.json', 'composer.lock', 'runtime_modules.json'];
 
     /** Files kept from the old folder when a replaced folder is swapped. */
     private const KEEP_IN_REPLACED = ['public/iPanel' => ['config.js']];
@@ -135,13 +143,32 @@ final class CoreFileSwapper
      */
     public function plan(CoreManifest $installed, CoreManifest $new, string $staging, bool $skipVendor): array
     {
+        // A CI-deployed release (deploy-origin manifest): only paths inside the package are written, an existing site
+        // file only when the generated manifest proves it came from a core build, a missing one only inside a top
+        // folder the core build already owns here; vendor/ and the built assets belong to the deploy.
+        $deploy = $installed->fromDeploy();
+        $ownedTops = [];
+        foreach (array_keys($installed->checked) as $path) {
+            if (str_contains((string) $path, '/')) {
+                $ownedTops[explode('/', (string) $path)[0]] = true;
+            }
+        }
         $write = [];
         $skipped = [];
         foreach ($new->checked as $path => $hash) {
-            if (self::isProtected($path)) {
+            $path = (string) $path;
+            if (self::isProtected($path) || ($deploy && in_array($path, self::DEPLOY_OWNED_FILES, true))) {
                 $skipped[] = $path;
 
                 continue;
+            }
+            if ($deploy && ! isset($installed->checked[$path])) {
+                $present = file_exists($this->base.'/'.$path) || is_link($this->base.'/'.$path);
+                if ($present || ! str_contains($path, '/') || ! isset($ownedTops[explode('/', $path)[0]])) {
+                    $skipped[] = $path;
+
+                    continue;
+                }
             }
             $current = $this->base.'/'.$path;
             if (! is_file($current) || is_link($current) || hash_file('sha256', $current) !== $hash) {
@@ -151,12 +178,15 @@ final class CoreFileSwapper
         $remove = [];
         foreach (array_diff_key($installed->checked, $new->checked) as $path => $_) {
             $path = (string) $path;
+            if ($deploy && in_array($path, self::DEPLOY_OWNED_FILES, true)) {
+                continue;
+            }
             if (! self::isProtected($path) && (is_file($this->base.'/'.$path) || is_link($this->base.'/'.$path))) {
                 $remove[] = $path;
             }
         }
         $replace = [];
-        foreach ($new->replaced as $path) {
+        foreach ($deploy ? [] : $new->replaced as $path) {
             if (self::isProtected($path) || ($skipVendor && $path === 'vendor')) {
                 continue;
             }

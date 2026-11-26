@@ -257,6 +257,22 @@ test('an unlisted runtime copy of a release module stays a collision as today', 
         ->and(RuntimeModuleAutoloader::quarantined()[$this->name]['code'] ?? null)->toBe(RuntimeModuleAutoloader::SHADOWS_RELEASE);
 });
 
+test('a listed runtime copy the release copy outranks is the normal fallback, not a shadow', function (string $runtimeVersion) {
+    // After a deploy syncs a module the admin had upgraded, the release ships the same (or a newer) version: the
+    // release copy wins by design, so nothing is quarantined, skipped or reported as a collision. Before
+    // this, every request on a live site logged three "Runtime module quarantined" errors.
+    ($this->release)('2026.11.5');
+    ($this->runtime)($runtimeVersion);
+    ($this->list)([$this->name]);
+
+    RuntimeModuleAutoloader::register($this->base);
+
+    expect(RuntimeModuleAutoloader::preferred())->toBe([])
+        ->and(RuntimeModuleAutoloader::collisions())->toBe([])
+        ->and(RuntimeModuleAutoloader::skipped())->toBe([])
+        ->and(RuntimeModuleAutoloader::quarantined())->toBe([]);
+})->with(['same version' => ['2026.11.5'], 'older runtime copy' => ['2026.11.4']]);
+
 test('the module manifest keeps the runtime copy when preferred and the release copy otherwise', function (bool $listed, string $expected) {
     ($this->release)('2026.11.0');
     ($this->runtime)('2026.11.1');
