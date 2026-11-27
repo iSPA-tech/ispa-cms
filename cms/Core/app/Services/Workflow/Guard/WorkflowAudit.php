@@ -36,6 +36,7 @@ final class WorkflowAudit
     public const ERROR_WORKFLOW_CHANGED = 'workflow.error_workflow_changed';
     public const RUN_STARTED = 'workflow.run_started_manually';
     public const GLOBAL_PAUSE_CHANGED = 'workflow.global_pause_changed';
+    public const REVIEWERS_CHANGED = 'workflow.reviewers_changed';
     public const BREAKER_PAUSED = 'workflow.breaker_paused';
     public const BREAKER_RESUMED = 'workflow.breaker_resumed';
     public const RECORD_WRITTEN = 'workflow.record_written';

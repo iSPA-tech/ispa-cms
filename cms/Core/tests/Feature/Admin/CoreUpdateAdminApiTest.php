@@ -18,11 +18,14 @@ use Cms\Core\Services\CoreUpgrade\CoreUpgrader;
 use Cms\Core\Services\CoreUpgrade\CoreUpgradePreflight;
 use Cms\Core\Services\CoreUpgrade\CoreUpgradeRequests;
 use Cms\Core\Services\Modules\Install\PreflightResult;
+use Cms\Core\Services\Platform\PlatformSignature;
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 
@@ -129,6 +132,63 @@ test('GET reports installed, latest, preflight and can_update', function () {
         ->assertJsonPath('data.managed', false);
 
     expect($this->preflight->calls[0])->toBe(['2026.12.0', true]);
+});
+
+test('GET opens the backup folders the web user owns to the runner group', function () {
+    // Spec 2026-11-26 core-admin-update-automatic: older code left storage/backups 0700, locking the runner out.
+    Sanctum::actingAs(cuUser('cu-web@test.local', true));
+    $storage = $this->base.'/storage';
+    mkdir($storage.'/backups/local', 0700, true);
+    chmod($storage.'/backups', 0700);
+    chmod($storage.'/backups/local', 0700);
+    $this->app->useStoragePath($storage);
+
+    $this->getJson($this->url)->assertOk();
+
+    clearstatcache();
+    expect(fileperms($storage.'/backups') & 0777)->toBe(0770)
+        ->and(fileperms($storage.'/backups/local') & 0777)->toBe(0770);
+});
+
+test('GET with refresh=1 asks the hub again; a plain GET keeps the cached version', function () {
+    Sanctum::actingAs(cuUser('cu-web@test.local', true));
+    config([
+        'ispa-cms.cms_domain' => 'site.example.test',
+        'ispa-cms.cms_domain_secret' => 'secret-for-core-tests',
+        'ispa-cms.platform_hub_url' => 'https://hub.test',
+    ]);
+    $calls = 0;
+    Http::fake(function (ClientRequest $sent) use (&$calls) {
+        $calls++;
+        $body = json_encode(['modules' => [], 'core' => ['kind' => 'core', 'name' => 'ispa-cms', 'version' => '2026.12.1', 'notes_url' => null]]);
+        $nonce = $sent->header(PlatformSignature::HEADER_NONCE)[0];
+
+        return Http::response($body, 200, [PlatformSignature::HEADER_RESPONSE_SIGNATURE => PlatformSignature::response('secret-for-core-tests', 200, $nonce, $body)]);
+    });
+
+    $this->getJson($this->url)->assertOk()->assertJsonPath('data.latest', '2026.12.0');
+    expect($calls)->toBe(0);
+
+    $this->getJson($this->url.'?refresh=1')->assertOk()
+        ->assertJsonPath('data.latest', '2026.12.1')
+        ->assertJsonPath('data.can_update', true);
+    expect($calls)->toBe(1)
+        ->and($this->preflight->calls[1])->toBe(['2026.12.1', true]);
+
+    // The fresh answer is what the next plain load shows.
+    $this->getJson($this->url)->assertOk()->assertJsonPath('data.latest', '2026.12.1');
+    expect($calls)->toBe(1);
+});
+
+test('refresh=1 is refused for a non-Webmaster before the hub is asked', function () {
+    cuUser('cu-filler@test.local', false); // user id 1 is always a Webmaster
+    Sanctum::actingAs(cuUser('cu-editor@test.local', false));
+    Http::preventStrayRequests();
+    Http::fake();
+
+    $this->getJson($this->url.'?refresh=1')->assertForbidden();
+    Http::assertNothingSent();
+    expect(Cache::get(CoreUpdateChecker::CACHE_KEY)['version'])->toBe('2026.12.0');
 });
 
 test('a site on a legacy pre-CalVer core number is offered the CalVer core upgrade', function () {

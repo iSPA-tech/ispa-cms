@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\V2\Admin;
 
 use App\Services\Dashboard\AttentionRegistry;
+use Cms\Core\Services\CoreUpgrade\CoreManifest;
 use Cms\Core\Services\Platform\HubCredentials;
 use App\Services\Dashboard\DashboardSummaryService;
 use Cms\Core\Http\Controllers\AdminController;
@@ -70,8 +71,10 @@ class DashboardSummaryController extends AdminController
             'connected' => app(HubCredentials::class)->isConfigured(),
             'development' => self::isDevelopmentHost($host),
             'portal_url' => rtrim((string) config('ispa-cms.platform_hub_url', 'https://ispa.tech'), '/') . '/portal',
+            'version' => CoreManifest::installedVersion(),
         ];
     }
+
 
     private static function isDevelopmentHost(string $host): bool
     {

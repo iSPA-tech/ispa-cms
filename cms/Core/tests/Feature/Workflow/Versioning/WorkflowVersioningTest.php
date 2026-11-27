@@ -167,7 +167,7 @@ it('refuses a run without a published version and refuses turning the project on
 
     $project->forceFill(['is_active' => false])->save();
     $this->actingAs($editor)
-        ->putJson("/api/v2/admin/workflows/{$project->id}", ['name' => $project->name, 'is_active' => true])
+        ->putJson("/api/v2/admin/workflows/{$project->uuid}", ['name' => $project->name, 'is_active' => true])
         ->assertJsonPath('error_code', WorkflowPublishService::NOT_PUBLISHED_CODE);
     expect($project->fresh()->is_active)->toBeFalse();
 
@@ -387,38 +387,38 @@ it('serves the version API: publish, list, diff, draft status and rollback', fun
     [$project, $steps] = versioningProject(['start' => ['trigger_manual', []], 'mark' => ['set_variable', setVar('v1')]]);
     $this->actingAs($editor);
 
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/versions/draft-status")->assertJsonPath('data.differs', true);
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/versions/draft-status")->assertJsonPath('data.differs', true);
 
-    $v1 = $this->postJson("/api/v2/admin/workflows/{$project->id}/versions/publish", ['note' => 'First'])
+    $v1 = $this->postJson("/api/v2/admin/workflows/{$project->uuid}/versions/publish", ['note' => 'First'])
         ->assertStatus(201)->assertJsonPath('data.number', 1)->json('data.uuid');
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/versions/draft-status")->assertJsonPath('data.differs', false);
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/versions/draft-status")->assertJsonPath('data.differs', false);
 
     $steps['mark']->update(['name' => 'Mark it', 'step_config' => setVar('v2')]);
-    $diff = $this->getJson("/api/v2/admin/workflows/{$project->id}/versions/{$v1}/diff?against=draft")->json('data.diff');
+    $diff = $this->getJson("/api/v2/admin/workflows/{$project->uuid}/versions/{$v1}/diff?against=draft")->json('data.diff');
     expect($diff['steps']['changed'][0]['step_code'])->toBe('mark')
         ->and($diff['steps']['changed'][0]['fields'])->toBe(['name'])
         ->and($diff['steps']['changed'][0]['config_keys'])->toBe(['assignments'])
         ->and(json_encode($diff))->not->toContain('v2');
 
-    $this->postJson("/api/v2/admin/workflows/{$project->id}/versions/publish")->assertStatus(201)->assertJsonPath('data.number', 2);
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/versions")
+    $this->postJson("/api/v2/admin/workflows/{$project->uuid}/versions/publish")->assertStatus(201)->assertJsonPath('data.number', 2);
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/versions")
         ->assertJsonPath('data.versions.0.number', 2)->assertJsonPath('data.versions.0.is_published', true)
         ->assertJsonPath('data.versions.1.status', 'superseded');
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/versions/{$v1}")->assertJsonPath('data.graph.steps.1.step_code', 'start')
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/versions/{$v1}")->assertJsonPath('data.graph.steps.1.step_code', 'start')
         ->assertJsonMissingPath('data.seal');
 
-    $this->postJson("/api/v2/admin/workflows/{$project->id}/versions/{$v1}/rollback")->assertStatus(201)->assertJsonPath('data.number', 3);
+    $this->postJson("/api/v2/admin/workflows/{$project->uuid}/versions/{$v1}/rollback")->assertStatus(201)->assertJsonPath('data.number', 3);
 
     // Refused publish carries the problems.
     WorkflowStep::query()->create(['project_id' => $project->id, 'step_code' => 'call', 'name' => 'call', 'step_type' => 'http_request',
         'step_config' => ['method' => 'GET', 'url' => 'https://evil.example.net/x', 'storeAs' => 'vars.r']]);
-    $this->postJson("/api/v2/admin/workflows/{$project->id}/versions/publish")->assertStatus(422)
+    $this->postJson("/api/v2/admin/workflows/{$project->uuid}/versions/publish")->assertStatus(422)
         ->assertJsonPath('error_code', WorkflowPublishRefused::CODE)
         ->assertJsonPath('data.problems.0.code', 'host_not_allowlisted');
 
     // Someone without publish may read but not publish.
     $viewer = versioningUser('viewer', ['workflow_project.viewAny', 'workflow_project.view']);
-    $this->actingAs($viewer)->postJson("/api/v2/admin/workflows/{$project->id}/versions/publish")->assertStatus(403);
+    $this->actingAs($viewer)->postJson("/api/v2/admin/workflows/{$project->uuid}/versions/publish")->assertStatus(403);
 });
 
 it('keeps the snapshot JSON identical to what the migration backfill writes', function () {

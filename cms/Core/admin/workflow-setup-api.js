@@ -1,6 +1,6 @@
 /**
  * API calls and rules of the workflow setup screen: the few things a site must decide after a sample workflow is
- * installed (who reviews, who is told, when it runs, which connected account a step uses).
+ * installed (who reviews, who is told, when it runs, which connected account a step uses). A workflow is named by its uuid.
  *
  * Requests are sent with `silent: true`: the screen shows its own translated message instead of the raw server text.
  * The rules below are kept free of Vue so they can be tested on their own.
@@ -9,7 +9,7 @@
 import ajax from '@/ajax'
 
 const quiet = { silent: true }
-const path = (projectId) => `workflows/${encodeURIComponent(projectId)}/setup`
+const path = (projectUuid) => `workflows/${encodeURIComponent(projectUuid)}/setup`
 
 const shape = (body) => ({
     complete: body?.complete === true,
@@ -18,13 +18,25 @@ const shape = (body) => ({
 })
 
 /** Setup questions of a workflow: `{ complete, questions: [{ key, kind, step_code?, field?, label, help, required, answered, current }], preset: [{ label }] }`. */
-export const fetchWorkflowSetup = async (projectId) => shape((await ajax.get(path(projectId), quiet)).data?.data)
+export const fetchWorkflowSetup = async (projectUuid) => shape((await ajax.get(path(projectUuid), quiet)).data?.data)
 
 /**
  * Save answers (`{ <question key>: value }`) into the draft. Resolves with the new setup state; rejects with the
  * request error (`setupProblems(error)` lists what the server refused, per question).
  */
-export const saveWorkflowSetup = async (projectId, answers) => shape((await ajax.put(path(projectId), { answers: wireAnswers(answers) }, quiet)).data?.data)
+export const saveWorkflowSetup = async (projectUuid, answers) => shape((await ajax.put(path(projectUuid), { answers: wireAnswers(answers) }, quiet)).data?.data)
+
+/**
+ * Who a notice step would reach with an answer on screen (`{ permission, users }`): `{ count, people: [{ uuid, name }], more }`.
+ */
+export const fetchNoticeRecipients = async (projectUuid, answer = {}) => {
+    const params = { ...(answer?.permission ? { permission: answer.permission } : {}), ...(answer?.users?.length ? { users: answer.users } : {}) }
+    const body = (await ajax.get(`${path(projectUuid)}/recipients`, { params, silent: true })).data?.data
+    return { count: Number(body?.count) || 0, people: Array.isArray(body?.people) ? body.people : [], more: Number(body?.more) || 0 }
+}
+
+/** Whether a question is "who is told" of a notice step (answered with people and/or everyone who may see a kind of record). */
+export const isNoticeQuestion = (question) => question?.kind === 'notify_channel' && question?.field === 'permission'
 
 /** Answers as the server takes them: "only when someone presses run" is a schedule without a cron. */
 export const wireAnswers = (answers = {}) =>
@@ -38,11 +50,11 @@ export const setupProblems = (error) => {
     return Array.isArray(rows) ? rows : []
 }
 
-/** The workflow a setup screen is for, found by its id or its slug: the row of the workflows list, or null. */
+/** The workflow a setup screen is for, found by its slug (the screen address) or its uuid: the row of the workflows list, or null. */
 export const findWorkflow = async (key) => {
     const rows = (await ajax.get('workflows', quiet)).data?.data
     const wanted = String(key ?? '')
-    return (Array.isArray(rows) ? rows : []).find((row) => String(row?.id) === wanted || row?.slug === wanted) || null
+    return (Array.isArray(rows) ? rows : []).find((row) => row?.slug === wanted || (wanted !== '' && row?.uuid === wanted)) || null
 }
 
 /**
@@ -50,7 +62,7 @@ export const findWorkflow = async (key) => {
  * before installing a package. Nothing is sent, published or spent. Resolves with the report; rejects with the request
  * error (`setupIncomplete(error)` says the questions must be answered first).
  */
-export const safeTestRun = async (projectId) => (await ajax.post(`${path(projectId)}/test-run`, {}, quiet)).data?.data
+export const safeTestRun = async (projectUuid) => (await ajax.post(`${path(projectUuid)}/test-run`, {}, quiet)).data?.data
 
 /** True when a test run was refused because a setup question is still unanswered. */
 export const setupIncomplete = (error) => error?.response?.data?.error_code === 'setup_incomplete'
@@ -84,6 +96,13 @@ export const initialAnswer = (question) => {
         case 'choice':
             // A yes/no of the sample (an optional branch): true or false, never empty.
             return current === true
+        case 'notify_channel':
+            if (isNoticeQuestion(question)) {
+                // The suggestion is not filled in silently: the screen shows it as people's names to accept with one click.
+                const permission = typeof current === 'string' ? current : current?.permission || ''
+                return { permission, users: Array.isArray(current?.users) ? [...current.users] : [] }
+            }
+            return current ?? ''
         default:
             return current ?? ''
     }
@@ -96,6 +115,10 @@ export const isAnswered = (question, answer) => {
             return !isEmpty(answer?.permission) || !isEmpty(answer?.assignees)
         case 'schedule':
             return typeof answer?.cron === 'string'
+        case 'notify_channel':
+            // A bare string is a permission (the shape before people could be named).
+            if (isNoticeQuestion(question)) return typeof answer === 'string' ? !isEmpty(answer) : !isEmpty(answer?.permission) || !isEmpty(answer?.users)
+            return !isEmpty(answer)
         default:
             return !isEmpty(answer)
     }

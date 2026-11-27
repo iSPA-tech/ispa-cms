@@ -51,7 +51,7 @@
                 <div class="flex flex-wrap items-center gap-3">
                     <router-link
                         v-if="canManageCredentials"
-                        :to="{ name: 'setting-workflow-credentials' }"
+                        :to="{ name: 'workflow-credentials' }"
                         target="_blank"
                         class="text-sm"
                         data-testid="binding-credential-link"

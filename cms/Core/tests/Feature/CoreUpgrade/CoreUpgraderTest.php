@@ -637,6 +637,49 @@ test('finish runs migrate config and rebuild when marker says so', function () {
     expect($runner->joined())->not->toContain('cms:build');
 });
 
+test('a release-zip update imports the new translations and writes the admin language packs of the new version', function () {
+    // demo.ispa.tech 2026-11-27: the zip site updated itself to 2026.11.07, but only the deploy-origin update rebuilt the
+    // packs, so storage/app/public/i18n/2026.11.07/adm did not exist, every pack request was a 404 and the admin showed
+    // humanized keys ("Create", "Search", "Filter") wherever the bundled fallback had no text.
+    [$up, $runner] = cuUpgrader($this->tree, $this->pkg);
+
+    $up->run('2026.12.1', false);
+
+    $commands = array_map(static fn (array $c): string => implode(' ', array_slice($c, 1)), $runner->commands);
+    $sync = array_search('artisan cms:translation-sync --all', $commands, true);
+    $generate = array_search('artisan cms:translation-generate --public-only', $commands, true);
+    expect($sync)->toBeInt()
+        ->and($generate)->toBeInt()
+        ->and($generate)->toBeGreaterThan($sync)
+        // Only the packs: the lang files and module seeders are core files the next update checks for changes.
+        ->and($commands)->not->toContain('artisan cms:translation-generate')
+        ->and($up->warnings())->toBe([]);
+});
+
+test('a release-zip update that cannot write the language packs only warns', function () {
+    $runner = new class extends ProcessRunner {
+        /** @var list<list<string>> */
+        public array $commands = [];
+
+        public function __construct()
+        {
+        }
+
+        public function run(array $cmd, ?string $cwd, array $env = [], bool $quiet = false): int
+        {
+            $this->commands[] = $cmd;
+
+            return in_array('cms:translation-generate', $cmd, true) ? 1 : 0;
+        }
+    };
+    [$up] = cuUpgrader($this->tree, $this->pkg, $runner);
+
+    $up->run('2026.12.1', false);
+
+    expect(CoreManifest::installed($this->tree)->version)->toBe('2026.12.1')
+        ->and(implode("\n", $up->warnings()))->toContain('cms:translation-generate --public-only');
+});
+
 test('check prints versions and preflight only', function () {
     [$up, $runner, $health, $gate, $source] = cuUpgrader($this->tree, $this->pkg);
     app()->instance(CoreUpgrader::class, $up);

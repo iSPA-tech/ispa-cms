@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Cms\Core\Http\Controllers\V2\Admin;
 
+use Cms\Core\Services\UpdateBatch\UpdateBatches;
 use App\Http\Controllers\Controller;
 use Cms\Core\Services\Workflow\Hub\WorkflowHubCatalog;
 use Cms\Core\Services\Workflow\Hub\WorkflowHubException;
@@ -70,6 +71,9 @@ class WorkflowLibraryController extends Controller
     {
         if (!$request->user()?->can(self::INSTALL_ABILITY)) {
             return $this->forbidden();
+        }
+        if (app(UpdateBatches::class)->open() !== null) {
+            return response()->json(['message' => 'An upgrade-all run is in progress on this site.', 'error_code' => UpdateBatches::ERROR_RUNNING], 409);
         }
         try {
             $data = $installer->install($key, $request->user(), $request->boolean('as_copy'));

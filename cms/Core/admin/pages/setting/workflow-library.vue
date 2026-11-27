@@ -7,7 +7,7 @@
     <no-permission-error v-if="!allowed" data-testid="workflow-library-not-allowed" />
     <div v-else class="flex flex-col gap-4" data-testid="workflow-library-page">
         <section class="i-box flex flex-col gap-3">
-            <router-link :to="{ name: 'setting-workflows-manage' }" class="text-sm" data-testid="library-back">{{ t('text.workflow.package.back') }}</router-link>
+            <router-link :to="{ name: 'workflows' }" class="text-sm" data-testid="library-back">{{ t('text.workflow.package.back') }}</router-link>
             <div class="flex flex-wrap items-start gap-3">
                 <div class="min-w-0 flex-1 basis-64">
                     <h1 class="m-0 break-words text-lg font-semibold">{{ t('text.workflow.library.title') }}</h1>
@@ -17,8 +17,17 @@
                     <a-button :loading="stage === 'loading' && refreshing" :disabled="stage === 'loading'" data-testid="library-refresh" @click="load(true)">
                         {{ t('text.workflow.library.refresh') }}
                     </a-button>
-                    <a-button v-if="canInstall" data-testid="library-import-file" @click="router.push({ name: 'setting-workflows-import' })">
+                    <a-button v-if="canInstall" data-testid="library-import-file" @click="router.push({ name: 'workflows-import' })">
                         {{ t('text.workflow.library.import_file') }}
+                    </a-button>
+                    <a-button
+                        v-if="batchAllowed && workflowUpdates > 0"
+                        type="primary"
+                        :disabled="batchOpen"
+                        data-testid="library-update-all"
+                        @click="batchDialogOpen = true"
+                    >
+                        {{ t('text.update_batch.start_kind', { count: workflowUpdates }) }}
                     </a-button>
                 </div>
             </div>
@@ -53,6 +62,15 @@
             </div>
         </section>
 
+        <!-- "Cập nhật tất cả" (upgrade-all spec 2026-11-26): unchanged installed templates with a newer version -->
+        <update-batch-panel v-if="batchAllowed" ref="batchPanel" @state="onBatchState" />
+        <update-batch-dialog
+            v-if="batchAllowed"
+            :open="batchDialogOpen"
+            :kinds="['workflow']"
+            @close="batchDialogOpen = false"
+            @started="onBatchStarted"
+        />
         <div v-if="stage === 'loading'" class="i-box flex items-center gap-3" role="status" data-testid="library-loading">
             <a-spin />
             <p class="m-0 text-sm">{{ t('text.workflow.library.loading') }}</p>
@@ -283,6 +301,10 @@ import {
     versionParts,
 } from '../../workflow-library-api'
 import { describeProblems } from '../../workflow-package-report'
+import UpdateBatchDialog from '../../components/update-batch/update-batch-dialog.vue'
+import UpdateBatchPanel from '../../components/update-batch/update-batch-panel.vue'
+import { isOpen as batchIsOpen } from '../../update-batch-api'
+import { isWebmaster } from '@/hooks/useCan'
 
 defineOptions({ name: 'WorkflowLibrary' })
 
@@ -306,13 +328,35 @@ const filters = reactive({ search: '', group: '', onlyAvailable: true })
 /** Kinds the list has its own sentence for; anything else reads as a plain failure. */
 const LIST_KINDS = ['unreachable', 'forbidden', 'busy', 'failed']
 const DETAIL_KINDS = ['unreachable', 'not_found', 'untrusted', 'forbidden', 'busy', 'failed']
-const INSTALL_KINDS = ['unreachable', 'not_found', 'untrusted', 'not_available', 'not_installable', 'up_to_date', 'changed', 'forbidden', 'busy', 'failed']
+const INSTALL_KINDS = ['unreachable', 'not_found', 'untrusted', 'not_available', 'not_installable', 'up_to_date', 'changed', 'batch_running', 'forbidden', 'busy', 'failed']
 const INSTALL_LABELS = {
     install: 'text.workflow.library.install',
     install_copy: 'text.workflow.library.install_copy',
     update: 'text.workflow.library.update_in_place',
 }
 const known = (error, kinds) => ({ ...error, kind: kinds.includes(error.kind) ? error.kind : 'failed' })
+
+// ---- Upgrade all ("Cập nhật tất cả", Webmaster only) -----------------------------------------------------------
+
+const batchAllowed = computed(() => canInstall.value && isWebmaster())
+const batchPanel = ref(null)
+const batchDialogOpen = ref(false)
+const batchState = ref(null)
+const batchOpen = computed(() => batchIsOpen(batchState.value))
+/** Installed templates not changed here that have a newer version (updated in place). */
+const workflowUpdates = computed(() => items.value.filter((item) => mainAction(item) === 'update').length)
+
+/** A run that just ended changed drafts: read the library again. */
+const onBatchState = (next) => {
+    const wasOpen = batchOpen.value
+    batchState.value = next
+    if (wasOpen && !batchIsOpen(next)) load(true)
+}
+
+const onBatchStarted = () => {
+    batchDialogOpen.value = false
+    batchPanel.value?.load?.()
+}
 
 const load = async (refresh = false) => {
     if (stage.value === 'loading' && refreshing.value) return
@@ -461,7 +505,7 @@ const install = async () => {
     try {
         const result = await installTemplate(detail.value.key, { asCopy: action.value === 'install_copy' })
         // Stays busy on success: the setup screen opens next (after an update it shows any new question).
-        await router.push({ name: 'setting-workflows-setup', params: { project: result.project_id } })
+        await router.push({ name: 'workflows-setup', params: { project: result.slug || result.project_id } })
     } catch (error) {
         installError.value = known(libraryError(error), INSTALL_KINDS)
         installing.value = false
@@ -470,8 +514,8 @@ const install = async () => {
     }
 }
 
-const openSetup = () => router.push({ name: 'setting-workflows-setup', params: { project: detail.value.installed.project_id } })
-const openDesigner = () => router.push({ name: 'setting-workflows-manage', query: { open: detail.value.installed.slug } })
+const openSetup = () => router.push({ name: 'workflows-setup', params: { project: detail.value.installed.slug || detail.value.installed.project_id } })
+const openDesigner = () => router.push({ name: 'workflows', query: { open: detail.value.installed.slug } })
 
 if (allowed.value) load()
 </script>

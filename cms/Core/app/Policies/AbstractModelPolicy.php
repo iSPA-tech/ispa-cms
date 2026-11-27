@@ -109,6 +109,15 @@ abstract class AbstractModelPolicy
     }
 
     /**
+     * The permission key this policy checks for an action (e.g. `email.viewAny`), for screens that suggest who sees
+     * a kind of record (workflow setup "who is told").
+     */
+    public function permissionFor(string $action): string
+    {
+        return $this->perm($action);
+    }
+
+    /**
      * Return the permission prefix for this policy.
      * Example for a PermissionPolicy: "permission"
      */

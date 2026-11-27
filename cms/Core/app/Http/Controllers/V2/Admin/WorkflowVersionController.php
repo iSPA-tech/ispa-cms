@@ -21,7 +21,7 @@ use Illuminate\Http\Request;
 
 /**
  * Workflow versions (guardrails B1/B3): history, diff, publish, rollback, draft status, and change control (preview of
- * a publish, waiting versions, approve / reject / cancel).
+ * a publish, waiting versions, approve / reject / cancel / release now).
  *
  * Projects are addressed by numeric id like the builder routes (`workflow_projects` has no uuid); versions by uuid.
  * Read: policy `view`. Publish, rollback and decisions: policy `publish`. A sensitive change needs a step-up grant of
@@ -101,7 +101,10 @@ class WorkflowVersionController extends Controller
         return ires()->data($this->publisher->draftStatus($model));
     }
 
-    /** POST versions/publish {note}: publish the draft (422 with `problems` when the policy refuses it). */
+    /**
+     * POST versions/publish {note, release_now}: publish the draft (422 with `problems` when the policy refuses it).
+     * `release_now` skips the cooling-off of a single-publisher site; a second publisher still decides.
+     */
     public function publish(Request $request, string $project): AppResponse
     {
         $model = $this->project($project);
@@ -111,7 +114,7 @@ class WorkflowVersionController extends Controller
 
         $note = $request->input('note');
         try {
-            $version = $this->publisherFor($request)->publish($model, $request->user(), is_string($note) ? $note : null);
+            $version = $this->publisherFor($request)->publish($model, $request->user(), is_string($note) ? $note : null, $request->boolean('release_now'));
         } catch (WorkflowPublishRefused $e) {
             return $this->refused($e);
         } catch (WorkflowStepUpRequired $e) {
@@ -153,6 +156,7 @@ class WorkflowVersionController extends Controller
             $rows[] = [
                 'uuid' => $version->uuid,
                 'project_id' => (int) $project->getKey(),
+                'project_uuid' => $project->uuid,
                 'project_name' => $project->name,
                 'number' => $version->number,
                 'status' => $version->status,
@@ -162,6 +166,7 @@ class WorkflowVersionController extends Controller
                 'changes' => $this->publisher->changesOf($version),
                 'can_approve' => $this->publisher->canApprove($version, $user, $project),
                 'can_cancel' => $this->publisher->canCancel($version, $user),
+                'can_release_now' => $this->publisher->canReleaseNow($version, $user, $project),
             ];
         }
 
@@ -179,6 +184,33 @@ class WorkflowVersionController extends Controller
 
         try {
             $live = $this->publisherFor($request)->approve($version, $request->user());
+        } catch (WorkflowChangeRefused $e) {
+            return $this->changeRefused($e);
+        } catch (WorkflowStepUpRequired $e) {
+            return $this->stepUpRequired($e);
+        } catch (StepUpException $e) {
+            return $e->render();
+        } catch (WorkflowPublishRefused $e) {
+            return $this->refused($e);
+        } catch (WorkflowIntegrityException $e) {
+            return ires()->error()->code(422)->errorCode($e::CODE)
+                ->message('This version was changed while it waited; it can not go live.');
+        }
+
+        return ires()->data($this->summary($live, $model->refresh()) + ['path' => WorkflowPublishService::PATH_PUBLISHED]);
+    }
+
+    /** POST versions/{uuid}/release-now: a single publisher ends the cooling-off of a waiting change (step-up). */
+    public function releaseNow(Request $request, string $project, string $uuid): AppResponse
+    {
+        $model = $this->project($project);
+        if ($denied = $this->deny($request, $model, WorkflowPublishService::PUBLISH_ABILITY)) {
+            return $denied;
+        }
+        $version = $this->version($model, $uuid);
+
+        try {
+            $live = $this->publisherFor($request)->releaseNow($version, $request->user());
         } catch (WorkflowChangeRefused $e) {
             return $this->changeRefused($e);
         } catch (WorkflowStepUpRequired $e) {
@@ -291,9 +323,9 @@ class WorkflowVersionController extends Controller
         return ires()->error()->code($e->status)->errorCode($e->errorCode)->message($e->getMessage());
     }
 
-    protected function project(string $id): WorkflowProject
+    protected function project(string $uuid): WorkflowProject
     {
-        return WorkflowProject::query()->findOrFail((int) $id);
+        return WorkflowProject::query()->where('uuid', $uuid)->firstOrFail();
     }
 
     protected function version(WorkflowProject $project, string $uuid): WorkflowVersion

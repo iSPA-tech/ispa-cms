@@ -665,6 +665,15 @@ final class InstallPreflight
     }
 
     /**
+     * Whether a version's `irreversible` flag (hub catalog or signed manifest: bool, null or a list of migration
+     * names) says it has migrations that can not be rolled back. Shared with the upgrade-all planner.
+     */
+    public static function isIrreversible(mixed $flag): bool
+    {
+        return $flag !== false && $flag !== [] && $flag !== null;
+    }
+
+    /**
      * Requirement, PHP version, warnings and changes of one module version (hub catalog entry or signed manifest).
      *
      * @param array<string, mixed> $entry    requires, php_min, irreversible, custom_code
@@ -1010,7 +1019,7 @@ final class InstallPreflight
         $changes[] = 'Run the module migrations and refresh caches.';
 
         $irreversible = $entry['irreversible'] ?? false;
-        if ($irreversible !== false && $irreversible !== [] && $irreversible !== null) {
+        if (self::isIrreversible($irreversible)) {
             $add($warnings, self::WARN_IRREVERSIBLE, 'This version has migrations that can not be rolled back. Back up first.', [
                 'migrations' => is_array($irreversible) ? array_values($irreversible) : [],
                 'listed' => is_array($irreversible) && $irreversible !== [],

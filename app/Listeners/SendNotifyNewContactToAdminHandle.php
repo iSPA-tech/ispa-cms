@@ -8,12 +8,14 @@
 
 namespace App\Listeners;
 
+use App\Events\ContactMessageReceived;
 use App\Events\SendConfirmToContactor;
 use App\Mail\SendMail;
 use App\Models\Contact;
 use App\Support\ContactIntakeBridge;
 use Cms\Core\Models\Setting;
 use Cms\Core\Repositories\Interfaces\EmailLogInterface;
+use Cms\Core\Services\Workflow\Triggers\WorkflowTakeover;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -48,6 +50,10 @@ class SendNotifyNewContactToAdminHandle implements ShouldQueue
         // A site connected to MailHub keeps every submission in its Webmail inbox, so the per-submission admin e-mail is left out.
         // Not connected, or no mailbox receiving contacts: the e-mail stays, it is then the only signal.
         if (ContactIntakeBridge::readableInWebmail()) {
+            return;
+        }
+        // A switched-on workflow that tells staff about the message (the "Liên hệ mới" notice) replaces this e-mail.
+        if (ContactMessageReceived::workflowDoes(WorkflowTakeover::STAFF_NOTICE, ContactMessageReceived::formOfContact($event->targetType, $event->targetId))) {
             return;
         }
 

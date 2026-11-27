@@ -15,10 +15,12 @@ use RuntimeException;
 use Illuminate\Support\Str;
 use Illuminate\Bus\Queueable;
 use Illuminate\Support\Facades\Mail;
+use App\Events\ContactMessageReceived;
 use App\Events\SendConfirmToContactor;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Cms\Core\Repositories\Interfaces\EmailLogInterface;
+use Cms\Core\Services\Workflow\Triggers\WorkflowTakeover;
 
 class SendConfirmToContactorHandle implements ShouldQueue
 {
@@ -43,6 +45,11 @@ class SendConfirmToContactorHandle implements ShouldQueue
      */
     public function handle(SendConfirmToContactor $event): void
     {
+        // A switched-on workflow that mails the sender itself (the "Liên hệ mới" auto-reply) replaces this confirmation.
+        if (ContactMessageReceived::workflowDoes(WorkflowTakeover::SUBJECT_MAIL, ContactMessageReceived::formOfContact($event->targetType, $event->targetId))) {
+            return;
+        }
+
         $mail = [
             'subject' => __('mgs.mail.contact-received-subject'),
             'brand' => iSeo('brand'),

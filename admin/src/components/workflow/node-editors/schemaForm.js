@@ -24,7 +24,8 @@ const allowedTypes = (schema) =>
 export const fieldKind = (schema = {}, value = undefined) => {
     if (schema['x-secret']) return 'binding'
     if (schema['x-widget'] === 'model') return 'model'
-    if (schema['x-widget'] === 'users') return 'users'
+    // People picked by name; a setting that already holds an expression (data from an earlier step) stays one.
+    if (schema['x-widget'] === 'users') return typeof value === 'string' && value.trim() !== '' ? 'expr' : 'users'
     if (schema['x-widget'] === 'duration') return 'duration'
     if (schema['x-expr']) return 'expr'
     if (Array.isArray(schema.enum) && schema.enum.length) return 'enum'
@@ -94,6 +95,8 @@ const KNOWN_SHAPES = {
             : { ...schema, maxItems: 10, items: { type: 'object', properties: { key: { ...text, maxLength: 40 }, label: text } } },
     max_rounds: (schema) => ({ minimum: 1, maximum: 5, ...schema }),
     assignees: (schema) => ({ maxItems: MAX_ASSIGNEES, ...schema, 'x-widget': 'users' }),
+    // The people a notice step tells by name (every admin account may be told; no right to approve needed).
+    users: (schema) => ({ maxItems: 20, ...schema, 'x-widget': 'users', 'x-audience': 'notice' }),
     sla: (schema) => ({ ...schema, 'x-widget': 'duration' }),
     expires_after: (schema) => ({ ...schema, 'x-widget': 'duration' }),
     revision_options: (schema) =>

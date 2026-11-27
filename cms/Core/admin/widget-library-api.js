@@ -396,6 +396,8 @@ const HUB_ERROR_COPY = {
     WIDGET_HUB_FORBIDDEN: 'text.widget_library.hub_forbidden',
     WIDGET_HUB_NOT_FOUND: 'text.widget_library.hub_not_found',
     WIDGET_NOT_FOUND: 'text.widget_library.not_found',
+    // Upgrade all (spec 2026-11-26) is running: single updates wait until it is done.
+    UPDATE_BATCH_RUNNING: 'text.update_batch.error.running',
 }
 
 /**

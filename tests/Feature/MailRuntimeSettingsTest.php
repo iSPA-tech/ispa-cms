@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Providers\AppServiceProvider;
 use Cms\Core\Services\CMSSettingRuntime;
 use Illuminate\Contracts\Queue\Job as QueueJob;
+use Illuminate\Mail\Mailable;
 use Illuminate\Mail\SendQueuedMailable;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Support\Facades\Mail;
 use ReflectionProperty;
 use Tests\TestCase;
 
@@ -33,6 +35,7 @@ class MailRuntimeSettingsTest extends TestCase
             'mail.from.address' => 'team@ispa.io',
             'mail.from.name' => 'Old sender',
             'mail.reply' => 'team@ispa.io',
+            'setting.basic.brand' => 'Acme Journal',
         ]);
 
         $runtime = new CMSSettingRuntime();
@@ -62,8 +65,67 @@ class MailRuntimeSettingsTest extends TestCase
         self::assertSame('mailer@acme.test', config('mail.mailers.smtp.username'));
         self::assertSame('new-password', config('mail.mailers.smtp.password'));
         self::assertSame('journal@acme.test', config('mail.from.address'));
-        self::assertSame('Acme', config('mail.from.name'));
+        // The display name is the site brand, not the old "sent by" row.
+        self::assertSame('Acme Journal', config('mail.from.name'));
         self::assertSame('reply@acme.test', config('mail.reply'));
+    }
+
+    public function test_app_boot_names_the_system_sender_after_the_brand_when_runtime_settings_are_off(): void
+    {
+        config([
+            'ispa-cms.setting_runtime_enabled' => false,
+            'mail.from.address' => 'team@ispa.io',
+            'mail.from.name' => 'iSPA Team',
+            'setting.basic.brand' => 'Tin Tức Mẫu',
+        ]);
+
+        $this->app->getProvider(AppServiceProvider::class)->boot();
+
+        self::assertSame('team@ispa.io', config('mail.from.address'));
+        self::assertSame('Tin Tức Mẫu', config('mail.from.name'));
+    }
+
+    public function test_queued_mail_refresh_reads_the_current_brand(): void
+    {
+        config(['ispa-cms.setting_runtime_enabled' => true, 'mail.from.name' => 'Old brand']);
+        $this->app->instance(CMSSettingRuntime::class, new class extends CMSSettingRuntime {
+            public function forget(): void
+            {
+            }
+
+            public function get(string $path, mixed $default = null): mixed
+            {
+                return $path === 'setting.basic.brand' ? 'Renamed Brand' : null;
+            }
+        });
+
+        event(new JobProcessing('redis', $this->queueJob(SendQueuedMailable::class, 'emails')));
+
+        self::assertSame('Renamed Brand', config('mail.from.name'));
+    }
+
+    /** Workflow mail (WorkflowMessageMail, EmailSendRunner without its own SMTP credential) sets no From, like `plainMail()`. */
+    public function test_default_sender_mail_goes_out_under_the_brand_while_an_explicit_sender_keeps_its_name(): void
+    {
+        config([
+            'ispa-cms.setting_runtime_enabled' => false,
+            'mail.default' => 'array',
+            'mail.from.address' => 'team@ispa.io',
+            'mail.from.name' => 'iSPA Team',
+            'setting.basic.brand' => 'Học Viện Thần Học Đa Minh',
+        ]);
+        $this->app->getProvider(AppServiceProvider::class)->boot();
+        $manager = $this->app->make('mail.manager');
+        $manager->purge('array');
+
+        Mail::to('reader@example.test')->send($this->plainMail());
+        Mail::to('reader@example.test')->send($this->plainMail()->from('desk@acme.test', 'Acme Desk'));
+
+        $from = $manager->mailer('array')->getSymfonyTransport()->messages()
+            ->map(fn ($sent) => $sent->getOriginalMessage()->getFrom()[0])
+            ->map(fn ($address) => $address->getName().' <'.$address->getAddress().'>')
+            ->all();
+        self::assertSame(['Học Viện Thần Học Đa Minh <team@ispa.io>', 'Acme Desk <desk@acme.test>'], $from);
     }
 
     public function test_app_boot_keeps_environment_mail_config_when_runtime_settings_are_unavailable(): void
@@ -141,6 +203,16 @@ class MailRuntimeSettingsTest extends TestCase
     {
         $cache = new ReflectionProperty(CMSSettingRuntime::class, 'localCache');
         $cache->setValue(null, $maps);
+    }
+
+    private function plainMail(): Mailable
+    {
+        return new class extends Mailable {
+            public function build(): static
+            {
+                return $this->subject('Liên hệ mới')->html('<p>Hello</p>');
+            }
+        };
     }
 
     private function queueJob(string $commandName, string $queue): QueueJob

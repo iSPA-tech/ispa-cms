@@ -157,13 +157,13 @@ const againstOptions = (version) => [
 ]
 
 async function load() {
-    const id = props.workflow?.id
+    const id = props.workflow?.uuid
     if (!id || loading.value) return
     loading.value = true
     loadError.value = false
     try {
         const body = await fetchVersions(id)
-        if (id !== props.workflow?.id) return
+        if (id !== props.workflow?.uuid) return
         versions.value = body.versions
         draft.value = body.draft
     } catch (error) {
@@ -180,7 +180,7 @@ async function loadDiff() {
     compare.loading = true
     compare.error = false
     try {
-        const diff = await fetchVersionDiff(props.workflow.id, compare.uuid, compare.against)
+        const diff = await fetchVersionDiff(props.workflow.uuid, compare.uuid, compare.against)
         if (mine !== diffToken) return
         compare.rows = diffRows(diff, { t, names: props.names })
     } catch (error) {
@@ -221,7 +221,7 @@ async function rollback(version) {
     rollingBack.value = version.uuid
     notice.value = null
     try {
-        const answer = await stepUp.run((grant) => rollbackVersion(props.workflow.id, version.uuid, grant))
+        const answer = await stepUp.run((grant) => rollbackVersion(props.workflow.uuid, version.uuid, grant))
         if (answer === undefined) return
         const outcome = publishOutcome(answer, { t, done: true })
         notice.value = { tone: outcome.tone, text: outcome.text }

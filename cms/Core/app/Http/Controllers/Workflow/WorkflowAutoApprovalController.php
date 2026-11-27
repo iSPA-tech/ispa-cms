@@ -24,7 +24,7 @@ class WorkflowAutoApprovalController extends Controller
 {
     public function show(string $project, string $stepCode, WorkflowAutoApproval $autoApproval)
     {
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (!$model) {
             return ires()->notFound(__('mgs.model.404'));
         }

@@ -645,7 +645,9 @@ class ImageHelper
 
             if ($response->getStatusCode() === 200) {
                 $contentType = $response->getHeaderLine('Content-Type');
-                if ($contentType && ! str_starts_with($contentType, 'image/')) {
+                if ($contentType
+                    && ! str_starts_with($contentType, 'image/')
+                    && ! self::isImageServedAsGenericBinary($contentType, $savePath)) {
                     Log::warning("ImageHelper[{$via}]: Expected image but got {$contentType} for {$url}");
                     @unlink($savePath);
 
@@ -688,6 +690,21 @@ class ImageHelper
         }
 
         return '';
+    }
+
+    /**
+     * True when the server labelled the body with a generic binary type (some image hosts send AVIF covers as
+     * `application/octet-stream`) and the saved bytes are a raster image PHP can read. Any other label, and
+     * bytes that are not an image (an HTML error page, an SVG), stay refused.
+     */
+    private static function isImageServedAsGenericBinary(string $contentType, string $savePath): bool
+    {
+        $mimeType = strtolower(trim(explode(';', $contentType)[0]));
+        if (! in_array($mimeType, ['application/octet-stream', 'binary/octet-stream'], true)) {
+            return false;
+        }
+
+        return is_file($savePath) && @getimagesize($savePath) !== false;
     }
 
     /**

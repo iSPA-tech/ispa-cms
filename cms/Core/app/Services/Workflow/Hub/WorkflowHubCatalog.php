@@ -211,9 +211,10 @@ class WorkflowHubCatalog
         return $missing;
     }
 
-    public static function setupUrl(int $projectId): string
+    /** Admin address of a workflow's setup screen, by its slug (stable and readable; the row id never shows). */
+    public static function setupUrl(string $slug): string
     {
-        return self::SETUP_PATH . $projectId;
+        return self::SETUP_PATH . rawurlencode($slug);
     }
 
     protected function moduleEnabled(string $name): bool
@@ -241,13 +242,14 @@ class WorkflowHubCatalog
             $version = (int) ($latest->source['version'] ?? 0);
             $installed = [
                 'project_id' => (int) $latest->getKey(),
+                'project_uuid' => (string) $latest->uuid,
                 'slug' => (string) $latest->slug,
                 'name' => (string) $latest->name,
                 'version' => $version,
                 'version_label' => WorkflowBundle::versionLabel($version),
                 'modified' => $this->hashes->modified($latest),
                 'is_active' => (bool) $latest->is_active,
-                'setup_url' => self::setupUrl((int) $latest->getKey()),
+                'setup_url' => self::setupUrl((string) $latest->slug),
                 'copies' => count($projects),
             ];
         }

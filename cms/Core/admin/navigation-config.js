@@ -122,3 +122,22 @@ export const coreApprovalsNavigationConfig = {
     rule: ['agentic.approve', 'agentic.viewAny'],
     icon: 'clipboard-check-outline',
 }
+
+/**
+ * Workflows ("Quy trình tự động hoá"): a sidebar group right under "Chờ duyệt". Its entries (the site's workflows, the
+ * template library, the import from another site, the credentials) show while the group is open; each carries the rule
+ * of its page. Core is always on, so no `module` tag.
+ */
+export const coreWorkflowsNavigationConfig = {
+    name: 'workflows',
+    group: 'workflows',
+    text: 'nav.a.workflows',
+    rule: 'workflow_project.viewAny',
+    icon: 'workflows',
+    children: [
+        { name: 'workflows', text: ['nav.a.workflows-site'], rule: 'workflow_project.viewAny', icon: 'format-list-bulleted' },
+        { name: 'workflows-library', text: ['text.workflow.library.title'], rule: 'workflow_project.viewAny', icon: 'library' },
+        { name: 'workflows-import', text: ['text.workflow.package.title'], rule: 'workflow_project.create', icon: 'file-import-outline' },
+        { name: 'workflow-credentials', text: ['text.workflow_credential.title'], rule: 'workflow_credential.manage', icon: 'shield-key' },
+    ],
+}

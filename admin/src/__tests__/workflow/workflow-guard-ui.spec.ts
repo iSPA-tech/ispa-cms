@@ -59,6 +59,11 @@ const stubs = {
     'a-spin': slot('spin'),
     'a-empty': { props: ['description'], template: '<div data-stub="empty">{{ description }}</div>' },
     'a-switch': { props: ['checked', 'disabled'], template: '<input type="checkbox" data-stub="switch" :checked="checked" :disabled="disabled" />' },
+    'a-checkbox': {
+        props: ['checked', 'disabled'],
+        emits: ['update:checked'],
+        template: '<label><input type="checkbox" :checked="checked" :disabled="disabled" @change="$emit(\'update:checked\', $event.target.checked)" /><slot /></label>',
+    },
     'a-tooltip': slot('tooltip'),
     'a-popconfirm': slot('popconfirm'),
     'a-badge': slot('badge'),
@@ -67,7 +72,7 @@ const stubs = {
 const find = (wrapper: ReturnType<typeof mount>, id: string) => wrapper.find(`[data-testid="${id}"]`)
 const body = (data: unknown, status = 200) => ({ status, data: { status: 'success', data } })
 const refusal = (status: number, code: string, data: unknown = null) => ({ response: { status, data: { status: 'error', error_code: code, data } } })
-const workflow = { id: 7, name: 'Daily post', slug: 'daily-post', nodes: [], tags: [] }
+const workflow = { id: 7, uuid: 'wf-7', name: 'Daily post', slug: 'daily-post', nodes: [], tags: [] }
 const names = { fetch: 'Call the CRM', post: 'Post to the site' }
 
 beforeEach(() => {
@@ -91,7 +96,7 @@ describe('publish dialog', () => {
 
     it('asks the server what the publish would do before anything is sent', async () => {
         const wrapper = await open({})
-        expect(ajax.get).toHaveBeenCalledWith('workflows/7/versions/preview-publish', expect.objectContaining({ silent: true }))
+        expect(ajax.get).toHaveBeenCalledWith('workflows/wf-7/versions/preview-publish', expect.objectContaining({ silent: true }))
         expect(ajax.post).not.toHaveBeenCalled()
         expect(find(wrapper, 'publish-ready').exists()).toBe(true)
     })
@@ -110,7 +115,7 @@ describe('publish dialog', () => {
         await flushPromises()
 
         expect(ajax.post).toHaveBeenCalledTimes(1)
-        expect(ajax.post.mock.calls[0][0]).toBe('workflows/7/versions/publish')
+        expect(ajax.post.mock.calls[0][0]).toBe('workflows/wf-7/versions/publish')
         expect(ajax.post.mock.calls[0][1]).toEqual({ note: 'Shorter prompt' })
         expect(find(wrapper, 'stepup').exists()).toBe(false)
         expect(find(wrapper, 'publish-result').attributes('data-path')).toBe('published')
@@ -145,6 +150,34 @@ describe('publish dialog', () => {
         const wrapper = await open({ sensitive: true, path: 'cooling_off', cooling_off_minutes: 60, step_up_required: true, changes: [{ kind: 'budget_raised' }] })
         expect(find(wrapper, 'publish-outcome').attributes('data-path')).toBe('cooling_off')
         expect(find(wrapper, 'publish-outcome').text()).toMatch(/outcome\.will\.cooling_off\{"time":"\d\d:\d\d( \d\d\/\d\d)?","minutes":60/)
+    })
+
+    it('one publisher: "go live now" is offered, and ticked it publishes at once with the same confirmation', async () => {
+        const wrapper = await open({ sensitive: true, path: 'cooling_off', cooling_off_minutes: 60, step_up_required: true, changes: [{ kind: 'budget_raised' }] })
+        expect(find(wrapper, 'publish-release-now').text()).toContain('text.workflow.guard.publish.release_now{"minutes":60}')
+        expect(find(wrapper, 'publish-confirm').text()).toBe('text.workflow.guard.publish.confirm_wait')
+
+        await find(wrapper, 'publish-release-now').find('input').setValue(true)
+        expect(find(wrapper, 'publish-confirm').text()).toBe('text.workflow.guard.publish.publish_now')
+
+        ajax.post.mockResolvedValueOnce(body({ number: 5, status: 'published', path: 'published' }, 201))
+        await find(wrapper, 'publish-confirm').trigger('click')
+        await flushPromises()
+        await find(wrapper, 'stepup-ok').trigger('click')
+        await flushPromises()
+
+        expect(ajax.post).toHaveBeenCalledTimes(1)
+        expect(ajax.post.mock.calls[0][1]).toEqual({ note: null, release_now: true })
+        expect(ajax.post.mock.calls[0][2].headers).toEqual({ 'X-Step-Up-Grant': GRANT })
+        expect(find(wrapper, 'publish-result').attributes('data-path')).toBe('published')
+    })
+
+    it('"go live now" is not offered when a second person decides or nothing waits', async () => {
+        for (const path of ['pending_review', 'published']) {
+            const wrapper = await open({ sensitive: path !== 'published', path })
+            expect(find(wrapper, 'publish-release-now').exists()).toBe(false)
+            wrapper.unmount()
+        }
     })
 
     it('a draft equal to the running version: nothing to publish, no confirm button', async () => {
@@ -300,7 +333,7 @@ describe('paused workflow', () => {
         ajax.post.mockResolvedValueOnce(body({ is_active: true, paused_reason: null }))
         await find(wrapper, 'workflow-resume').trigger('click')
         await flushPromises()
-        expect(ajax.post).toHaveBeenCalledWith('workflow/projects/7/resume', {}, expect.objectContaining({ silent: true }))
+        expect(ajax.post).toHaveBeenCalledWith('workflow/projects/wf-7/resume', {}, expect.objectContaining({ silent: true }))
         expect(wrapper.emitted('resumed')).toHaveLength(1)
     })
 
@@ -368,13 +401,13 @@ describe('buttons follow abilities', () => {
         ajax.get.mockResolvedValueOnce(body({ diff: { steps: { added: [{ step_code: 'fetch', name: 'Call the CRM' }], removed: [], changed: [] }, connections: { added: [], removed: [] }, settings: [] } }))
         await find(wrapper, 'version-compare-2').trigger('click')
         await flushPromises()
-        expect(ajax.get).toHaveBeenLastCalledWith('workflows/7/versions/v2/diff', expect.objectContaining({ params: { against: 'draft' } }))
+        expect(ajax.get).toHaveBeenLastCalledWith('workflows/wf-7/versions/v2/diff', expect.objectContaining({ params: { against: 'draft' } }))
         expect(wrapper.findAll('[data-testid="version-diff-row"]').map((row) => row.text())).toEqual(['text.workflow.guard.diff.step_added{"step":"Call the CRM"}'])
 
         ajax.get.mockResolvedValueOnce(body({ diff: { steps: { added: [], removed: [], changed: [] }, connections: { added: [], removed: [] }, settings: [], identical: true } }))
         await find(wrapper, 'version-against').setValue('v3')
         await flushPromises()
-        expect(ajax.get).toHaveBeenLastCalledWith('workflows/7/versions/v2/diff', expect.objectContaining({ params: { against: 'v3' } }))
+        expect(ajax.get).toHaveBeenLastCalledWith('workflows/wf-7/versions/v2/diff', expect.objectContaining({ params: { against: 'v3' } }))
         expect(find(wrapper, 'version-diff-same').exists()).toBe(true)
     })
 
@@ -391,16 +424,16 @@ describe('buttons follow abilities', () => {
         await find(wrapper, 'stepup-ok').trigger('click')
         await flushPromises()
 
-        expect(ajax.post.mock.calls.map((call) => call[0])).toEqual(['workflows/7/versions/v2/rollback', 'workflows/7/versions/v2/rollback'])
+        expect(ajax.post.mock.calls.map((call) => call[0])).toEqual(['workflows/wf-7/versions/v2/rollback', 'workflows/wf-7/versions/v2/rollback'])
         expect(ajax.post.mock.calls[1][2].headers).toEqual({ 'X-Step-Up-Grant': GRANT })
         expect(find(wrapper, 'version-notice').text()).toContain('text.workflow.guard.outcome.done.cooling_off')
         expect(wrapper.emitted('changed')).toHaveLength(1)
     })
 
     const pendingRows = [
-        { uuid: 'p1', project_id: 7, project_name: 'Daily post', number: 4, status: 'pending_review', created_by_name: 'An', created_at: '2026-11-25T08:30:00', effective_at: null, changes: [{ kind: 'host_added', detail: 'api.example.com' }], can_approve: true, can_cancel: false },
-        { uuid: 'p2', project_id: 8, project_name: 'Weekly digest', number: 2, status: 'pending_review', created_by_name: 'Me', created_at: '2026-11-25T08:40:00', effective_at: null, changes: [], can_approve: false, can_cancel: true },
-        { uuid: 'p3', project_id: 9, project_name: 'Solo site', number: 6, status: 'cooling_off', created_by_name: 'Me', created_at: '2026-11-25T08:50:00', effective_at: '2099-01-01T10:00:00', changes: [{ kind: 'budget_raised' }], can_approve: false, can_cancel: true },
+        { uuid: 'p1', project_id: 7, project_uuid: 'wf-7', project_name: 'Daily post', number: 4, status: 'pending_review', created_by_name: 'An', created_at: '2026-11-25T08:30:00', effective_at: null, changes: [{ kind: 'host_added', detail: 'api.example.com' }], can_approve: true, can_cancel: false },
+        { uuid: 'p2', project_id: 8, project_uuid: 'wf-8', project_name: 'Weekly digest', number: 2, status: 'pending_review', created_by_name: 'Me', created_at: '2026-11-25T08:40:00', effective_at: null, changes: [], can_approve: false, can_cancel: true },
+        { uuid: 'p3', project_id: 9, project_uuid: 'wf-9', project_name: 'Solo site', number: 6, status: 'cooling_off', created_by_name: 'Me', created_at: '2026-11-25T08:50:00', effective_at: '2099-01-01T10:00:00', changes: [{ kind: 'budget_raised' }], can_approve: false, can_cancel: true, can_release_now: true },
     ]
     const pendingDrawer = () => mount(PendingChanges, { props: { open: true, rows: pendingRows }, global: { stubs } })
 
@@ -429,9 +462,28 @@ describe('buttons follow abilities', () => {
         await find(wrapper, 'stepup-ok').trigger('click')
         await flushPromises()
 
-        expect(ajax.post.mock.calls.map((call) => call[0])).toEqual(['workflows/7/versions/p1/approve'])
+        expect(ajax.post.mock.calls.map((call) => call[0])).toEqual(['workflows/wf-7/versions/p1/approve'])
         expect(ajax.post.mock.calls[0][2].headers).toEqual({ 'X-Step-Up-Grant': GRANT })
         expect(find(wrapper, 'pending-notice').text()).toContain('text.workflow.guard.pending.approved')
+        expect(wrapper.emitted('changed')).toHaveLength(1)
+    })
+
+    it('waiting changes: "go live now" only on a waiting time, asks for step-up first, then sends it with the grant', async () => {
+        const wrapper = pendingDrawer()
+        const rows = wrapper.findAll('[data-testid="pending-row"]')
+        expect(rows[0].find('[data-testid="pending-release-now"]').exists()).toBe(false)
+        expect(rows[1].find('[data-testid="pending-release-now"]').exists()).toBe(false)
+
+        ajax.post.mockResolvedValueOnce(body({ number: 6, status: 'published', path: 'published' }))
+        await rows[2].find('[data-testid="pending-release-now"]').trigger('click')
+        await flushPromises()
+        expect(ajax.post).not.toHaveBeenCalled()
+        await find(wrapper, 'stepup-ok').trigger('click')
+        await flushPromises()
+
+        expect(ajax.post.mock.calls.map((call) => call[0])).toEqual(['workflows/wf-9/versions/p3/release-now'])
+        expect(ajax.post.mock.calls[0][2].headers).toEqual({ 'X-Step-Up-Grant': GRANT })
+        expect(find(wrapper, 'pending-notice').text()).toContain('text.workflow.guard.pending.released')
         expect(wrapper.emitted('changed')).toHaveLength(1)
     })
 
@@ -442,7 +494,7 @@ describe('buttons follow abilities', () => {
         ajax.post.mockResolvedValueOnce(body({ status: 'rejected' }))
         await find(wrapper, 'pending-reject-confirm').trigger('click')
         await flushPromises()
-        expect(ajax.post).toHaveBeenCalledWith('workflows/7/versions/p1/reject', { reason: 'Unknown address' }, expect.objectContaining({ silent: true }))
+        expect(ajax.post).toHaveBeenCalledWith('workflows/wf-7/versions/p1/reject', { reason: 'Unknown address' }, expect.objectContaining({ silent: true }))
         expect(find(wrapper, 'pending-notice').text()).toContain('text.workflow.guard.pending.rejected')
     })
 
@@ -453,7 +505,7 @@ describe('buttons follow abilities', () => {
         ajax.post.mockResolvedValueOnce(body({ status: 'cancelled' }))
         await confirm.last?.onOk()
         await flushPromises()
-        expect(ajax.post).toHaveBeenCalledWith('workflows/8/versions/p2/cancel', {}, expect.objectContaining({ silent: true }))
+        expect(ajax.post).toHaveBeenCalledWith('workflows/wf-8/versions/p2/cancel', {}, expect.objectContaining({ silent: true }))
     })
 
     const row = (over: Record<string, unknown>) => ({ ...workflow, description: '', summary: {}, updated_at: null, created_at: null, ...over })

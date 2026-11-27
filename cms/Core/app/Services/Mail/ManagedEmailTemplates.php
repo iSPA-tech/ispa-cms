@@ -21,7 +21,10 @@ use Throwable;
  *   The built-in values `site_name` and `site_url` are added unless the caller gives them.
  * - variables(): the declared `variables` of a row plus every placeholder its subject and body use, with sample values.
  * - ensureDefaults(): the default rows of group `workflow` declared in `core.mail_templates.workflow.defaults`, created
- *   only while the key has no row at all (a deleted row counts), so an edited or removed default is never overwritten.
+ *   while the key has no row at all (a deleted row counts), so an edited or removed default is never overwritten. A key
+ *   that already has rows per language gets the rows of the site's other languages it lacks (never one that was
+ *   deleted); a key kept as one row without a language is left alone.
+ * - A language is matched by its `code`, else its `path`, ignoring case (sites store `VN`/`vi`, `EN`/`en`).
  * - keysUsedBy(): template keys of the `email_send` steps of a graph in template mode.
  *
  * @package Cms\Core\Services\Mail
@@ -171,9 +174,12 @@ class ManagedEmailTemplates
             }
 
             $made = DB::transaction(function () use ($key, $default): bool {
-                $exists = EmailTemplate::withTrashed()->where('group', EmailTemplate::GROUP_WORKFLOW)
-                    ->where('key_name', $key)->lockForUpdate()->exists();
-                if ($exists) {
+                // Every row of the key, deleted ones too: language id => true ('' for a row without a language).
+                $existing = EmailTemplate::withTrashed()->where('group', EmailTemplate::GROUP_WORKFLOW)
+                    ->where('key_name', $key)->lockForUpdate()->pluck('language_id')
+                    ->mapWithKeys(static fn ($id): array => [($id === null ? '' : (string) $id) => true])->all();
+                if (isset($existing[''])) {
+                    // Kept as one row without a language: that row serves every language; nothing is added.
                     return false;
                 }
 
@@ -181,11 +187,16 @@ class ManagedEmailTemplates
                 $rows = [];
                 foreach ($default['translations'] as $code => $text) {
                     $languageId = $this->languageId((string) $code);
-                    if ($languageId !== null && is_array($text)) {
+                    if ($languageId !== null && is_array($text) && !isset($existing[(string) $languageId])) {
                         $rows[$languageId] = $text;
                     }
                 }
-                if ($rows === []) {
+                if ($existing !== []) {
+                    // The key exists: only the languages it lacks (and never one whose row was deleted).
+                    if ($rows === []) {
+                        return false;
+                    }
+                } elseif ($rows === []) {
                     // A site without those languages: one row with no language, in the first translation.
                     $rows[''] = reset($default['translations']);
                 }
@@ -250,7 +261,8 @@ class ManagedEmailTemplates
         $code = explode('-', str_replace('_', '-', $code))[0];
 
         try {
-            $id = Language::query()->where('code', $code)->value('id');
+            $id = Language::query()->whereRaw('LOWER(code) = ?', [$code])->orderBy('id')->value('id')
+                ?? Language::query()->whereRaw('LOWER(path) = ?', [$code])->orderBy('id')->value('id');
         } catch (Throwable) {
             return null;
         }

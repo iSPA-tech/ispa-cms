@@ -5,6 +5,8 @@ import CoreUpdateCard from '@core-admin/pages/setting/modules/core-update-card.v
 
 const ajaxMock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }))
 vi.mock('@/ajax', () => ({ default: ajaxMock }))
+const reloadMock = vi.hoisted(() => ({ reloadAdminBuild: vi.fn(() => Promise.resolve()) }))
+vi.mock('@core-admin/pages/setting/modules/admin-reload', () => reloadMock)
 vi.mock('vue-i18n', () => ({
     useI18n: () => ({ t: (k: string, p?: Record<string, unknown>) => (p ? `${k}|${JSON.stringify(p)}` : k) }),
 }))
@@ -142,6 +144,122 @@ describe('core update card', () => {
         expect(w.find('[data-testid="core-update-open"]').exists()).toBe(false)
     })
 
+    it('refresh() asks the hub for the newest version; the mount and the poll never do', async () => {
+        vi.useFakeTimers()
+        answer(status({ can_update: false, running: { uuid: 'u1', progress: 10, status: 'running' } }))
+        const w = await mountCard()
+        await vi.advanceTimersByTimeAsync(5000)
+        await flushPromises()
+        // Mount + one poll: neither carries the refresh flag.
+        expect(ajaxMock.get.mock.calls.filter(([url]) => url === 'core-update')).toHaveLength(2)
+        for (const [, config] of ajaxMock.get.mock.calls) expect(config?.params).toBeUndefined()
+        w.unmount()
+        vi.useRealTimers()
+
+        vi.clearAllMocks()
+        answer(status({ latest: '2026.12.0' }))
+        const card = await mountCard()
+        expect(card.get('[data-testid="core-update-latest"]').text()).toBe('2026.12.0')
+        answer(status({ latest: '2026.12.1' }))
+        await (card.vm as unknown as { refresh: () => Promise<void> }).refresh()
+        await flushPromises()
+        expect(ajaxMock.get).toHaveBeenLastCalledWith('core-update', expect.objectContaining({ silent: true, params: { refresh: 1 } }))
+        expect(card.get('[data-testid="core-update-latest"]').text()).toBe('2026.12.1')
+        expect(card.get('[data-testid="core-update-newer"]').text()).toBe('text.modules.core_update.newer|{"version":"2026.12.1"}')
+        // What is on screen never gives way to a skeleton during the refresh, and a failed one keeps it.
+        ajaxMock.get.mockRejectedValue(new Error('down'))
+        await (card.vm as unknown as { refresh: () => Promise<void> }).refresh()
+        await flushPromises()
+        expect(card.get('[data-testid="core-update-latest"]').text()).toBe('2026.12.1')
+        expect(card.find('[data-testid="core-update-error"]').exists()).toBe(false)
+    })
+
+    /** Mount on a running task, then let the poll find it gone and the task read as `task`. */
+    const finishWith = async (task: Record<string, unknown>, after: Record<string, unknown> = { installed: '2026.12.0', can_update: false }) => {
+        vi.useFakeTimers()
+        answer(status({ can_update: false, running: { uuid: 'u9', progress: 90, status: 'running' } }))
+        const w = await mountCard()
+        ajaxMock.get.mockImplementation((url: string) =>
+            Promise.resolve({ data: { data: url === 'background-tasks/u9' ? { uuid: 'u9', ...task } : status(after) } }),
+        )
+        await vi.advanceTimersByTimeAsync(5000)
+        await flushPromises()
+        return w
+    }
+
+    it('after an update this page watched succeed, the admin reloads itself after a 5 s countdown', async () => {
+        const w = await finishWith({ status: 'succeeded', result: { to: '2026.12.0' } })
+        expect(w.get('[data-testid="core-update-reload-text"]').text()).toBe('text.modules.core_update.reload_countdown|{"seconds":5}')
+        // Said once to a screen reader: the live sentence keeps its first number while the visible one counts down.
+        const live = w.get('[data-testid="core-update-reload-live"]')
+        expect(live.attributes('role')).toBe('status')
+        expect(live.text()).toBe('text.modules.core_update.reload_countdown|{"seconds":5}')
+        expect(w.get('[data-testid="core-update-reload-text"]').attributes('aria-hidden')).toBe('true')
+        expect(w.find('[data-testid="core-update-reload-now"]').exists()).toBe(true)
+        expect(w.find('[data-testid="core-update-reload-later"]').exists()).toBe(true)
+
+        await vi.advanceTimersByTimeAsync(2000)
+        expect(w.get('[data-testid="core-update-reload-text"]').text()).toBe('text.modules.core_update.reload_countdown|{"seconds":3}')
+        expect(live.text()).toBe('text.modules.core_update.reload_countdown|{"seconds":5}')
+        expect(reloadMock.reloadAdminBuild).not.toHaveBeenCalled()
+
+        await vi.advanceTimersByTimeAsync(3000)
+        expect(reloadMock.reloadAdminBuild).toHaveBeenCalledTimes(1)
+        // Nothing fires twice while the reload is on its way.
+        await vi.advanceTimersByTimeAsync(5000)
+        expect(reloadMock.reloadAdminBuild).toHaveBeenCalledTimes(1)
+    })
+
+    it('"reload now" reloads at once and only once', async () => {
+        const w = await finishWith({ status: 'succeeded', result: { to: '2026.12.0' } })
+        await w.get('[data-testid="core-update-reload-now"]').trigger('click')
+        await w.get('[data-testid="core-update-reload-now"]').trigger('click')
+        await vi.advanceTimersByTimeAsync(10000)
+        expect(reloadMock.reloadAdminBuild).toHaveBeenCalledTimes(1)
+    })
+
+    it('"later" stops the countdown and leaves a plain reload button', async () => {
+        const w = await finishWith({ status: 'succeeded', result: { to: '2026.12.0' } })
+        await w.get('[data-testid="core-update-reload-later"]').trigger('click')
+        await vi.advanceTimersByTimeAsync(20000)
+        expect(reloadMock.reloadAdminBuild).not.toHaveBeenCalled()
+        expect(w.find('[data-testid="core-update-reload-text"]').exists()).toBe(false)
+        expect(w.find('[data-testid="core-update-reload-now"]').exists()).toBe(false)
+        expect(w.get('[data-testid="core-update-reload-hint"]').text()).toBe('text.modules.core_update.reload_hint')
+        await w.get('[data-testid="core-update-reload-page"]').trigger('click')
+        expect(reloadMock.reloadAdminBuild).toHaveBeenCalledTimes(1)
+    })
+
+    it('never reloads for a failed task, a restore, or a page that only loads an already finished update', async () => {
+        const failed = await finishWith({ status: 'failed', message_params: { code: 'CORE_RUNNER_DIED' }, result: null }, { can_update: true })
+        await vi.advanceTimersByTimeAsync(20000)
+        expect(failed.find('[data-testid="core-update-reload"]').exists()).toBe(false)
+        failed.unmount()
+
+        // Old files put back: the outcome shows, the admin is not reloaded.
+        const restored = await finishWith({ status: 'succeeded', result: { restored: true } }, { can_update: true })
+        await vi.advanceTimersByTimeAsync(20000)
+        expect(restored.get('[data-testid="core-update-result"]').text()).toBe('text.modules.core_update.result.restored')
+        expect(restored.find('[data-testid="core-update-reload"]').exists()).toBe(false)
+        restored.unmount()
+
+        // A fresh page on an up-to-date site: no task was watched here.
+        vi.clearAllMocks()
+        answer(status({ installed: '2026.12.0', can_update: false }))
+        const fresh = await mountCard()
+        await vi.advanceTimersByTimeAsync(20000)
+        expect(fresh.find('[data-testid="core-update-reload"]').exists()).toBe(false)
+        expect(ajaxMock.get.mock.calls.every(([url]) => url === 'core-update')).toBe(true)
+        expect(reloadMock.reloadAdminBuild).not.toHaveBeenCalled()
+    })
+
+    it('leaving the page stops the countdown', async () => {
+        const w = await finishWith({ status: 'succeeded', result: { to: '2026.12.0' } })
+        w.unmount()
+        await vi.advanceTimersByTimeAsync(20000)
+        expect(reloadMock.reloadAdminBuild).not.toHaveBeenCalled()
+    })
+
     it('a finished update is a success state', async () => {
         vi.useFakeTimers()
         answer(status({ can_update: false, running: { uuid: 'u3', progress: 90, status: 'running' } }))
@@ -158,6 +276,9 @@ describe('core update card', () => {
         await vi.advanceTimersByTimeAsync(5000)
         await flushPromises()
         expect(stateOf(w)).toBe('success')
+        // The new installed version shows without a page reload, and nothing newer is offered any more.
+        expect(w.get('[data-testid="core-update-installed"]').text()).toBe('2026.12.0')
+        expect(w.find('[data-testid="core-update-latest"]').exists()).toBe(false)
         expect(w.get('[data-testid="core-update-state"]').text()).toBe('text.modules.core_update.badge_done')
         expect(w.get('[data-testid="core-update-result"]').text()).toBe('text.modules.core_update.result.updated|{"version":"2026.12.0"}')
         expect(w.find('[data-testid="core-update-activity"]').exists()).toBe(false)

@@ -1,7 +1,8 @@
 <!--
   "Changes waiting for review": sensitive workflow changes that are not live yet. A change waits for a second person
   (who approves it after confirming their account, or rejects it with an optional reason) or, on a site with one
-  publisher, for the end of its waiting time. Its author or a Webmaster can cancel it. The author never approves.
+  publisher, for the end of its waiting time, which a publisher can skip with "go live now" after confirming their
+  account. Its author or a Webmaster can cancel it. The author never approves.
 -->
 <template>
     <a-drawer
@@ -69,7 +70,17 @@
                         </div>
                     </div>
 
-                    <div v-else-if="row.can_approve || row.can_cancel" class="flex flex-wrap gap-2">
+                    <div v-else-if="row.can_approve || row.can_cancel || row.can_release_now" class="flex flex-wrap gap-2">
+                        <a-button
+                            v-if="row.can_release_now"
+                            type="primary"
+                            :loading="busy === row.uuid"
+                            :disabled="Boolean(busy) || stepUp.open.value"
+                            data-testid="pending-release-now"
+                            @click="releaseNow(row)"
+                        >
+                            {{ t('text.workflow.guard.pending.release_now') }}
+                        </a-button>
                         <a-button
                             v-if="row.can_approve"
                             type="primary"
@@ -94,7 +105,7 @@
         <StepUpDialog
             :open="stepUp.open.value"
             :purpose="PUBLISH_PURPOSE"
-            :intro="t('text.workflow.guard.stepup.approve_intro')"
+            :intro="t(stepUpIntro)"
             @confirmed="stepUp.confirmed"
             @cancel="stepUp.cancelled"
         />
@@ -108,7 +119,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStepUpRunner } from '@/libs/securityTokens'
 import StepUpDialog from '../../../../components/security/step-up-dialog.vue'
-import { PUBLISH_PURPOSE, approveChange, cancelChange, guardErrorCode, refusalProblems, rejectChange } from '../../../../workflow-guard-api'
+import { PUBLISH_PURPOSE, approveChange, cancelChange, guardErrorCode, refusalProblems, rejectChange, releaseChange } from '../../../../workflow-guard-api'
 import { describeChanges, pendingWhen, publishProblems } from '../../../../workflow-guard-report'
 
 defineOptions({ name: 'WorkflowPendingChanges' })
@@ -131,6 +142,8 @@ const busy = ref('')
 const rejecting = ref('')
 const reason = ref('')
 const notice = ref(null)
+/** What the account confirmation says: approving a change or skipping its waiting time. */
+const stepUpIntro = ref('text.workflow.guard.stepup.approve_intro')
 /** Ticks every half minute so "minutes left" stays true while the drawer is open. */
 const now = ref(new Date())
 let timer = null
@@ -179,11 +192,18 @@ async function act(row, action, doneKey, failKey) {
     }
 }
 
-const approve = (row) =>
-    act(row, () => stepUp.run((grant) => approveChange(row.project_id, row.uuid, grant), { askFirst: true }), 'text.workflow.guard.pending.approved', 'text.workflow.guard.pending.approve_failed')
+const approve = (row) => {
+    stepUpIntro.value = 'text.workflow.guard.stepup.approve_intro'
+    return act(row, () => stepUp.run((grant) => approveChange(row.project_uuid, row.uuid, grant), { askFirst: true }), 'text.workflow.guard.pending.approved', 'text.workflow.guard.pending.approve_failed')
+}
+
+const releaseNow = (row) => {
+    stepUpIntro.value = 'text.workflow.guard.stepup.release_intro'
+    return act(row, () => stepUp.run((grant) => releaseChange(row.project_uuid, row.uuid, grant), { askFirst: true }), 'text.workflow.guard.pending.released', 'text.workflow.guard.pending.release_failed')
+}
 
 const reject = (row) =>
-    act(row, () => rejectChange(row.project_id, row.uuid, reason.value.trim()), 'text.workflow.guard.pending.rejected', 'text.workflow.guard.pending.reject_failed')
+    act(row, () => rejectChange(row.project_uuid, row.uuid, reason.value.trim()), 'text.workflow.guard.pending.rejected', 'text.workflow.guard.pending.reject_failed')
 
 function startReject(row) {
     reason.value = ''
@@ -197,7 +217,7 @@ function askCancel(row) {
         okText: t('text.workflow.guard.pending.cancel'),
         okButtonProps: { danger: true },
         cancelText: t('text.workflow.guard.pending.keep'),
-        onOk: () => act(row, () => cancelChange(row.project_id, row.uuid), 'text.workflow.guard.pending.cancelled', 'text.workflow.guard.pending.cancel_failed'),
+        onOk: () => act(row, () => cancelChange(row.project_uuid, row.uuid), 'text.workflow.guard.pending.cancelled', 'text.workflow.guard.pending.cancel_failed'),
     })
 }
 

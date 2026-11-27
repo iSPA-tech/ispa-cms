@@ -12,6 +12,9 @@ use Cms\Core\Services\Workflow\Exceptions\WorkflowProjectNotPublished;
 use Cms\Core\Services\Workflow\Guard\WorkflowCircuitBreaker;
 use Cms\Core\Services\Workflow\Versioning\WorkflowPublishService;
 use Cms\Core\Services\Workflow\Guard\WorkflowGlobalPause;
+use Cms\Core\Http\Controllers\Workflow\WorkflowReviewerController;
+use Cms\Core\Services\Workflow\Guard\WorkflowChangeReviewers;
+use InvalidArgumentException;
 use Illuminate\Http\Request;
 
 /**
@@ -47,7 +50,7 @@ class WorkflowGuardController extends Controller
 
     public function resume(Request $request, string $project, WorkflowCircuitBreaker $breaker, WorkflowPublishService $publisher): AppResponse
     {
-        $model = ctype_digit($project) ? WorkflowProject::query()->find((int) $project) : null;
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (! $model) {
             return ires()->notFound(__('mgs.model.404'));
         }
@@ -75,6 +78,40 @@ class WorkflowGuardController extends Controller
     /**
      * @return array{paused: bool, forced_by_server: bool, setting: bool}
      */
+    /**
+     * Who reviews workflow changes: `{ named: [{uuid, name, detail}], default: bool }` (`default`: nobody is named, so
+     * every publisher and Webmaster reviews).
+     */
+    public function showReviewers(WorkflowChangeReviewers $reviewers): AppResponse
+    {
+        return ires()->data($this->reviewersPayload($reviewers));
+    }
+
+    public function updateReviewers(Request $request, WorkflowChangeReviewers $reviewers): AppResponse
+    {
+        $data = $request->validate(['users' => ['present', 'array', 'max:' . WorkflowChangeReviewers::MAX], 'users.*' => ['string', 'max:64']]);
+        $user = $request->user();
+
+        try {
+            $reviewers->set(array_values($data['users']), $user instanceof User ? $user : null);
+        } catch (InvalidArgumentException $e) {
+            return ires()->error()->code(422)->errorCode('validation_failed')->message($e->getMessage());
+        }
+
+        return ires()->data($this->reviewersPayload($reviewers));
+    }
+
+    private function reviewersPayload(WorkflowChangeReviewers $reviewers): array
+    {
+        $named = array_map(static fn (User $user): array => [
+            'uuid' => (string) $user->uuid,
+            'name' => (string) $user->name,
+            'detail' => WorkflowReviewerController::detail($user),
+        ], $reviewers->users());
+
+        return ['named' => $named, 'default' => $named === []];
+    }
+
     private function pausePayload(WorkflowGlobalPause $pause): array
     {
         return [

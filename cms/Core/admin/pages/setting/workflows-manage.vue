@@ -8,6 +8,7 @@
 <template>
     <div class="space-y-6">
         <WorkflowGlobalPause @changed="(value) => (pausedAll = value)" />
+        <WorkflowChangeReviewers />
 
         <WorkflowsToolbar
             :can-create="canCreateWorkflow"
@@ -38,6 +39,7 @@
                 :loading="isLoading || isFetching"
                 :selected-id="selectedWorkflow?.id || null"
                 :setup-counts="setupCounts"
+                :setup-totals="setupTotals"
                 :toggling-id="togglingId"
                 :workflows="filteredWorkflows"
                 @delete="removeWorkflow"
@@ -135,6 +137,7 @@ import WorkflowRunPanel from './workflows-manage/components/workflow-run-panel.v
 import WorkflowList from './workflows-manage/components/workflow-list.vue'
 import WorkflowsToolbar from './workflows-manage/components/workflows-toolbar.vue'
 import WorkflowGlobalPause from './workflows-manage/components/workflow-global-pause.vue'
+import WorkflowChangeReviewers from './workflows-manage/components/workflow-change-reviewers.vue'
 import WorkflowPendingChanges from './workflows-manage/components/workflow-pending-changes.vue'
 import WorkflowVersionDrawer from './workflows-manage/components/workflow-version-drawer.vue'
 import { NOT_PUBLISHED_CODES, fetchPendingChanges, guardErrorCode } from '../../workflow-guard-api'
@@ -361,7 +364,7 @@ const toggleActive = async (workflow, value) => {
 
     togglingId.value = workflow.id
     try {
-        const res = await updateWorkflow(workflow.id, { is_active: value })
+        const res = await updateWorkflow(workflow.uuid, { is_active: value })
         if (res?.status === 'success') {
             iAlert(res)
             await refetch()
@@ -408,7 +411,7 @@ const removeWorkflow = async (workflow) => {
 
     deletingId.value = workflow.id
     try {
-        const res = await deleteWorkflow(workflow.id)
+        const res = await deleteWorkflow(workflow.uuid)
         if (res?.status === 'success') {
             iAlert(res)
             if (builderState.project?.id === workflow.id) {
@@ -567,27 +570,35 @@ const canPublishWorkflow = computed(() => rule('workflow_project.publish') || wo
 
 watch(canPublishWorkflow, (value) => value && loadPending(), { immediate: true })
 
-const openLibrary = () => router.push({ name: 'setting-workflows-library' })
+const openLibrary = () => router.push({ name: 'workflows-library' })
 
-// "Needs setup (n)": a workflow that is switched off (a sample just installed) may still wait for choices only this
-// site can make. Asked once per workflow, quietly; a failed request simply shows no badge.
+// "Needs setup (n)": a workflow (a sample just installed, or one switched on before every choice was made) may still
+// wait for choices only this site can make; once all are made the setup screen stays reachable from the row, to change
+// an answer later. Asked once per workflow, quietly; a failed request simply shows neither.
 const setupCounts = reactive({})
+const setupTotals = reactive({})
 const setupAsked = new Set()
 watch(
-    () => workflows.value.filter((item) => !item.is_active && !item.system_managed).map((item) => item.id).join(','),
+    () => workflows.value.filter((item) => !item.system_managed).map((item) => item.id).join(','),
     (ids) => {
         ids.split(',').filter((id) => id && !setupAsked.has(id)).slice(0, 30).forEach(async (id) => {
             setupAsked.add(id)
             try {
-                setupCounts[id] = openQuestionCount(await fetchWorkflowSetup(id))
+                // Counts are keyed by the row id of the list; the request names the workflow by its uuid.
+                const uuid = workflows.value.find((item) => String(item.id) === id)?.uuid
+                const setup = await fetchWorkflowSetup(uuid)
+                setupCounts[id] = openQuestionCount(setup)
+                setupTotals[id] = setup.questions.length
             } catch (error) {
                 setupCounts[id] = 0
+                setupTotals[id] = 0
             }
         })
     },
     { immediate: true }
 )
-const openSetup = (workflow) => router.push({ name: 'setting-workflows-setup', params: { project: workflow.id } })
+// The address names the workflow by its slug (readable, stable), never by its row id.
+const openSetup = (workflow) => router.push({ name: 'workflows-setup', params: { project: workflow.slug || workflow.uuid } })
 
 /** Slug of the workflow whose package is being downloaded. */
 const exportingSlug = ref(null)

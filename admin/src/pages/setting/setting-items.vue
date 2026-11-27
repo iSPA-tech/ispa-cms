@@ -54,10 +54,18 @@
                               }))
                             : item.input_setting.options
                     "
+                    :disabled="item.name === 'VITE_TEMPLATE_FOLDER'"
                     :required="required"
                     :setting="item"
                     no-style
                 />
+                <p
+                    v-if="item.name === 'VITE_TEMPLATE_FOLDER'"
+                    class="text-xs text-gray-600"
+                    data-testid="setting-theme-read-only"
+                >
+                    {{ $t('text.setting.theme_read_only') }}
+                </p>
             </div>
             <p v-if="description" class="text-xs text-gray-500/90">{{ $t(description) }}</p>
         </div>

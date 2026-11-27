@@ -19,6 +19,7 @@ beforeEach(function (): void {
 
     Schema::create('workflow_projects', function (Blueprint $table) {
         $table->id();
+        $table->uuid('uuid')->nullable()->unique();
         $table->string('name');
         $table->string('slug')->unique();
         $table->string('trigger_event')->nullable();

@@ -149,3 +149,32 @@ test('an unconfigured site succeeds without sending anything', function () {
     expect(Artisan::call('cms:platform-report'))->toBe(0);
     Http::assertNothingSent();
 });
+
+test('app_version is the core manifest version after an admin upgrade, VERSION without a manifest', function () {
+    // A temp tree root, so a real core-manifest.json (a release install has one) is never read or overwritten.
+    $base = sys_get_temp_dir() . '/site-status-manifest-' . bin2hex(random_bytes(6));
+    mkdir($base, 0755, true);
+    $path = $base . '/core-manifest.json';
+    expect(file_exists($path))->toBeFalse();
+    config(['ispa-cms.core_manifest_base' => $base, 'ispa-cms.app_version' => '2026.11.05']);
+    $report = new SiteStatusReport();
+
+    expect($report->build()['app_version'])->toBe('2026.11.05')
+        ->and($report->payload(SiteStatusReport::LEVEL_BASIC)['app_version'])->toBe('2026.11.05');
+
+    // An admin Core upgrade on a CI-deployed site rewrites the manifest but never VERSION (deploy-owned).
+    file_put_contents($path, json_encode([
+        'format' => 1, 'version' => '2026.11.07', 'php_min' => '8.2', 'origin' => 'deploy',
+        'upgraded_from' => '2026.11.05', 'checked' => (object) [], 'replaced' => [],
+    ]));
+    try {
+        expect($report->build()['app_version'])->toBe('2026.11.07')
+            ->and($report->payload(SiteStatusReport::LEVEL_BASIC)['app_version'])->toBe('2026.11.07');
+
+        file_put_contents($path, '{broken');
+        expect($report->build()['app_version'])->toBe('2026.11.05');
+    } finally {
+        @unlink($path);
+        @rmdir($base);
+    }
+});

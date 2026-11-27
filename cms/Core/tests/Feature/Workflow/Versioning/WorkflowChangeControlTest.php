@@ -138,7 +138,7 @@ it('publishes a prompt-only change at once, without step-up', function (): void 
     ccSetConfig($project, 'ai', ['instructions' => 'Write a long greeting']);
     ccStep($project, 'write')->update(['name' => 'Renamed', 'position_x' => 999]);
 
-    $this->postJson(CC_URL . $project->id . '/versions/publish', ['note' => 'wording'])
+    $this->postJson(CC_URL . $project->uuid . '/versions/publish', ['note' => 'wording'])
         ->assertStatus(201)->assertJsonPath('data.path', 'published')->assertJsonPath('data.number', 2);
     expect($project->fresh()->publishedVersion->number)->toBe(2);
     Notification::assertSentTo($this->owner, AdminNotification::class, fn (AdminNotification $n): bool => $n->type === 'workflow.change.version_published');
@@ -148,9 +148,9 @@ it('reports an unchanged draft without adding a version', function (): void {
     $project = ccProject();
     ccLogin($this->owner);
 
-    $this->getJson(CC_URL . $project->id . '/versions/preview-publish')
+    $this->getJson(CC_URL . $project->uuid . '/versions/preview-publish')
         ->assertOk()->assertJsonPath('data.unchanged', true)->assertJsonPath('data.sensitive', false);
-    $this->postJson(CC_URL . $project->id . '/versions/publish')
+    $this->postJson(CC_URL . $project->uuid . '/versions/publish')
         ->assertStatus(200)->assertJsonPath('data.path', 'unchanged')->assertJsonPath('data.number', 1);
     expect(WorkflowVersion::query()->where('project_id', $project->id)->count())->toBe(1);
 });
@@ -161,12 +161,12 @@ it('sends each kind of sensitive change to a second publisher', function (Closur
     $token = ccLogin($this->owner);
     $mutate($project);
 
-    $this->getJson(CC_URL . $project->id . '/versions/preview-publish')
+    $this->getJson(CC_URL . $project->uuid . '/versions/preview-publish')
         ->assertOk()->assertJsonPath('data.sensitive', true)->assertJsonPath('data.path', 'pending_review')
         ->assertJsonPath('data.step_up_required', true);
-    expect(collect($this->getJson(CC_URL . $project->id . '/versions/preview-publish')->json('data.changes'))->pluck('kind')->all())->toContain($kind);
+    expect(collect($this->getJson(CC_URL . $project->uuid . '/versions/preview-publish')->json('data.changes'))->pluck('kind')->all())->toContain($kind);
 
-    $response = $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+    $response = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
         ->assertStatus(202)->assertJsonPath('data.path', 'pending_review')->assertJsonPath('data.status', 'pending_review');
     expect(collect($response->json('data.changes'))->pluck('kind')->all())->toContain($kind)
         ->and($project->fresh()->publishedVersion->number)->toBe(1);
@@ -198,7 +198,7 @@ it('does not count a lowered budget as sensitive', function (): void {
     ccLogin($this->owner);
     $project->forceFill(['budget_max_cost_per_run' => 0.5])->save();
 
-    $this->postJson(CC_URL . $project->id . '/versions/publish')->assertStatus(201)->assertJsonPath('data.path', 'published');
+    $this->postJson(CC_URL . $project->uuid . '/versions/publish')->assertStatus(201)->assertJsonPath('data.path', 'published');
 });
 
 it('refuses a sensitive publish without step-up (409) and accepts it with a grant', function (): void {
@@ -206,14 +206,14 @@ it('refuses a sensitive publish without step-up (409) and accepts it with a gran
     $token = ccLogin($this->owner);
     ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
 
-    $this->postJson(CC_URL . $project->id . '/versions/publish')
+    $this->postJson(CC_URL . $project->uuid . '/versions/publish')
         ->assertStatus(409)->assertJsonPath('error_code', 'step_up_required')->assertJsonPath('data.purpose', 'workflow_publish');
     // A grant for another purpose does not count.
     $other = app(StepUpConfirmation::class)->start($this->owner->fresh(), $token, 'secret123')['grant'];
-    $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => $other])->assertStatus(409);
+    $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => $other])->assertStatus(409);
     expect(WorkflowVersion::query()->where('project_id', $project->id)->count())->toBe(1);
 
-    $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+    $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
         ->assertStatus(202)->assertJsonPath('data.path', 'cooling_off');
 });
 
@@ -222,11 +222,11 @@ it('lets another publisher approve, never the author', function (): void {
     $project = ccProject();
     $ownerToken = ccLogin($this->owner);
     ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
-    $uuid = $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])
+    $uuid = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])
         ->assertStatus(202)->json('data.uuid');
 
     // The author can not approve their own change, even with a grant.
-    $this->postJson(CC_URL . "{$project->id}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])
         ->assertStatus(403)->assertJsonPath('error_code', 'author_cannot_approve');
 
     $tokenB = ccLogin($publisherB);
@@ -235,8 +235,8 @@ it('lets another publisher approve, never the author', function (): void {
         ->and($pending[0]['uuid'])->toBe($uuid)->and($pending[0]['can_approve'])->toBeTrue()->and($pending[0]['can_cancel'])->toBeFalse()
         ->and(collect($pending[0]['changes'])->pluck('kind')->all())->toContain('host_added');
 
-    $this->postJson(CC_URL . "{$project->id}/versions/{$uuid}/approve")->assertStatus(409)->assertJsonPath('error_code', 'step_up_required');
-    $this->postJson(CC_URL . "{$project->id}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => ccGrant($publisherB, $tokenB)])
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$uuid}/approve")->assertStatus(409)->assertJsonPath('error_code', 'step_up_required');
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => ccGrant($publisherB, $tokenB)])
         ->assertOk()->assertJsonPath('data.path', 'published')->assertJsonPath('data.status', 'published');
 
     $version = WorkflowVersion::query()->where('uuid', $uuid)->firstOrFail();
@@ -254,7 +254,7 @@ it('gives a single-publisher site a cooling-off the minute tick promotes', funct
     $token = ccLogin($this->owner);
     ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
 
-    $response = $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+    $response = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
         ->assertStatus(202)->assertJsonPath('data.path', 'cooling_off');
     expect($response->json('data.effective_at'))->not->toBeNull();
     $version = WorkflowVersion::query()->where('uuid', $response->json('data.uuid'))->firstOrFail();
@@ -274,24 +274,24 @@ it('cancels and rejects pending versions, with audit rows', function (): void {
     $project = ccProject();
     $ownerToken = ccLogin($this->owner);
     ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
-    $first = $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])->json('data.uuid');
+    $first = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])->json('data.uuid');
 
     // A newer publish of the same project cancels the older pending one.
     ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/other', 'auth' => 'header', 'credential' => '$bind:k']);
-    $second = $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])->json('data.uuid');
+    $second = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])->json('data.uuid');
     expect(WorkflowVersion::query()->where('uuid', $first)->value('status'))->toBe('cancelled');
 
     // Publisher B may not cancel the owner's change, but may reject it.
     ccLogin($publisherB);
-    $this->postJson(CC_URL . "{$project->id}/versions/{$second}/cancel")->assertStatus(403);
-    $this->postJson(CC_URL . "{$project->id}/versions/{$second}/reject", ['reason' => 'Unknown host'])->assertOk()->assertJsonPath('data.status', 'rejected');
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$second}/cancel")->assertStatus(403);
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$second}/reject", ['reason' => 'Unknown host'])->assertOk()->assertJsonPath('data.status', 'rejected');
     expect(\Cms\Core\Models\AuditLog::query()->where('action', 'action.workflow.version_rejected')->exists())->toBeTrue();
 
     // The author cancels their own pending change.
     $ownerToken = ccLogin($this->owner);
     ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/third']);
-    $third = $this->postJson(CC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])->json('data.uuid');
-    $this->postJson(CC_URL . "{$project->id}/versions/{$third}/cancel")->assertOk()->assertJsonPath('data.status', 'cancelled');
+    $third = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $ownerToken)])->json('data.uuid');
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$third}/cancel")->assertOk()->assertJsonPath('data.status', 'cancelled');
     expect(\Cms\Core\Models\AuditLog::query()->where('action', 'action.workflow.version_cancelled')->exists())->toBeTrue()
         ->and($project->fresh()->publishedVersion->number)->toBe(1);
 });
@@ -354,7 +354,7 @@ it('refuses to resume a breaker-paused project without a published version', fun
     $project = wgProject(['is_active' => false, 'paused_reason' => 'breaker:runs_per_hour', 'paused_at' => now()]);
     ccLogin($this->owner);
 
-    $this->postJson("https://localhost/api/v2/admin/workflow/projects/{$project->id}/resume")
+    $this->postJson("https://localhost/api/v2/admin/workflow/projects/{$project->uuid}/resume")
         ->assertStatus(422)->assertJsonPath('error_code', 'not_published');
 });
 
@@ -376,7 +376,7 @@ it('lists the guard fields on project rows and refuses activation without a publ
         ->and(array_key_exists('paused_reason', $row))->toBeTrue()
         ->and(array_key_exists('paused_at', $row))->toBeTrue();
 
-    $this->putJson('https://localhost/api/v2/admin/workflows/' . $draftOnly->id, ['name' => $draftOnly->name, 'is_active' => true])
+    $this->putJson('https://localhost/api/v2/admin/workflows/' . $draftOnly->uuid, ['name' => $draftOnly->name, 'is_active' => true])
         ->assertStatus(422)->assertJsonPath('error_code', 'not_published');
     expect($draftOnly->fresh()->is_active)->toBeFalse();
 });
@@ -400,4 +400,51 @@ it('fills the fingerprint of a backfilled version when it is compared', function
 
     WorkflowSensitiveFingerprint::forVersion($v1->fresh());
     expect($v1->fresh()->sensitive_fingerprint)->not->toBeNull();
+});
+
+it('lets a single publisher put a cooling-off change live at once after confirming again', function (): void {
+    $project = ccProject();
+    $token = ccLogin($this->owner);
+    ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
+    $uuid = $this->postJson(CC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+        ->assertStatus(202)->assertJsonPath('data.path', 'cooling_off')->json('data.uuid');
+
+    $pending = $this->getJson('https://localhost/api/v2/admin/workflow/versions/pending')->assertOk()->json('data');
+    expect($pending[0]['can_release_now'])->toBeTrue();
+
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$uuid}/release-now")->assertStatus(409)->assertJsonPath('error_code', 'step_up_required');
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$uuid}/release-now", [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+        ->assertOk()->assertJsonPath('data.path', 'published')->assertJsonPath('data.status', 'published');
+
+    $version = WorkflowVersion::query()->where('uuid', $uuid)->firstOrFail();
+    expect($project->fresh()->published_version_id)->toBe($version->id)
+        ->and(WorkflowVersionSeal::verify($version))->toBeTrue()
+        ->and(\Cms\Core\Models\AuditLog::query()->where('action', 'action.workflow.version_promoted')->exists())->toBeTrue();
+});
+
+it('publishes a sensitive change at once when "release now" is ticked on a single-publisher site', function (): void {
+    $project = ccProject();
+    $token = ccLogin($this->owner);
+    ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
+
+    $uuid = $this->postJson(CC_URL . $project->uuid . '/versions/publish', ['release_now' => true], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+        ->assertStatus(201)->assertJsonPath('data.path', 'published')->json('data.uuid');
+
+    expect($project->fresh()->published_version_id)->toBe(WorkflowVersion::query()->where('uuid', $uuid)->value('id'))
+        ->and(\Cms\Core\Models\AuditLog::query()->where('action', 'action.workflow.version_promoted')->exists())->toBeTrue();
+});
+
+it('still waits for the second publisher when "release now" is asked', function (): void {
+    ccSecondPublisher();
+    $project = ccProject();
+    $token = ccLogin($this->owner);
+    ccSetConfig($project, 'call', ['url' => 'https://api2.example.org/items']);
+
+    $uuid = $this->postJson(CC_URL . $project->uuid . '/versions/publish', ['release_now' => true], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+        ->assertStatus(202)->assertJsonPath('data.path', 'pending_review')->json('data.uuid');
+    expect($this->getJson('https://localhost/api/v2/admin/workflow/versions/pending')->json('data.0.can_release_now'))->toBeFalse();
+
+    $this->postJson(CC_URL . "{$project->uuid}/versions/{$uuid}/release-now", [], [StepUpConfirmation::HEADER => ccGrant($this->owner, $token)])
+        ->assertStatus(422)->assertJsonPath('error_code', 'not_pending');
+    expect($project->fresh()->publishedVersion->number)->toBe(1);
 });

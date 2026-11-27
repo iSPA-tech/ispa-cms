@@ -43,15 +43,17 @@ class CMSLoggerServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $provider = config('logging.logger_provider', env('LOGGER_PROVIDER', 'telegram'));
+        // Resolved when first used (after boot), so the provider chosen in the admin settings (notify.LOGGER_PROVIDER,
+        // applied to the config at boot by AppServiceProvider) is the one that logs.
+        $this->app->singleton('CMSLogger', function () {
+            $provider = (string) config('logging.logger_provider', env('LOGGER_PROVIDER', 'telegram'));
 
-        $loggerClass = match (strtolower($provider)) {
-            'telegram' => TelegramService::class,
-            'discord' => DiscordService::class,
-            default => throw new InvalidArgumentException("Unsupported logger provider: $provider"),
-        };
+            $loggerClass = match (strtolower($provider)) {
+                'telegram' => TelegramService::class,
+                'discord' => DiscordService::class,
+                default => throw new InvalidArgumentException("Unsupported logger provider: $provider"),
+            };
 
-        $this->app->singleton('CMSLogger', function () use ($loggerClass) {
             return new $loggerClass;
         });
     }

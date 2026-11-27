@@ -8,6 +8,7 @@
 
 namespace Cms\Core\Http\Controllers\V2\Admin;
 
+use Cms\Core\Services\UpdateBatch\UpdateBatches;
 use Cms\Core\Responses\AppResponse;
 
 
@@ -480,6 +481,9 @@ class WidgetController extends AdminController
     public function hubDownload(string $widgetKey): mixed
     {
         return $this->hubAction(function () use ($widgetKey): mixed {
+            if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+                return $refused;
+            }
             $installer = app(WidgetHubInstaller::class);
             $widget = $installer->download($widgetKey, (int) user()?->id);
 
@@ -511,6 +515,9 @@ class WidgetController extends AdminController
     public function hubUpdate(int $id): mixed
     {
         return $this->hubAction(function () use ($id): mixed {
+            if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+                return $refused;
+            }
             $installer = app(WidgetHubInstaller::class);
             $widget = $installer->update($id, (int) user()?->id);
 

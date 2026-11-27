@@ -71,15 +71,43 @@ final class CoreManifest
     /**
      * The manifest of this site, or null when the site was not installed from a core package.
      *
-     * @param  string|null  $base  Tree root (default: base_path()).
+     * @param  string|null  $base  Tree root (default: {@see self::defaultBase()}).
      *
      * @throws InvalidArgumentException When the file exists but is not a valid manifest.
      */
     public static function installed(?string $base = null): ?self
     {
-        $path = rtrim($base ?? base_path(), '/\\').'/'.self::FILE;
+        $path = rtrim($base ?? self::defaultBase(), '/\\').'/'.self::FILE;
 
         return is_file($path) ? self::fromFile($path) : null;
+    }
+
+    /**
+     * Where the installed manifest is read when no base is given: base_path(), unless `ispa-cms.core_manifest_base`
+     * is set. That key is a test seam only (tests point it at a temp folder so a real manifest is never read or
+     * written); production never sets it.
+     */
+    public static function defaultBase(): string
+    {
+        $base = config('ispa-cms.core_manifest_base');
+
+        return is_string($base) && $base !== '' ? $base : base_path();
+    }
+
+    /**
+     * The installed iSPA CMS version: the manifest's, else the VERSION file (`ispa-cms.app_version`). An admin upgrade
+     * on a CI-deployed site rewrites the manifest but never VERSION (deploy-owned, {@see CoreFileSwapper::DEPLOY_OWNED_FILES}).
+     * An unreadable manifest falls back to VERSION instead of throwing.
+     */
+    public static function installedVersion(?string $base = null): string
+    {
+        try {
+            $manifest = self::installed($base);
+        } catch (InvalidArgumentException) {
+            $manifest = null;
+        }
+
+        return $manifest?->version ?? (string) config('ispa-cms.app_version', '');
     }
 
     /**

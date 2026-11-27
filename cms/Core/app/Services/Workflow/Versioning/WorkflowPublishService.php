@@ -31,6 +31,9 @@ use Throwable;
  * - something did (a first publish counts every sensitive element) → a step-up grant `workflow_publish` is required
  *   (WorkflowStepUpRequired otherwise), then `pending_review` when another publisher exists (they approve or reject;
  *   the author never approves), else `cooling_off` until `effective_at` (promoteDue(), the minute scheduler tick).
+ *   On a single-publisher site the publisher may skip the waiting time: `release now` on the publish (one step-up
+ *   covers it) or releaseNow() on the waiting version (a new step-up); both are audited as `version_promoted` with
+ *   reason `released_now`. A `pending_review` version always waits for the second publisher.
  *   The authors of a version are who pressed Publish and every draft editor since the draft last matched the live
  *   version (WorkflowAuthors, frozen into `editor_ids`): none of them approves it, and none counts as "another
  *   publisher" (review fix 14). Sensitive changes are compared with the live version's graph, recomputed from its
@@ -110,10 +113,12 @@ class WorkflowPublishService
      *
      * @throws WorkflowPublishRefused When the policy finds problems.
      * @throws WorkflowStepUpRequired When the change is sensitive and no valid step-up grant came with it.
+     *
+     * @param bool $releaseNow A change that would wait out the cooling-off (no second publisher) goes live at once.
      */
-    public function publish(WorkflowProject $project, User $user, ?string $note = null): WorkflowVersion
+    public function publish(WorkflowProject $project, User $user, ?string $note = null, bool $releaseNow = false): WorkflowVersion
     {
-        return $this->store($project, $user, $note, static fn (WorkflowProject $locked): array => WorkflowVersionSnapshot::fromDraft($locked));
+        return $this->store($project, $user, $note, static fn (WorkflowProject $locked): array => WorkflowVersionSnapshot::fromDraft($locked), null, $releaseNow);
     }
 
     /**
@@ -240,6 +245,37 @@ class WorkflowPublishService
     }
 
     /**
+     * The publisher of a single-publisher site puts a `cooling_off` version live before its waiting time ends, after
+     * confirming their account again. A `pending_review` version still needs the second publisher.
+     *
+     * @throws WorkflowChangeRefused      not_allowed, not_pending.
+     * @throws WorkflowStepUpRequired     Without a valid step-up grant.
+     * @throws WorkflowPublishRefused     When the policy finds problems in it today.
+     * @throws WorkflowIntegrityException When its content or pending seal was changed while it waited.
+     */
+    public function releaseNow(WorkflowVersion $version, User $user): WorkflowVersion
+    {
+        $project = WorkflowProject::query()->findOrFail($version->project_id);
+        if (!$user->can(self::PUBLISH_ABILITY, $project)) {
+            throw WorkflowChangeRefused::notAllowed();
+        }
+        if ($version->status !== WorkflowVersion::STATUS_COOLING_OFF) {
+            throw WorkflowChangeRefused::notPending();
+        }
+        $this->assertStepUp($user);
+
+        try {
+            $live = $this->promote($version, [WorkflowVersion::STATUS_COOLING_OFF], $user);
+        } catch (WorkflowIntegrityException $e) {
+            WorkflowIntegrity::violated($e, null, 'release_now');
+            throw $e;
+        }
+        $this->releasedNow($project, $live->number, $user);
+
+        return $live;
+    }
+
+    /**
      * Another publisher refuses a waiting version.
      *
      * @throws WorkflowChangeRefused
@@ -281,6 +317,11 @@ class WorkflowPublishService
     public function canCancel(WorkflowVersion $version, User $user): bool
     {
         return (int) $version->created_by === (int) $user->getKey() || $user->isWebmaster();
+    }
+
+    public function canReleaseNow(WorkflowVersion $version, User $user, WorkflowProject $project): bool
+    {
+        return $version->status === WorkflowVersion::STATUS_COOLING_OFF && $user->can(self::PUBLISH_ABILITY, $project);
     }
 
     public function canApprove(WorkflowVersion $version, User $user, WorkflowProject $project): bool
@@ -404,10 +445,11 @@ class WorkflowPublishService
     /**
      * @param callable(WorkflowProject): array<string, mixed> $graphOf Graph to freeze, read under the project lock.
      */
-    protected function store(WorkflowProject $project, User $user, ?string $note, callable $graphOf, ?WorkflowVersion $rollbackOf = null): WorkflowVersion
+    protected function store(WorkflowProject $project, User $user, ?string $note, callable $graphOf, ?WorkflowVersion $rollbackOf = null, bool $releaseNow = false): WorkflowVersion
     {
         $previousNumber = null;
-        $version = DB::transaction(function () use ($project, $user, $note, $graphOf, $rollbackOf, &$previousNumber): WorkflowVersion {
+        $releasedNow = false;
+        $version = DB::transaction(function () use ($project, $user, $note, $graphOf, $rollbackOf, $releaseNow, &$previousNumber, &$releasedNow): WorkflowVersion {
             $locked = WorkflowProject::query()->lockForUpdate()->findOrFail($project->getKey());
             $graph = $graphOf($locked);
             $current = $this->publishedOf($locked);
@@ -429,6 +471,12 @@ class WorkflowPublishService
             $version = $this->candidate($locked, $graph, (int) $user->getKey(), $note, $editors);
             $version->publishChanges = $this->sensitiveChanges($current, (array) $version->sensitive_summary);
             $status = $this->gate($locked, $version, $user);
+            // No second publisher: the publisher chose not to wait out the cooling-off (step-up already checked).
+            if ($status === WorkflowVersion::STATUS_COOLING_OFF && $releaseNow) {
+                $status = null;
+                $version->effective_at = null;
+                $releasedNow = true;
+            }
 
             // A newer publish of the project replaces whatever still waits.
             $this->cancelWaiting($locked, $user);
@@ -454,7 +502,9 @@ class WorkflowPublishService
         if ($version->publishPath === self::PATH_PUBLISHED) {
             $rollbackOf
                 ? $this->alert('version_rolled_back', $project, ['version' => $version->number, 'from_version' => $previousNumber, 'to_version' => $rollbackOf->number], $user)
-                : $this->alert('version_published', $project, ['version' => $version->number], $user);
+                : ($releasedNow
+                    ? $this->releasedNow($project, $version->number, $user)
+                    : $this->alert('version_published', $project, ['version' => $version->number], $user));
         } elseif ($version->publishPath !== self::PATH_UNCHANGED) {
             WorkflowAudit::project(WorkflowAudit::VERSION_PENDING, $project, [
                 'version' => $version->number,
@@ -612,6 +662,13 @@ class WorkflowPublishService
         }
 
         return false;
+    }
+
+    /** Audit and alert of a sensitive change put live before its cooling-off ended. */
+    protected function releasedNow(WorkflowProject $project, int $number, User $user): void
+    {
+        WorkflowAudit::project(WorkflowAudit::VERSION_PROMOTED, $project, ['version' => $number, 'reason' => 'released_now'], 'warning', (int) $user->getKey());
+        $this->alert('version_published', $project, ['version' => $number, 'reason' => 'released_now'], $user);
     }
 
     protected function coolingOffMinutes(): int

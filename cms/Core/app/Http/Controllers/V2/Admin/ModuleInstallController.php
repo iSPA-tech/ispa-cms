@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Cms\Core\Http\Controllers\V2\Admin;
 
+use Cms\Core\Services\UpdateBatch\UpdateBatches;
 use App\Models\User;
 use Cms\Core\Events\AuditLogEvent;
 use Cms\Core\Http\Controllers\AdminController;
@@ -17,6 +18,7 @@ use Cms\Core\Jobs\Modules\RebuildAdminJob;
 use Cms\Core\Models\ModuleInstall;
 use Cms\Core\Services\BackgroundTasks\BackgroundTaskRecorder;
 use Cms\Core\Services\Modules\Install\InstallPreflight;
+use Cms\Core\Services\Modules\Install\InstallRecorder;
 use Cms\Core\Services\Modules\Install\InstallRunDispatcher;
 use Cms\Core\Services\Modules\Install\ModuleInstaller;
 use Cms\Core\Services\Modules\Install\ModuleInstallPolicy;
@@ -28,7 +30,6 @@ use Cms\Core\Services\Modules\Packages\ReleaseManifest;
 use Cms\Core\Services\Platform\PlatformHubException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -65,11 +66,14 @@ final class ModuleInstallController extends AdminController
      *
      * @return mixed
      */
-    public function store(Request $request, InstallPreflight $preflight, BackgroundTaskRecorder $recorder)
+    public function store(Request $request, InstallPreflight $preflight)
     {
         $user = $request->user();
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return ires()->forbidden('Only a Webmaster can use this endpoint.')->errorCode('WEBMASTER_ONLY');
+        }
+        if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+            return $refused;
         }
 
         $data = $request->validate([
@@ -112,7 +116,7 @@ final class ModuleInstallController extends AdminController
             }
 
             $thirdParty = $this->thirdParty($preflight, $result, $name, null, false);
-            $install = $this->record($recorder, $user, $name, $version, ModuleInstall::SOURCE_HUB, $result, $confirmed, null, $this->backupChosen($request), $thirdParty);
+            $install = app(InstallRecorder::class)->record($user, $name, $version, ModuleInstall::SOURCE_HUB, $result, $confirmed, null, $this->backupChosen($request), $thirdParty);
         } finally {
             $lock->release();
         }
@@ -137,11 +141,14 @@ final class ModuleInstallController extends AdminController
      *
      * @return mixed
      */
-    public function upload(Request $request, InstallPreflight $preflight, BackgroundTaskRecorder $recorder, PackageVerifier $verifier)
+    public function upload(Request $request, InstallPreflight $preflight, PackageVerifier $verifier)
     {
         $user = $request->user();
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return ires()->forbidden('Only a Webmaster can use this endpoint.')->errorCode('WEBMASTER_ONLY');
+        }
+        if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+            return $refused;
         }
 
         $request->validate([
@@ -196,7 +203,7 @@ final class ModuleInstallController extends AdminController
             }
 
             $thirdParty = $this->thirdParty($preflight, $result, $manifest->name, $manifest->keyId, true);
-            $install = $this->recordUpload($recorder, $user, $manifest, $result, $confirmed, $package, $signature, $this->backupChosen($request), $thirdParty);
+            $install = $this->recordUpload($user, $manifest, $result, $confirmed, $package, $signature, $this->backupChosen($request), $thirdParty);
             if (! $install instanceof ModuleInstall) {
                 return $install;
             }
@@ -273,6 +280,9 @@ final class ModuleInstallController extends AdminController
         $user = $request->user();
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return ires()->forbidden('Only a Webmaster can use this endpoint.')->errorCode('WEBMASTER_ONLY');
+        }
+        if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+            return $refused;
         }
 
         $data = $request->validate([
@@ -489,47 +499,12 @@ final class ModuleInstallController extends AdminController
     }
 
     /**
-     * Create the queued install row and its background task in one transaction.
-     *
-     * @param bool                 $backup     the person chose to take the safety backup first (false stores `backup_skipped`)
-     * @param array<string, mixed> $thirdParty {@see self::thirdParty()}
-     */
-    private function record(BackgroundTaskRecorder $recorder, User $user, string $name, string $version, string $source, PreflightResult $result, bool $confirmed, ?string $uuid = null, bool $backup = true, array $thirdParty = []): ModuleInstall
-    {
-        $irreversible = in_array(InstallPreflight::WARN_IRREVERSIBLE, $result->warningCodes(), true);
-        $confirmedThirdParty = ($thirdParty['confirmed'] ?? false) === true;
-
-        return DB::transaction(function () use ($recorder, $user, $name, $version, $source, $irreversible, $confirmed, $result, $uuid, $backup, $thirdParty, $confirmedThirdParty): ModuleInstall {
-            $task = $recorder->start(ModuleInstall::TASK_TYPE, 'Core', (int) $user->id);
-
-            return ModuleInstall::query()->create(array_filter([
-                'uuid' => $uuid,
-                'name' => $name,
-                'version' => $version,
-                'source' => $source,
-                'kind' => $result->kind,
-                'previous_version' => $result->previousVersion,
-                'status' => ModuleInstall::STATUS_QUEUED,
-                'step_message' => 'Waiting for a queue worker.',
-                'background_task_uuid' => $task->uuid,
-                'requested_by' => (int) $user->id,
-                'confirmed_irreversible' => $irreversible && $confirmed,
-                'backup_skipped' => ! $backup,
-                'warnings' => $result->warnings,
-                'third_party_publisher' => $thirdParty['third_party_publisher'] ?? null,
-                'third_party_confirmed_by' => $confirmedThirdParty ? (int) $user->id : null,
-                'third_party_confirmed_at' => $confirmedThirdParty ? Carbon::now() : null,
-            ], static fn (mixed $value): bool => $value !== null));
-        });
-    }
-
-    /**
      * Stage the uploaded files under the new install's uuid, then record the row; staging is removed on failure.
      *
      * @param array<string, mixed> $thirdParty partner fields ({@see self::thirdParty()})
      * @return ModuleInstall|mixed the row, or a 500 answer when the files can not be staged
      */
-    private function recordUpload(BackgroundTaskRecorder $recorder, User $user, ReleaseManifest $manifest, PreflightResult $result, bool $confirmed, UploadedFile $package, UploadedFile $signature, bool $backup = true, array $thirdParty = []): mixed
+    private function recordUpload(User $user, ReleaseManifest $manifest, PreflightResult $result, bool $confirmed, UploadedFile $package, UploadedFile $signature, bool $backup = true, array $thirdParty = []): mixed
     {
         $uuid = (string) Str::uuid();
         try {
@@ -544,7 +519,7 @@ final class ModuleInstallController extends AdminController
         }
 
         try {
-            return $this->record($recorder, $user, $manifest->name, $manifest->version, ModuleInstall::SOURCE_UPLOAD, $result, $confirmed, $uuid, $backup, $thirdParty);
+            return app(InstallRecorder::class)->record($user, $manifest->name, $manifest->version, ModuleInstall::SOURCE_UPLOAD, $result, $confirmed, $uuid, $backup, $thirdParty);
         } catch (Throwable $e) {
             app(ModuleInstaller::class)->cleanStaging((new ModuleInstall())->forceFill(['uuid' => $uuid]));
             throw $e;

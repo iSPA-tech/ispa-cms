@@ -169,7 +169,7 @@ it('audits webhook rotate and disable, error workflow, schedule and manual run c
     $editor = wgUser('editor', ['workflow_project.update', 'workflow_project.viewAny', 'workflow_project.run', 'workflow_project.publish']);
     $this->actingAs($editor, 'sanctum');
     $project = wgProject();
-    $base = "https://localhost/api/v2/admin/workflow/projects/{$project->id}";
+    $base = "https://localhost/api/v2/admin/workflow/projects/{$project->uuid}";
 
     $rotated = $this->postJson("{$base}/webhook")->assertOk();
     $disabled = $this->deleteJson("{$base}/webhook")->assertOk();
@@ -178,7 +178,7 @@ it('audits webhook rotate and disable, error workflow, schedule and manual run c
         ->and(json_encode($rotateAudit?->changed))->not->toContain((string) $rotated->json('data.webhook.secret'))
         ->and(wgAudit(WorkflowAudit::WEBHOOK_DISABLED))->not->toBeNull();
 
-    $this->putJson("{$base}/error-workflow", ['error_workflow_project_id' => null])->assertOk();
+    $this->putJson("{$base}/error-workflow", ['error_workflow_uuid' => null])->assertOk();
     expect(wgAudit(WorkflowAudit::ERROR_WORKFLOW_CHANGED))->toBeNull(); // nothing changed, nothing recorded
 
     $this->putJson("{$base}/schedule", ['cron' => '0 8 * * *'])->assertOk();
@@ -221,7 +221,7 @@ it('alerts on the integrity event lane 1 dispatches', function (): void {
 
 it('issues a webhook secret only to a publisher with a fresh step-up, and alerts when the workflow is live', function (): void {
     $project = wgProject(['is_active' => true]);
-    $url = "https://localhost/api/v2/admin/workflow/projects/{$project->id}/webhook";
+    $url = "https://localhost/api/v2/admin/workflow/projects/{$project->uuid}/webhook";
 
     $this->actingAs(wgUser('drafter', ['workflow_project.update', 'workflow_project.viewAny']), 'sanctum');
     $this->withoutMiddleware(RequireStepUpGrant::class)->postJson($url)->assertForbidden();

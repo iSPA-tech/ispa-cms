@@ -192,7 +192,7 @@ const lastSaved = (wrapper: ReturnType<typeof mount>) => {
 beforeEach(() => {
     api.fetchWorkflowPresets.mockReset().mockImplementation(async (kind: string) => (kind === 'jev_criteria' ? criteriaPresets : kind === 'classify_labels' ? labelPresets : []))
     api.fetchPermissionOptions.mockReset().mockResolvedValue([
-        { key: 'sample-module.stories.review', label: 'Duyệt bài viết', module: 'SampleModule', module_label: 'Mô-đun mẫu' },
+        { key: 'sample-module.stories.review', label: 'Duyệt bài viết', module: 'SampleModule', module_label: 'Mô-đun mẫu', resource_label: 'Truyện' },
         { key: 'agentic.approve', label: 'Duyệt việc AI đề xuất', module: 'Core', module_label: 'Hệ thống' },
     ])
     api.fetchModelList.mockReset().mockResolvedValue([{ class: 'Cms\\SampleModule\\Models\\Place', short_name: 'Place' }])
@@ -339,8 +339,8 @@ describe('approval: what the reviewer may edit is a checklist', () => {
         expect(select.props('value')).toBe('sample-module.stories.review')
         // Grouped by module, each permission by its name.
         expect(select.props('options')).toEqual([
-            { label: 'Mô-đun mẫu', options: [{ value: 'sample-module.stories.review', label: 'Duyệt bài viết' }] },
-            { label: 'Hệ thống', options: [{ value: 'agentic.approve', label: 'Duyệt việc AI đề xuất' }] },
+            { label: 'Mô-đun mẫu', options: [{ value: 'sample-module.stories.review', label: 'Mô-đun mẫu › Truyện › Duyệt bài viết' }] },
+            { label: 'Hệ thống', options: [{ value: 'agentic.approve', label: 'Hệ thống › Duyệt việc AI đề xuất' }] },
         ])
         wrapper.unmount()
     })

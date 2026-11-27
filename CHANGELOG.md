@@ -2,6 +2,39 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.08
+
+- **Ships Core module 2026.11.13, Content 2026.11.10 and Widget 2026.11.01.**
+- **Update everything at once**: the Modules page and the widget and workflow libraries offer one "update all" run.
+  Items run one at a time in the order their requirements need, with a progress panel; it can be stopped, never
+  stays stuck, and skips versions that cannot be undone at their turn.
+- **Workflows**: one click away in the sidebar, with the library, import and credentials as entries.
+  - The setup screen asks who is told by name ("Name - username"), suggests the people who may see the record and
+    previews the recipients; permissions stay under "advanced".
+  - The permission picker names the module, what the permission is about and the action.
+  - A site names who reviews workflow changes; the only publisher can put a waiting change live at once.
+  - A switched-on workflow takes over the built-in contact mail; newsletter sign-ups start no contact workflow.
+  - E-mail templates match a language by code or path and gain the site languages they lack.
+  - Installed templates are laid out top to bottom; a weekly report template is included.
+- **Notifications**: each notification shows what it says under its label; the new-device sign-in and step-up lock
+  notices are named and say which device.
+- **Core updates**:
+  - The admin reloads itself after a Core update it watched finish.
+  - The dashboard and the site report show the installed version after an admin update.
+  - An update installed from the release zip imports the new translations and writes the admin language packs.
+  - The Modules page reload also refreshes the update card.
+- **Settings**:
+  - The settings are the source of the environment-bound application settings; the theme folder is read-only in the
+    admin and changes when the site is deployed.
+  - Saving settings refreshes only the settings caches, and Redis cache stores flush only their own prefix, so a
+    shared Redis database is never emptied.
+- **Fixes**:
+  - Images served as `application/octet-stream` are accepted when the bytes are an image.
+  - The system sender name follows the site brand.
+  - Widget seeding on PostgreSQL moves the id sequences past older rows.
+  - Leftover unprefixed status rows are retired.
+  - A workflow run without a resume step starts at its trigger.
+
 ## 2026.11.07
 
 - **Ships Core module 2026.11.11.**

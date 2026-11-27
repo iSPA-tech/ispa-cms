@@ -113,7 +113,8 @@ const saveErrors = computed(() => errorsFor({ id: props.id, data: props.data }))
 // "Yes" first, whichever of the two stored handles carries it. A decision written by a template installer has no
 // yes_output/no_output and links on the node's named outputs `true` / `false`, which the runtime also follows.
 const outputs = computed(() => {
-    if (!isLegacyDecision(props.data?.step_config)) {
+    const outgoing = (getEdges.value || []).filter((edge) => edge.source === props.id)
+    if (!isLegacyDecision(props.data?.step_config, outgoing)) {
         return [
             { id: 'true', tone: 'green', labelKey: 'text.workflow.output.true', testId: 'decision-output-a' },
             { id: 'false', tone: 'red', labelKey: 'text.workflow.output.false', testId: 'decision-output-b' },

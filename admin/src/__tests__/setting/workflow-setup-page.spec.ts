@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const api = vi.hoisted(() => ({ fetchWorkflowSetup: vi.fn(), saveWorkflowSetup: vi.fn(), findWorkflow: vi.fn(), safeTestRun: vi.fn() }))
+const api = vi.hoisted(() => ({ fetchWorkflowSetup: vi.fn(), saveWorkflowSetup: vi.fn(), findWorkflow: vi.fn(), safeTestRun: vi.fn(), fetchNoticeRecipients: vi.fn() }))
 const guard = vi.hoisted(() => ({ previewPublish: vi.fn() }))
 const libs = vi.hoisted(() => ({ updateWorkflow: vi.fn() }))
 const access = vi.hoisted(() => ({ rules: new Set<string>() }))
@@ -36,6 +36,7 @@ vi.mock('@core-admin/pages/setting/workflows-manage/components/workflow-publish-
 }))
 
 import SetupPage from '@core-admin/pages/setting/workflow-setup.vue'
+import { fetchPermissionOptions } from '@/services/workflowApi'
 import { changedAnswers, initialAnswer, isAnswered, openQuestionCount, setupProgress, wireAnswers } from '@core-admin/workflow-setup-api'
 
 const stubs = {
@@ -62,9 +63,9 @@ const stubs = {
     'a-radio': { props: ['value'], inject: ['pick'], template: '<button type="button" :data-radio="value" @click="pick(value)"><slot /></button>' },
 }
 
-const workflow = { id: 7, slug: 'church-story', name: 'Bài về nhà thờ', is_active: false }
+const workflow = { id: 7, uuid: 'wf-7', slug: 'church-story', name: 'Bài về nhà thờ', is_active: false }
 const reviewers = (over: Record<string, unknown> = {}) => ({ key: 'review.reviewer_permission', kind: 'reviewers', step_code: 'review', field: 'reviewer_permission', label: 'Ai duyệt ở bước “Duyệt bài”?', help: 'h', required: true, answered: false, current: { permission: null, assignees: [] }, ...over })
-const notify = (over: Record<string, unknown> = {}) => ({ key: 'notify.permission', kind: 'notify_channel', step_code: 'notify', field: 'permission', label: 'Báo cho ai?', help: 'h', required: true, answered: true, current: 'sample-module.stories.review', ...over })
+const notify = (over: Record<string, unknown> = {}) => ({ key: 'notify.permission', kind: 'notify_channel', step_code: 'notify', field: 'permission', label: 'Báo cho ai?', help: 'h', required: true, answered: true, current: { permission: 'sample-module.stories.review', users: [], suggested: null }, ...over })
 const schedule = (over: Record<string, unknown> = {}) => ({ key: 'schedule', kind: 'schedule', label: 'Chạy khi nào?', help: 'h', required: true, answered: false, current: { cron: null, timezone: null, by_hand: false }, ...over })
 const setupOf = (questions: unknown[], complete = false) => ({ complete, questions, preset: [{ label: 'Bài chỉ được đăng sau khi có người duyệt' }] })
 
@@ -101,7 +102,7 @@ describe('setup rules', () => {
 
     it('counts progress, the open questions of the list badge, and sends only what changed', () => {
         const questions = [reviewers(), notify(), schedule()]
-        const answers = { 'review.reviewer_permission': { permission: 'a.b', assignees: [] }, 'notify.permission': 'sample-module.stories.review', schedule: { cron: null, timezone: null } }
+        const answers = { 'review.reviewer_permission': { permission: 'a.b', assignees: [] }, 'notify.permission': { permission: 'sample-module.stories.review', users: [] }, schedule: { cron: null, timezone: null } }
         expect(setupProgress(questions, answers)).toEqual({ done: 2, total: 3 })
         expect(openQuestionCount(setupOf(questions))).toBe(2)
         expect(changedAnswers(questions, answers)).toEqual({ 'review.reviewer_permission': { permission: 'a.b', assignees: [] } })
@@ -136,7 +137,7 @@ describe('setup screen', () => {
 
     it('shows the questions, what the sample already set, and keeps "save and turn on" closed until all are answered', async () => {
         const wrapper = await open()
-        expect(api.fetchWorkflowSetup).toHaveBeenCalledWith(7)
+        expect(api.fetchWorkflowSetup).toHaveBeenCalledWith('wf-7')
         expect(wrapper.get('[data-testid="setup-progress"]').text()).toContain('"done":1,"total":3')
         expect(wrapper.findAll('[data-testid="setup-question"]').map((row) => row.attributes('data-answered'))).toEqual(['no', 'yes', 'no'])
         // The first open question is the one being asked; an answered one shows its choice by name.
@@ -164,7 +165,7 @@ describe('setup screen', () => {
         )
         await wrapper.get('[data-testid="setup-save-enable"]').trigger('click')
         await flushPromises()
-        expect(api.saveWorkflowSetup).toHaveBeenCalledWith(7, {
+        expect(api.saveWorkflowSetup).toHaveBeenCalledWith('wf-7', {
             'review.reviewer_permission': { permission: 'sample-module.stories.review', assignees: [] },
             schedule: { cron: '', timezone: null },
         })
@@ -175,7 +176,7 @@ describe('setup screen', () => {
         dialog.vm.$emit('done', { path: 'published' })
         dialog.vm.$emit('close')
         await flushPromises()
-        expect(libs.updateWorkflow).toHaveBeenCalledWith(7, { is_active: true })
+        expect(libs.updateWorkflow).toHaveBeenCalledWith('wf-7', { is_active: true })
         expect(wrapper.get('[data-testid="setup-outcome"]').attributes('data-outcome')).toBe('enabled')
         expect(wrapper.find('[data-testid="setup-actions"]').exists()).toBe(false)
     })
@@ -202,7 +203,7 @@ describe('setup screen', () => {
         await wrapper.get('[data-testid="setup-save-enable"]').trigger('click')
         await flushPromises()
         expect(wrapper.getComponent({ name: 'WorkflowPublishDialog' }).props('open')).toBe(false)
-        expect(libs.updateWorkflow).toHaveBeenCalledWith(7, { is_active: true })
+        expect(libs.updateWorkflow).toHaveBeenCalledWith('wf-7', { is_active: true })
     })
 
     it('marks the question whose answer the server refused and switches nothing on', async () => {
@@ -234,7 +235,7 @@ describe('setup screen', () => {
         const wrapper = await open()
         await wrapper.get('[data-testid="setup-test-run"]').trigger('click')
         await flushPromises()
-        expect(api.safeTestRun).toHaveBeenCalledWith(7)
+        expect(api.safeTestRun).toHaveBeenCalledWith('wf-7')
         expect(wrapper.get('[data-testid="setup-run"]').attributes('data-state')).toBe('completed')
         expect(api.saveWorkflowSetup).not.toHaveBeenCalled()
 
@@ -257,5 +258,39 @@ describe('setup screen', () => {
         expect(wrapper.find('[data-testid="setup-read-only"]').exists()).toBe(true)
         expect(wrapper.find('[data-testid="setup-save-enable"]').exists()).toBe(false)
         expect(wrapper.find('[data-testid="setup-question-next"]').exists()).toBe(false)
+    })
+})
+
+describe('who is told by a notice', () => {
+    it('asks for people, shows the suggestion as names to accept in one click, keeps permissions behind "advanced"', async () => {
+        access.rules = new Set(['workflow_project.viewAny', 'workflow_project.update'])
+        api.findWorkflow.mockResolvedValue(workflow)
+        api.fetchWorkflowSetup.mockResolvedValue(setupOf([notify({ answered: false, current: { permission: null, users: [], suggested: 'email.viewAny' } })]))
+        api.fetchNoticeRecipients.mockImplementation(async (_id: number, answer: { permission?: string; users?: string[] }) =>
+            answer.users?.length
+                ? { count: 2, people: [{ uuid: 'u1', name: 'An', detail: 'an01' }, { uuid: 'u2', name: 'Bình', detail: null }], more: 0 }
+                : { count: 2, people: [{ uuid: 'u1', name: 'An', detail: 'an01' }, { uuid: 'u2', name: 'Bình', detail: null }], more: 0 }
+        )
+
+        const wrapper = await open()
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        await flushPromises()
+
+        const body = () => wrapper.get('[data-key="notify.permission"]')
+        expect(body().find('[data-testid="setup-notice-people"] [data-testid="reviewer-picker"]').exists()).toBe(true)
+        // Nothing filled in silently; no list of permissions on the screen.
+        expect(body().find('[data-testid="setup-notice-group"]').exists()).toBe(false)
+        expect(api.fetchNoticeRecipients).toHaveBeenCalledWith('wf-7', { permission: 'email.viewAny', users: [] })
+        expect(body().get('[data-testid="setup-notice-suggestion"]').text()).toContain('An - an01, Bình')
+
+        await body().get('[data-testid="setup-notice-use-suggestion"]').trigger('click')
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        await flushPromises()
+        expect(body().find('[data-testid="setup-notice-suggestion"]').exists()).toBe(false)
+        expect(api.fetchNoticeRecipients).toHaveBeenLastCalledWith('wf-7', { permission: '', users: ['u1', 'u2'] })
+        expect(body().get('[data-testid="setup-notice-preview"]').text()).toBe('text.workflow.setup.notify_preview{"count":2,"names":"An - an01, Bình"}')
+
+        await body().get('[data-testid="setup-notice-advanced"]').trigger('click')
+        expect(body().find('[data-testid="setup-notice-group"] [data-testid="permission-picker"]').exists()).toBe(true)
     })
 })

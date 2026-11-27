@@ -36,7 +36,7 @@ class WorkflowSetupController extends Controller
 {
     public function show(string $project, WorkflowSetupService $setup)
     {
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (!$model) {
             return ires()->notFound(__('mgs.model.404'));
         }
@@ -47,9 +47,28 @@ class WorkflowSetupController extends Controller
         return ires()->data($setup->describe($model));
     }
 
+    /**
+     * Who a notice step would reach with the answer on screen (`?permission=…&users[]=<uuid>`): count and first names.
+     */
+    public function recipients(Request $request, string $project, WorkflowSetupService $setup)
+    {
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
+        if (!$model) {
+            return ires()->notFound(__('mgs.model.404'));
+        }
+        if (!$request->user()?->can('update', $model)) {
+            return ires()->forbidden(__('mgs.no.permission'));
+        }
+
+        $permission = $request->query('permission');
+        $users = array_values(array_filter((array) $request->query('users', []), static fn ($uuid): bool => is_string($uuid) && $uuid !== ''));
+
+        return ires()->data($setup->noticeRecipients(is_string($permission) ? $permission : null, array_slice($users, 0, 50)));
+    }
+
     public function update(Request $request, string $project, WorkflowSetupService $setup, WorkflowProjectRunService $runs)
     {
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (!$model) {
             return ires()->notFound(__('mgs.model.404'));
         }
@@ -76,7 +95,7 @@ class WorkflowSetupController extends Controller
 
     public function testRun(Request $request, string $project, WorkflowPackageExporter $exporter, WorkflowPackageInspector $inspector, WorkflowSetupService $setup)
     {
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (!$model) {
             return ires()->notFound(__('mgs.model.404'));
         }

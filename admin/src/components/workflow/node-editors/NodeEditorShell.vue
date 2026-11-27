@@ -105,7 +105,7 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    /** Id of the workflow, for sample values from its last run. */
+    /** Uuid of the workflow, for sample values from its last run. */
     workflowId: {
         type: [Number, String],
         default: null,

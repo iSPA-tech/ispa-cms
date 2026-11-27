@@ -175,22 +175,27 @@ function cdoPackage(string $dir, array $override = [], string $lock = '{"package
     return [(new PackageSigner())->envelope($manifest, $secret), $zipPath, [$keyId => base64_encode($public)]];
 }
 
-/** @return array{0: CoreUpgrader, 1: object} upgrader and the fake process runner */
-function cdoUpgrader(string $release, array $pkg, ?CoreHealthCheck $health = null): array
+/**
+ * @param list<string> $failing Commands (without the php binary) the fake runner answers with exit 1.
+ *
+ * @return array{0: CoreUpgrader, 1: object} upgrader and the fake process runner
+ */
+function cdoUpgrader(string $release, array $pkg, ?CoreHealthCheck $health = null, array $failing = []): array
 {
-    $runner = new class extends ProcessRunner {
+    $runner = new class($failing) extends ProcessRunner {
         /** @var list<string> */
         public array $commands = [];
 
-        public function __construct()
+        /** @param list<string> $failing */
+        public function __construct(private array $failing)
         {
         }
 
         public function run(array $cmd, ?string $cwd, array $env = [], bool $quiet = false): int
         {
-            $this->commands[] = implode(' ', array_slice($cmd, 1));
+            $this->commands[] = $line = implode(' ', array_slice($cmd, 1));
 
-            return 0;
+            return in_array($line, $this->failing, true) ? 1 : 0;
         }
     };
     $health ??= new class extends CoreHealthCheck {
@@ -423,4 +428,54 @@ test('the runner may work on a deploy-origin release and its cron line goes thro
     unset($data['origin']);
     file_put_contents($this->release.'/'.CoreManifest::FILE, json_encode($data));
     expect((new CoreRunnerTick($this->release))->canRun())->toBeFalse();
+});
+
+test('a deploy-origin update rebuilds the language packs after importing the new translations, as the deploy does', function () {
+    // A CI-deployed site 2026-11-26: the update imported the translations but never ran cms:translation-generate, so the
+    // admin packs (storage/app/public/i18n/<VERSION>/adm, lang/*) kept the old keys and the new texts showed raw keys.
+    [$up, $runner] = cdoUpgrader($this->release, $this->pkg);
+
+    $up->run('2026.11.55', false);
+
+    $sync = array_search('artisan cms:translation-sync --all', $runner->commands, true);
+    $generate = array_search('artisan cms:translation-generate', $runner->commands, true);
+    expect($sync)->toBeInt()
+        ->and($generate)->toBeInt()
+        ->and($generate)->toBeGreaterThan($sync);
+});
+
+test('a failing language pack rebuild only warns', function () {
+    [$up] = cdoUpgrader($this->release, $this->pkg, null, ['artisan cms:translation-generate']);
+
+    $up->run('2026.11.55', false);
+
+    expect(CoreManifest::installed($this->release)->version)->toBe('2026.11.55')
+        ->and(implode("\n", $up->warnings()))->toContain('cms:translation-generate');
+});
+
+test('the admin translation sidecar the deploy proved is written by the update before the translations are imported', function () {
+    // The deploy hook proves cms/{Core,Content,Widget}/database/seeders/sql/translate-admin-*.php (2026-11-26): the
+    // update writes the package's sidecar like any proven core file, then cms:translation-sync imports it. The export
+    // translate.php (rewritten at runtime by cms:translation-generate) and seeders/exported stay the site's.
+    $sidecar = 'cms/Core/database/seeders/sql/translate-admin-authored.php';
+    cdoPut($this->release, $sidecar, "<?php return ['site-build-sidecar-with-private-keys'];\n");
+    cdoPut($this->release, 'cms/Core/database/seeders/sql/translate.php', "<?php return ['site-export'];\n");
+    cdoPut($this->release, 'cms/Core/database/seeders/exported/x.php', "<?php return ['runtime-export'];\n");
+    $data = json_decode((string) file_get_contents($this->release.'/'.CoreManifest::FILE), true);
+    $data['checked'][$sidecar] = hash_file('sha256', $this->release.'/'.$sidecar);
+    file_put_contents($this->release.'/'.CoreManifest::FILE, json_encode($data, JSON_UNESCAPED_SLASHES));
+    $newSidecar = "<?php return ['public-sidecar-with-new-key'];\n";
+    $pkg = cdoPackage($this->dir.'/sidecar', [$sidecar => $newSidecar, 'cms/Core/database/seeders/sql/translate.php' => "<?php return ['public-export'];\n"]);
+    config(['core.module_packages.core_package_key_ids' => [array_key_first($pkg[2])]]);
+    [$up, $runner] = cdoUpgrader($this->release, $pkg);
+
+    $up->run('2026.11.55', false);
+    $manifest = CoreManifest::installed($this->release);
+
+    expect(file_get_contents($this->release.'/'.$sidecar))->toBe($newSidecar)
+        ->and(file_get_contents($this->release.'/cms/Core/database/seeders/sql/translate.php'))->toBe("<?php return ['site-export'];\n")
+        ->and(file_get_contents($this->release.'/cms/Core/database/seeders/exported/x.php'))->toBe("<?php return ['runtime-export'];\n")
+        ->and($manifest->checked[$sidecar] ?? null)->toBe(hash('sha256', $newSidecar))
+        ->and((new CoreIntegrity())->modified($manifest, $this->release))->toBe([])
+        ->and($runner->commands)->toContain('artisan cms:translation-sync --all');
 });

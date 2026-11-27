@@ -111,8 +111,8 @@ class ContactSubmissionService
 
             $inbox->save();
 
-            // One workflow trigger per stored message, returning senders included (dispatched after commit).
-            event(\App\Events\ContactMessageReceived::fromMessage($contact, $inbox));
+            // One workflow trigger per stored message, returning senders included (dispatched after commit); none for a newsletter sign-up.
+            \App\Events\ContactMessageReceived::dispatchFor($contact, $inbox);
 
             DB::commit();
         } catch (Throwable $exception) {

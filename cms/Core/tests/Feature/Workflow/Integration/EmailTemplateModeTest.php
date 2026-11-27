@@ -378,6 +378,36 @@ it('creates a default row once and never overwrites or recreates it', function (
         ->and(EmailTemplate::query()->where('key_name', 'contact_auto_reply')->count())->toBe(0);
 });
 
+// 2026-11-27 a production site: languages stored as code `VN`/`EN` with path `vi`/`en` got only the English default
+// rows, so a Vietnamese site sent English mail. A language is matched by code or path; missing language rows are added.
+it('matches a language by code or path and sends the site language default', function (): void {
+    DB::table('languages')->insert([
+        ['name' => 'Tiếng Việt', 'code' => 'VN', 'path' => 'vi', 'default_web' => true, 'created_at' => now(), 'updated_at' => now()],
+        ['name' => 'English', 'code' => 'EN', 'path' => 'en', 'default_web' => false, 'created_at' => now(), 'updated_at' => now()],
+    ]);
+    $templates = app(ManagedEmailTemplates::class);
+
+    expect($templates->ensureDefaults(['contact_auto_reply']))->toBe(['contact_auto_reply'])
+        ->and(EmailTemplate::query()->where('key_name', 'contact_auto_reply')->count())->toBe(2)
+        ->and($templates->find('workflow', 'contact_auto_reply')->name)->toBe(config('core.mail_templates.workflow.defaults.contact_auto_reply.translations.vi.name'))
+        ->and($templates->find('workflow', 'contact_auto_reply', 'en')->name)->toBe(config('core.mail_templates.workflow.defaults.contact_auto_reply.translations.en.name'));
+});
+
+it('adds the missing language rows of a key without touching an edited row or recreating a deleted one', function (): void {
+    $vi = DB::table('languages')->insertGetId(['name' => 'Tiếng Việt', 'code' => 'VN', 'path' => 'vi', 'default_web' => true, 'created_at' => now(), 'updated_at' => now()]);
+    $en = DB::table('languages')->insertGetId(['name' => 'English', 'code' => 'EN', 'path' => 'en', 'default_web' => false, 'created_at' => now(), 'updated_at' => now()]);
+    $edited = EmailTemplate::query()->create(['name' => 'Edited EN', 'group' => 'workflow', 'key_name' => 'contact_auto_reply', 'content' => 'x', 'language_id' => $en]);
+    $templates = app(ManagedEmailTemplates::class);
+
+    expect($templates->ensureDefaults(['contact_auto_reply']))->toBe(['contact_auto_reply'])
+        ->and($edited->fresh()->name)->toBe('Edited EN')
+        ->and(EmailTemplate::query()->where('key_name', 'contact_auto_reply')->where('language_id', $vi)->count())->toBe(1);
+
+    EmailTemplate::query()->where('key_name', 'contact_auto_reply')->where('language_id', $vi)->first()->delete();
+    expect($templates->ensureDefaults(['contact_auto_reply']))->toBe([])
+        ->and(EmailTemplate::query()->where('key_name', 'contact_auto_reply')->where('language_id', $vi)->count())->toBe(0);
+});
+
 it('serves the admin catalog, variables and a preview filled through the safe renderer', function (): void {
     $this->withoutMiddleware();
     $admin = etmUser('admin@example.test', ['email_template.viewAny', 'email_template.view', 'email_template.create', 'email_template.update']);

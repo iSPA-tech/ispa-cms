@@ -40,7 +40,17 @@
         </div>
 
         <!-- Core update: installed and latest iSPA CMS core, preflight, queued upgrade (Webmaster only) -->
-        <core-update-card v-if="webmaster" class="mb-4" @finished="refetch" />
+        <core-update-card v-if="webmaster" ref="coreCard" class="mb-4" @finished="refetch" />
+        <!-- "Nâng cấp tất cả" (upgrade-all spec 2026-11-26): the open or last run, then the band that starts one -->
+        <update-batch-panel v-if="webmaster" ref="batchPanel" class="mb-4" @state="onBatchState" @history="openHistory" />
+        <update-batch-band
+            v-if="webmaster"
+            ref="batchBand"
+            class="mb-4"
+            :core-update-available="coreUpdateAvailable"
+            :busy="batchOpen"
+            @started="onBatchStarted"
+        />
         <hub-connect-drawer
             v-if="webmaster"
             ref="hubDrawer"
@@ -875,6 +885,9 @@ import ThirdPartyConfirm from './modules/third-party-confirm.vue'
 import CoreUpdateCard from './modules/core-update-card.vue'
 import HubConnectDrawer from './modules/hub-connect-drawer.vue'
 import InstallSwitch from './modules/install-switch.vue'
+import UpdateBatchBand from '../../components/update-batch/update-batch-band.vue'
+import UpdateBatchPanel from '../../components/update-batch/update-batch-panel.vue'
+import { isOpen as batchIsOpen } from '../../update-batch-api'
 import ajax from '@/ajax'
 
 defineComponent({
@@ -1185,6 +1198,39 @@ const toggleModule = async (module, enabled) => {
 /** Last answer of the install-setting API (from the switch card); null until it loads, and when it cannot be read. */
 const installSetting = ref(null)
 const installSwitch = ref(null)
+/** The Core update card, so the page's reload button can refresh it too. */
+const coreCard = ref(null)
+
+// ---- Upgrade all ------------------------------------------------------------------------------------------------
+
+const batchPanel = ref(null)
+const batchBand = ref(null)
+/** The open or last upgrade-all run the panel shows (null when none). */
+const batchState = ref(null)
+const batchOpen = computed(() => batchIsOpen(batchState.value))
+/** The core card's own answer: a newer iSPA CMS that can be installed now. */
+const coreUpdateAvailable = computed(() => coreCard.value?.info?.can_update === true)
+
+/** A run that just ended changed modules, widgets or workflows: read the page again. */
+const onBatchState = (next) => {
+    const wasOpen = batchOpen.value
+    batchState.value = next
+    if (wasOpen && !batchIsOpen(next)) {
+        refetch()
+        loadInstalls(true)
+        batchBand.value?.load?.()
+        coreCard.value?.refresh?.()
+    }
+}
+
+const onBatchStarted = () => {
+    batchPanel.value?.load?.()
+}
+
+const openHistory = () => {
+    tab.value = 'history'
+    loadInstalls()
+}
 
 /**
  * Installs are known to be blocked for the whole website. An unread setting does not block here: the preflight of
@@ -1244,6 +1290,7 @@ const errorText = (error, fallbackKey, params = {}) => {
     }
     const code = moduleErrorCodeOf(error)
     if (code === HUB_NOT_RECOGNISED) return t('text.modules.error.hub_not_recognised')
+    if (code === 'UPDATE_BATCH_RUNNING') return t('text.update_batch.error.running')
     const key = moduleErrorKey(code)
     return key ? t(key, params) : t(fallbackKey)
 }
@@ -1410,6 +1457,8 @@ const onTabChange = (key) => {
 const reloadAll = () => {
     refetch()
     if (!webmaster.value) return
+    // The Core card too, asking the hub for the newest version (its own load on mount answers from the cache).
+    coreCard.value?.refresh?.()
     if (catalog.loaded || tab.value === 'available') loadCatalog()
     loadInstalls()
     loadIntegrity()

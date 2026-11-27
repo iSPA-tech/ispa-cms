@@ -93,7 +93,7 @@ test('manual run creates one instance acting for the caller and dispatches the j
     $project = makeWorkflowRunProject();
     $this->actingAs($editor, 'sanctum');
 
-    $response = $this->postJson("/api/v2/admin/workflow/projects/{$project->id}/run");
+    $response = $this->postJson("/api/v2/admin/workflow/projects/{$project->uuid}/run");
 
     $response->assertStatus(202)
         ->assertJsonPath('data.instance.status', 'pending')
@@ -111,7 +111,7 @@ test('an inactive project answers 422 and starts nothing', function () {
     $this->actingAs(workflowEditor(), 'sanctum');
     $project = makeWorkflowRunProject(['is_active' => false]);
 
-    $this->postJson("/api/v2/admin/workflow/projects/{$project->id}/run")
+    $this->postJson("/api/v2/admin/workflow/projects/{$project->uuid}/run")
         ->assertStatus(422)
         ->assertJsonPath('error_code', 'project_inactive');
 
@@ -124,7 +124,7 @@ test('a project with a run in progress answers 409', function () {
     $project = makeWorkflowRunProject();
     \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['target_type' => WorkflowProject::class, 'project_id' => $project->id, 'status' => 'running']);
 
-    $this->postJson("/api/v2/admin/workflow/projects/{$project->id}/run")
+    $this->postJson("/api/v2/admin/workflow/projects/{$project->uuid}/run")
         ->assertStatus(409)
         ->assertJsonPath('error_code', 'workflow_already_running');
 
@@ -136,8 +136,8 @@ test('a system-managed schedule wrapper can not be run or scheduled here', funct
     $this->actingAs(workflowEditor(), 'sanctum');
     $project = makeWorkflowRunProject(['tags' => ['system-managed', 'schedule-wrapper']]);
 
-    $this->postJson("/api/v2/admin/workflow/projects/{$project->id}/run")->assertStatus(422);
-    $this->putJson("/api/v2/admin/workflow/projects/{$project->id}/schedule", ['cron' => '0 8 * * *'])->assertStatus(422);
+    $this->postJson("/api/v2/admin/workflow/projects/{$project->uuid}/run")->assertStatus(422);
+    $this->putJson("/api/v2/admin/workflow/projects/{$project->uuid}/schedule", ['cron' => '0 8 * * *'])->assertStatus(422);
     expect(WorkflowInstance::query()->count())->toBe(0);
 });
 
@@ -146,12 +146,12 @@ test('run and schedule need the update permission, the run list needs view', fun
     $viewer = makeWorkflowRunUser('viewer', ['workflow_project.viewAny']);
     $this->actingAs($viewer, 'sanctum');
 
-    $this->postJson("/api/v2/admin/workflow/projects/{$project->id}/run")->assertStatus(403);
-    $this->putJson("/api/v2/admin/workflow/projects/{$project->id}/schedule", ['cron' => '0 8 * * *'])->assertStatus(403);
-    $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/instances")->assertOk();
+    $this->postJson("/api/v2/admin/workflow/projects/{$project->uuid}/run")->assertStatus(403);
+    $this->putJson("/api/v2/admin/workflow/projects/{$project->uuid}/schedule", ['cron' => '0 8 * * *'])->assertStatus(403);
+    $this->getJson("/api/v2/admin/workflow/projects/{$project->uuid}/instances")->assertOk();
 
     $this->actingAs(makeWorkflowRunUser('nobody'), 'sanctum');
-    $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/instances")->assertStatus(403);
+    $this->getJson("/api/v2/admin/workflow/projects/{$project->uuid}/instances")->assertStatus(403);
 
     expect(WorkflowInstance::query()->count())->toBe(0)
         ->and($project->fresh()->schedule_cron)->toBeNull();
@@ -168,13 +168,13 @@ test('schedule saves a valid cron for the caller, refuses an invalid one and nul
     $this->actingAs($editor, 'sanctum');
     $project = makeWorkflowRunProject();
 
-    $this->putJson("/api/v2/admin/workflow/projects/{$project->id}/schedule", ['cron' => 'every day', 'timezone' => null])
+    $this->putJson("/api/v2/admin/workflow/projects/{$project->uuid}/schedule", ['cron' => 'every day', 'timezone' => null])
         ->assertStatus(422);
-    $this->putJson("/api/v2/admin/workflow/projects/{$project->id}/schedule", ['cron' => '0 8 * * *', 'timezone' => 'Mars/Base'])
+    $this->putJson("/api/v2/admin/workflow/projects/{$project->uuid}/schedule", ['cron' => '0 8 * * *', 'timezone' => 'Mars/Base'])
         ->assertStatus(422);
     expect($project->fresh()->schedule_cron)->toBeNull();
 
-    $this->putJson("/api/v2/admin/workflow/projects/{$project->id}/schedule", ['cron' => '0 8 * * *', 'timezone' => 'Asia/Ho_Chi_Minh'])
+    $this->putJson("/api/v2/admin/workflow/projects/{$project->uuid}/schedule", ['cron' => '0 8 * * *', 'timezone' => 'Asia/Ho_Chi_Minh'])
         ->assertOk()
         ->assertJsonPath('data.schedule.cron', '0 8 * * *')
         ->assertJsonPath('data.schedule.timezone', 'Asia/Ho_Chi_Minh')
@@ -182,7 +182,7 @@ test('schedule saves a valid cron for the caller, refuses an invalid one and nul
 
     expect($project->fresh()->scheduled_by_user_id)->toBe($editor->id);
 
-    $this->putJson("/api/v2/admin/workflow/projects/{$project->id}/schedule", ['cron' => null])
+    $this->putJson("/api/v2/admin/workflow/projects/{$project->uuid}/schedule", ['cron' => null])
         ->assertOk()
         ->assertJsonPath('data.schedule.cron', null);
 
@@ -205,13 +205,13 @@ test('the run list is paginated with status, source and duration', function () {
     \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['target_type' => WorkflowProject::class, 'project_id' => $project->id, 'status' => 'awaiting_approval']);
     \Cms\Core\Tests\Support\WorkflowTestVersions::instance(['target_type' => WorkflowProject::class, 'project_id' => $other->id, 'status' => 'completed']);
 
-    $response = $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/instances?per_page=1");
+    $response = $this->getJson("/api/v2/admin/workflow/projects/{$project->uuid}/instances?per_page=1");
 
     $response->assertOk()
         ->assertJsonPath('data.meta.total', 2)
         ->assertJsonCount(1, 'data.data');
 
-    $all = $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/instances")->json('data.data');
+    $all = $this->getJson("/api/v2/admin/workflow/projects/{$project->uuid}/instances")->json('data.data');
     $completed = collect($all)->firstWhere('status', 'completed');
     expect($completed['source'])->toBe('schedule')
         ->and($completed['duration_ms'])->toBe(2000);
@@ -341,6 +341,6 @@ test('the run list keeps the source after the executor rewrote the trigger as {e
         'context_snapshot' => ['trigger' => ['event' => 'workflow.project.run', 'at' => '2026-11-24T08:00:00+00:00', 'meta' => ['source' => 'webhook', 'chain' => [$project->id]]]],
     ]);
 
-    $runs = $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/instances")->assertOk()->json('data.data');
+    $runs = $this->getJson("/api/v2/admin/workflow/projects/{$project->uuid}/instances")->assertOk()->json('data.data');
     expect($runs[0]['source'])->toBe('webhook');
 });

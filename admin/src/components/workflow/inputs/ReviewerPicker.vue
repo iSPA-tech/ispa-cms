@@ -44,6 +44,8 @@ const props = defineProps({
     readOnly: { type: Boolean, default: false },
     max: { type: Number, default: 10 },
     label: { type: String, default: '' },
+    // 'review': people who may approve (approval assignees); 'notice': every admin account (who is told by a notice).
+    audience: { type: String, default: 'review' },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -71,7 +73,7 @@ const search = async (keywords = '') => {
     loading.value = true
     failed.value = false
     try {
-        const rows = await searchReviewers(keywords)
+        const rows = await searchReviewers(keywords, props.audience)
         if (run !== searchRun) return
         found.value = rows
         remember(rows)
@@ -100,7 +102,7 @@ watch(
         if (!missing.length) return
         missing.forEach((uuid) => asked.add(uuid))
         try {
-            const rows = await resolveReviewers(missing)
+            const rows = await resolveReviewers(missing, props.audience)
             // An uuid the server does not return belongs to an account that is gone.
             known.value = { ...known.value, ...Object.fromEntries(missing.map((uuid) => [uuid, null])), ...Object.fromEntries(rows.map((row) => [row.uuid, row])) }
         } catch (error) {
@@ -111,16 +113,21 @@ watch(
     { immediate: true }
 )
 
+/** "Name - username": the username (or the email of an account without one) tells two people with one name apart. */
+const personLabel = (row) => {
+    const name = row?.name || t('text.workflow.field.assignees_unknown')
+    return row?.detail && row.detail !== row?.name ? `${name} - ${row.detail}` : name
+}
 const labelOf = (uuid) => {
     if (!(uuid in known.value)) return t('text.workflow.field.assignees_loading')
-    return known.value[uuid]?.name || t('text.workflow.field.assignees_unknown')
+    return known.value[uuid] ? personLabel(known.value[uuid]) : t('text.workflow.field.assignees_unknown')
 }
 
 /** Chosen people who may no longer approve: their approvals go to the people who may. */
 const lostRight = computed(() => selected.value.filter((uuid) => known.value[uuid]?.can_review === false).map((uuid) => labelOf(uuid)))
 
 const options = computed(() => {
-    const rows = found.value.map((row) => ({ value: row.uuid, label: row.name || t('text.workflow.field.assignees_unknown') }))
+    const rows = found.value.map((row) => ({ value: row.uuid, label: personLabel(row) }))
     selected.value.forEach((uuid) => {
         if (!rows.some((row) => row.value === uuid)) rows.push({ value: uuid, label: labelOf(uuid) })
     })

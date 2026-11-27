@@ -91,7 +91,7 @@ it('round-trips a builder-made workflow through the config package unchanged', f
     ];
     $edge = static fn (string $from, string $to, ?string $handle = null): array => ['source' => $from, 'target' => $to] + ($handle === null ? [] : ['sourceHandle' => $handle]);
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
         'nodes' => [
             $node('start', 'trigger_manual', ['input_schema' => null], 0, 0, true),
             $node('ai', 'ai_prompt', ['instructions' => 'Sort the request', 'inputs' => ['text' => '{{ vars.input }}'], 'output' => 'json', 'storeAs' => 'vars.ai'], 280, 40),

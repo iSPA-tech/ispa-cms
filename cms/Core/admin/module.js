@@ -7,6 +7,7 @@
 
 import {
     coreApprovalsRouteConfig,
+    coreWorkflowsRouteConfig,
     coreCategoryRouteConfig,
     coreHubConnectRouteConfig,
     coreLanguageRouteConfig,
@@ -17,6 +18,7 @@ import {
 import ajax from '@/ajax'
 import {
     coreApprovalsNavigationConfig,
+    coreWorkflowsNavigationConfig,
     coreLanguageNavigationConfig,
     coreUserNavigationConfig,
     coreWidgetLibraryNavigationConfig,
@@ -58,8 +60,14 @@ export const coreAdminModule = {
         coreWidgetLibraryRouteConfig,
         coreHubConnectRouteConfig,
         coreApprovalsRouteConfig,
+        coreWorkflowsRouteConfig,
     ],
-    additionalNavigationConfigs: [coreLanguageNavigationConfig, coreWidgetLibraryNavigationConfig, coreApprovalsNavigationConfig],
+    additionalNavigationConfigs: [
+        coreLanguageNavigationConfig,
+        coreWidgetLibraryNavigationConfig,
+        coreApprovalsNavigationConfig,
+        coreWorkflowsNavigationConfig,
+    ],
     // Sidebar counter of the approvals waiting for a person, next to "Chờ duyệt".
     navBadges: [
         {
@@ -89,18 +97,32 @@ export const coreAdminModule = {
         { type: 'workflow.approval.overdue', text: 'text.workflow.notifications.approval_overdue', open: (payload) => workflowApprovalTarget(payload) },
         { type: 'workflow.question.asked', text: 'text.workflow.notifications.question_asked', open: (payload) => workflowApprovalTarget(payload) },
         // Workflow guardrail alerts to publishers and Webmasters (payload: names, counts only): open the workflows page.
-        { type: 'workflow.change.version_published', text: 'text.workflow.notifications.change_version_published', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.version_pending', text: 'text.workflow.notifications.change_version_pending', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.version_rolled_back', text: 'text.workflow.notifications.change_version_rolled_back', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.activation_changed', text: 'text.workflow.notifications.change_activation_changed', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.auto_paused', text: 'text.workflow.notifications.change_auto_paused', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.integrity_violated', text: 'text.workflow.notifications.change_integrity_violated', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.credential_changed', text: 'text.workflow.notifications.change_credential_changed', open: () => ({ name: 'setting-workflows-manage' }) },
-        { type: 'workflow.change.global_pause_changed', text: 'text.workflow.notifications.change_global_pause_changed', open: () => ({ name: 'setting-workflows-manage' }) },
+        { type: 'workflow.change.version_published', text: 'text.workflow.notifications.change_version_published', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.version_pending', text: 'text.workflow.notifications.change_version_pending', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.version_rolled_back', text: 'text.workflow.notifications.change_version_rolled_back', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.activation_changed', text: 'text.workflow.notifications.change_activation_changed', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.auto_paused', text: 'text.workflow.notifications.change_auto_paused', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.integrity_violated', text: 'text.workflow.notifications.change_integrity_violated', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.credential_changed', text: 'text.workflow.notifications.change_credential_changed', open: () => ({ name: 'workflows' }) },
+        { type: 'workflow.change.global_pause_changed', text: 'text.workflow.notifications.change_global_pause_changed', open: () => ({ name: 'workflows' }) },
         {
             type: 'workflow.notice',
             text: 'text.workflow.notifications.notice',
-            open: (payload) => workflowApprovalTarget(payload) || { name: 'setting-workflows-manage' },
+            open: (payload) => workflowApprovalTarget(payload) || { name: 'workflows' },
+        },
+        // Account security notices to the account itself (payload `device`, `at` / `minutes`): open "Sessions and tokens",
+        // where the operator sees their own devices and can sign one out.
+        {
+            type: 'security.new_device',
+            text: 'text.notifications.security_new_device',
+            detail: (payload, t) => (payload.device ? t('text.notifications.security_new_device_detail', { device: String(payload.device) }) : ''),
+            open: () => ({ name: 'setting-security-tokens' }),
+        },
+        {
+            type: 'security.stepup.locked',
+            text: 'text.notifications.security_stepup_locked',
+            detail: (payload, t) => (payload.minutes ? t('text.notifications.security_stepup_locked_detail', { minutes: String(payload.minutes) }) : ''),
+            open: () => ({ name: 'setting-security-tokens' }),
         },
     ],
     // Users dashboard KPI tiles: totals of the shared dashboard summary snapshot (people block), same rule as the Users menu.

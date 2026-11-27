@@ -10,6 +10,7 @@ namespace Cms\Content\Providers;
 
 use App\Providers\Abstracts\ModuleServiceProvider;
 use Cms\Content\Console\Commands\AgentAnswerDigestsCommand;
+use Cms\Content\Console\Commands\InstallWeeklyReportWorkflowCommand;
 use Cms\Content\Console\Commands\PurgeDeletedPostsCommand;
 use Cms\Content\Services\Cache\ContentCacheVersionService;
 use Cms\Content\Services\ContentAttentionProvider;
@@ -142,6 +143,7 @@ final class ContentServiceProvider extends ModuleServiceProvider
         $this->commands([
             PurgeDeletedPostsCommand::class,
             AgentAnswerDigestsCommand::class,
+            InstallWeeklyReportWorkflowCommand::class,
         ]);
     }
 

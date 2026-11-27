@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
     canvasEdge,
+    decisionLinkTone,
     errorLinkVisible,
     errorModeOf,
     mainTargetOf,
@@ -11,6 +12,7 @@ import {
     checkGraph,
     createHistory,
     handleLabelKey,
+    isLegacyDecision,
     isStartNode,
     isValidConnection,
     planConnection,
@@ -281,6 +283,28 @@ describe('workflow designer: checks before a save', () => {
         expect(oneBranch['decision-branches'].ok).toBe(true)
         const legacyHandleOnTemplate = report(nodes, [{ source: 'start', target: 'd' }, { source: 'd', target: 'mail', sourceHandle: 'target-a' }])
         expect(legacyHandleOnTemplate['decision-branches'].ok).toBe(false)
+    })
+
+    it('reads a decision saved without its yes handle but linked on target-a / target-b as the yes/no card', () => {
+        // Canvas decisions made before the card stored yes_output (mid 2025) run with target-a as yes on the server.
+        const decision = { ...node('d', 'decision', { step_config: { condition: 'order.total > 0' } }), type: 'decision' }
+        const nodes = [node('start', 'trigger_manual'), decision, node('log', 'log_message')]
+        const full = report(nodes, [
+            { source: 'start', target: 'd' },
+            { source: 'd', target: 'log', sourceHandle: 'target-a' },
+            { source: 'd', target: 'log', sourceHandle: 'target-b' },
+        ])
+        expect(full['decision-branches'].ok).toBe(true)
+        expect(isLegacyDecision({}, [{ source: 'd', target: 'log', sourceHandle: 'target-b' }])).toBe(true)
+        expect(isLegacyDecision({ expression: 'x' }, [{ source: 'd', target: 'log', sourceHandle: 'true' }])).toBe(false)
+    })
+
+    it('colours a decision link by the branch it carries', () => {
+        expect(decisionLinkTone({}, 'true')).toBe('green')
+        expect(decisionLinkTone({}, 'false')).toBe('red')
+        expect(decisionLinkTone({}, 'target-a')).toBe('green')
+        expect(decisionLinkTone({ yes_output: 'target-b' }, 'target-b')).toBe('green')
+        expect(decisionLinkTone({ yes_output: 'target-b' }, 'target-a')).toBe('red')
     })
 })
 

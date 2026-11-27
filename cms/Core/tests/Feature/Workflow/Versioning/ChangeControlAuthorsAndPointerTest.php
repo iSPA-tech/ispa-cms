@@ -121,19 +121,19 @@ it('never lets a draft editor approve the version another publisher made of thei
     lcSet($project, 'call', ['url' => 'https://api2.example.org/items']);
     $tokenB = lcLogin($b);
     WorkflowStep::query()->where('project_id', $project->id)->where('step_code', 'ok')->firstOrFail()->update(['name' => 'Check it']);
-    $uuid = $this->postJson(LC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => lcGrant($b, $tokenB)])
+    $uuid = $this->postJson(LC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => lcGrant($b, $tokenB)])
         ->assertStatus(202)->assertJsonPath('data.path', 'pending_review')->json('data.uuid');
 
     // A may not approve it: their edits are in it.
     $tokenA = lcLogin($a);
-    $this->postJson(LC_URL . "{$project->id}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => lcGrant($a, $tokenA)])
+    $this->postJson(LC_URL . "{$project->uuid}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => lcGrant($a, $tokenA)])
         ->assertStatus(403)->assertJsonPath('error_code', 'author_cannot_approve');
     $pending = $this->getJson('https://localhost/api/v2/admin/workflow/versions/pending')->assertOk()->json('data');
     expect($pending[0]['can_approve'])->toBeFalse();
 
     // C, who touched nothing, approves; the draft now equals the live version, so its editor list is cleared.
     $tokenC = lcLogin($c);
-    $this->postJson(LC_URL . "{$project->id}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => lcGrant($c, $tokenC)])->assertOk();
+    $this->postJson(LC_URL . "{$project->uuid}/versions/{$uuid}/approve", [], [StepUpConfirmation::HEADER => lcGrant($c, $tokenC)])->assertOk();
     expect(WorkflowVersion::query()->where('uuid', $uuid)->value('status'))->toBe('published')
         ->and(DB::table('workflow_projects')->where('id', $project->id)->value('draft_editor_ids'))->toBeNull();
 });
@@ -146,7 +146,7 @@ it('cools off instead of waiting for a review only a draft editor could give', f
     lcLogin($this->owner);
     lcSet($project, 'call', ['url' => 'https://api2.example.org/items']);
     $tokenB = lcLogin($b);
-    $this->postJson(LC_URL . $project->id . '/versions/publish', [], [StepUpConfirmation::HEADER => lcGrant($b, $tokenB)])
+    $this->postJson(LC_URL . $project->uuid . '/versions/publish', [], [StepUpConfirmation::HEADER => lcGrant($b, $tokenB)])
         ->assertStatus(202)->assertJsonPath('data.path', 'cooling_off');
 });
 

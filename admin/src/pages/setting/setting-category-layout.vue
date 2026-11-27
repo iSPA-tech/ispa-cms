@@ -168,8 +168,6 @@ const categoryMap = {
         color: '#ec4899',
         bgColor: '#fce7f3',
         items: [
-            { name: 'setting-workflows-manage', text: 'nav.a.workflows', rule: 'workflow.viewAny' },
-            { name: 'setting-workflow-credentials', text: 'text.workflow_credential.title', rule: 'workflow_credential.manage' },
             { name: 'setting-agentic', text: 'text.agentic.cms', rule: 'agentic.viewAny' },
             { name: 'setting-ai-runtime', text: 'text.ai_runtime.title', rule: 'setting.viewAny' },
         ],

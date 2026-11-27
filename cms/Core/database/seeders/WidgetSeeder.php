@@ -9,9 +9,12 @@
 namespace Cms\Core\Database\Seeders;
 
 use Cms\Core\Models\Widget;
+use Cms\Core\Models\WidgetInput;
+use Cms\Core\Models\WidgetTheme;
 use Cms\Core\Services\Widget\Catalog\WidgetCatalogSources;
 use Cms\Core\Services\Widget\LegacyWidgetDefinitionReconciler;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Seeds the catalog widgets of every publisher.
@@ -41,6 +44,8 @@ class WidgetSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->syncIdSequences();
+
         foreach (WidgetCatalogSources::publishers() as $publisher) {
             if (!is_dir(WidgetCatalogSources::directory($publisher))) {
                 continue;
@@ -112,6 +117,35 @@ class WidgetSeeder extends Seeder
         app(LegacyWidgetDefinitionReconciler::class)
             ->reconcile($missing, $ofMissing($themes), $ofMissing($inputs), $publisher);
         $this->command?->info('Widget definitions added: ' . count($missing) . " ({$publisher}).");
+    }
+
+    /**
+     * PostgreSQL only: move the id sequences of widgets, widget_themes and widget_inputs up to MAX(id).
+     *
+     * Older seeders inserted these rows with explicit ids and never touched the sequences, so on sites seeded then the
+     * sequences stay behind and the reconciler's first insert fails on `widgets_pkey`. Runs on every seed, before any
+     * insert, and only moves a sequence forward (never back onto ids of deleted rows).
+     */
+    private function syncIdSequences(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        foreach ([Widget::class, WidgetTheme::class, WidgetInput::class] as $model) {
+            $table = (new $model())->getTable();
+            $sequenceName = DB::selectOne('SELECT pg_get_serial_sequence(?, ?) AS sequence_name', [$table, 'id'])
+                ->sequence_name ?? null;
+            $maxId = DB::table($table)->max('id');
+            if (!is_string($sequenceName) || $sequenceName === '' || !is_numeric($maxId)) {
+                continue;
+            }
+
+            DB::statement(
+                'SELECT setval(?::regclass, GREATEST(?, COALESCE(pg_sequence_last_value(?::regclass), 0)), true)',
+                [$sequenceName, (int) $maxId, $sequenceName],
+            );
+        }
     }
 
     /**

@@ -101,6 +101,7 @@
             :model-value="modelValue"
             :read-only="readOnly"
             :max="schema.maxItems || 10"
+            :audience="schema['x-audience'] || 'review'"
             :label="label"
             @update:model-value="(value) => update(value)"
         />

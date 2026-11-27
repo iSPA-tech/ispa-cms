@@ -61,7 +61,7 @@ const run = (over: Record<string, unknown> = {}) => ({
 })
 const page = (runs: unknown[] = [], sched = schedule()) => ({ runs, meta: { page: 1, per_page: 10, total: runs.length, last_page: 1 }, schedule: sched })
 
-const workflow = (over: Record<string, unknown> = {}) => ({ id: 7, name: 'Weekly story', system_managed: false, nodes: [], ...over })
+const workflow = (over: Record<string, unknown> = {}) => ({ id: 7, uuid: 'wf-7', name: 'Weekly story', system_managed: false, nodes: [], ...over })
 
 const mountPanel = async (props: Record<string, unknown> = {}) => {
     if (!api.getPendingApprovalsByRun.getMockImplementation()) api.getPendingApprovalsByRun.mockResolvedValue({})
@@ -92,7 +92,7 @@ describe('Workflow run panel', () => {
         await wrapper.get('[data-testid="run-now"]').trigger('click')
         await flushPromises()
 
-        expect(api.runWorkflowProject).toHaveBeenCalledWith(7)
+        expect(api.runWorkflowProject).toHaveBeenCalledWith('wf-7')
         expect(toast.success).toHaveBeenCalledWith('runs.started')
         expect(api.getWorkflowRuns).toHaveBeenCalledTimes(2)
     })
@@ -159,7 +159,7 @@ describe('Workflow run panel', () => {
         await wrapper.get('[data-testid="schedule-save"]').trigger('click')
         await flushPromises()
 
-        expect(api.saveWorkflowSchedule).toHaveBeenCalledWith(7, { cron: '30 6 * * *', timezone: '' })
+        expect(api.saveWorkflowSchedule).toHaveBeenCalledWith('wf-7', { cron: '30 6 * * *', timezone: '' })
         expect(toast.success).toHaveBeenCalledWith('schedule.saved')
         expect(wrapper.get('[data-testid="schedule-note"]').text()).toBe('schedule.set_by:Lan')
         expect(wrapper.get('[data-testid="schedule-save"]').attributes('disabled')).toBeDefined()
@@ -177,12 +177,12 @@ describe('Workflow run panel', () => {
         await choose(wrapper, 'schedule-time', '17:00')
         await wrapper.get('[data-testid="schedule-save"]').trigger('click')
         await flushPromises()
-        expect(api.saveWorkflowSchedule).toHaveBeenLastCalledWith(7, { cron: '0 17 * * 5', timezone: '' })
+        expect(api.saveWorkflowSchedule).toHaveBeenLastCalledWith('wf-7', { cron: '0 17 * * 5', timezone: '' })
 
         await choose(wrapper, 'schedule-mode', 'off')
         await wrapper.get('[data-testid="schedule-save"]').trigger('click')
         await flushPromises()
-        expect(api.saveWorkflowSchedule).toHaveBeenLastCalledWith(7, { cron: null, timezone: null })
+        expect(api.saveWorkflowSchedule).toHaveBeenLastCalledWith('wf-7', { cron: null, timezone: null })
         expect(toast.success).toHaveBeenLastCalledWith('schedule.turned_off')
     })
 

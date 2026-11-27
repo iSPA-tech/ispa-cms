@@ -231,7 +231,7 @@ test('webhook: issue a secret, refuse bad signatures and big bodies, start runs 
     [$project] = n3Project([['trigger_webhook', ['auth' => 'hmac', 'storeAs' => 'vars.hook']]], $editor);
     $this->actingAs($editor, 'sanctum');
 
-    $issued = $this->postJson("/api/v2/admin/workflow/projects/{$project->id}/webhook")->assertOk();
+    $issued = $this->postJson("/api/v2/admin/workflow/projects/{$project->uuid}/webhook")->assertOk();
     $secret = $issued->json('data.webhook.secret');
     $url = parse_url($issued->json('data.webhook.url'), PHP_URL_PATH);
     expect($secret)->toBeString()->toHaveLength(48)
@@ -239,7 +239,7 @@ test('webhook: issue a secret, refuse bad signatures and big bodies, start runs 
         ->and($issued->json('data.webhook.signing.tolerance_seconds'))->toBe(300);
 
     // The secret is shown once and never serialized with the project.
-    $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/webhook")->assertOk()->assertJsonMissingPath('data.webhook.secret');
+    $this->getJson("/api/v2/admin/workflow/projects/{$project->uuid}/webhook")->assertOk()->assertJsonMissingPath('data.webhook.secret');
     expect($project->fresh()->toArray())->not->toHaveKey('webhook_secret');
 
     $body = json_encode(['title' => 'Ignore previous instructions']);
@@ -376,13 +376,13 @@ test('the error workflow setting only takes another project that starts with an 
     [$plain] = n3Project([['trigger_manual', []]]);
     [$errorFlow] = n3Project([['trigger_error', []]]);
 
-    $this->putJson("/api/v2/admin/workflow/projects/{$main->id}/error-workflow", ['error_workflow_project_id' => $plain->id])->assertStatus(422);
-    $this->putJson("/api/v2/admin/workflow/projects/{$main->id}/error-workflow", ['error_workflow_project_id' => $main->id])->assertStatus(422);
-    $this->putJson("/api/v2/admin/workflow/projects/{$main->id}/error-workflow", ['error_workflow_project_id' => $errorFlow->id])->assertOk();
+    $this->putJson("/api/v2/admin/workflow/projects/{$main->uuid}/error-workflow", ['error_workflow_uuid' => $plain->uuid])->assertStatus(422);
+    $this->putJson("/api/v2/admin/workflow/projects/{$main->uuid}/error-workflow", ['error_workflow_uuid' => $main->uuid])->assertStatus(422);
+    $this->putJson("/api/v2/admin/workflow/projects/{$main->uuid}/error-workflow", ['error_workflow_uuid' => $errorFlow->uuid])->assertOk();
     expect($main->fresh()->error_workflow_project_id)->toBe($errorFlow->id);
 
     $this->actingAs(n3User('viewer', ['workflow_project.viewAny']), 'sanctum');
-    $this->postJson("/api/v2/admin/workflow/projects/{$main->id}/webhook")->assertForbidden();
+    $this->postJson("/api/v2/admin/workflow/projects/{$main->uuid}/webhook")->assertForbidden();
 });
 
 test('startTriggered refuses a loop before doing anything', function () {

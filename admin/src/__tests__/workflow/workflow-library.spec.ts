@@ -156,6 +156,8 @@ describe('library rules', () => {
     it('maps a failed request to what the page can say and whether trying again helps', () => {
         expect(libraryError(refusal(503, 'WORKFLOW_HUB_UNREACHABLE'))).toMatchObject({ kind: 'unreachable', retry: true })
         expect(libraryError(refusal(404, 'WORKFLOW_HUB_NOT_FOUND'))).toMatchObject({ kind: 'not_found', retry: false })
+        // Upgrade all (spec 2026-11-26) is running: wait for it, pressing again does not help.
+        expect(libraryError(refusal(409, 'UPDATE_BATCH_RUNNING'))).toMatchObject({ kind: 'batch_running', retry: false })
         expect(libraryError(refusal(422, 'WORKFLOW_BUNDLE_UNTRUSTED'))).toMatchObject({ kind: 'untrusted', retry: false })
         expect(libraryError(refusal(409, 'WORKFLOW_TEMPLATE_NOT_AVAILABLE', { missing_modules: ['Helpdesk'] }))).toMatchObject({ kind: 'not_available', retry: false, missingModules: ['Helpdesk'] })
         const report = { problems: [{ code: 'unknown_node_type', step_code: 'write' }], binding_problems: [{ code: 'binding_missing' }], slug_problems: [] }
@@ -253,7 +255,7 @@ describe('library page', () => {
     it('offers "bring in from a file" only to accounts that may create workflows', async () => {
         const wrapper = await open()
         await wrapper.find('[data-testid="library-import-file"]').trigger('click')
-        expect(router.push).toHaveBeenCalledWith({ name: 'setting-workflows-import' })
+        expect(router.push).toHaveBeenCalledWith({ name: 'workflows-import' })
 
         access.rules = new Set(['workflow_project.viewAny'])
         const reader = await open()
@@ -288,7 +290,7 @@ describe('library page', () => {
 
         finish({ project_id: 12, slug: 'church-story', setup_url: '/setting/automation/workflows/setup/12' })
         await flushPromises()
-        expect(router.push).toHaveBeenCalledWith({ name: 'setting-workflows-setup', params: { project: 12 } })
+        expect(router.push).toHaveBeenCalledWith({ name: 'workflows-setup', params: { project: 'church-story' } })
         // Still busy: the page is leaving.
         expect(wrapper.find('[data-testid="library-install"]').attributes('disabled')).toBeDefined()
     })
@@ -308,7 +310,7 @@ describe('library page', () => {
         await button.trigger('click')
         await flushPromises()
         expect(api.installTemplate).toHaveBeenCalledWith('ispa.gospel', { asCopy: true })
-        expect(router.push).toHaveBeenCalledWith({ name: 'setting-workflows-setup', params: { project: 13 } })
+        expect(router.push).toHaveBeenCalledWith({ name: 'workflows-setup', params: { project: 13 } })
     })
 
     it('updates an install not changed on this site in place and says the running version stays', async () => {
@@ -320,14 +322,14 @@ describe('library page', () => {
         expect(wrapper.find('[data-testid="library-detail-update-in-place"]').text()).toBe('text.workflow.library.update_in_place_note')
         expect(wrapper.find('[data-testid="library-install-footnote"]').text()).toBe('text.workflow.library.update_footnote')
         await wrapper.find('[data-testid="library-open-current"]').trigger('click')
-        expect(router.push).toHaveBeenCalledWith({ name: 'setting-workflows-manage', query: { open: 'church-story' } })
+        expect(router.push).toHaveBeenCalledWith({ name: 'workflows', query: { open: 'church-story' } })
 
         const button = wrapper.find('[data-testid="library-install"]')
         expect(button.text()).toBe('text.workflow.library.update_in_place')
         await button.trigger('click')
         await flushPromises()
         expect(api.installTemplate).toHaveBeenCalledWith('ispa.gospel', { asCopy: false })
-        expect(router.push).toHaveBeenLastCalledWith({ name: 'setting-workflows-setup', params: { project: 7 } })
+        expect(router.push).toHaveBeenLastCalledWith({ name: 'workflows-setup', params: { project: 7 } })
     })
 
     it('shows a refused update and reads the template again', async () => {
@@ -351,9 +353,9 @@ describe('library page', () => {
         expect(wrapper.find('[data-testid="library-install"]').exists()).toBe(false)
         expect(wrapper.find('[data-testid="library-detail-installed"]').text()).toContain('installed_on{"name":"Bài về nhà thờ"}')
         await wrapper.find('[data-testid="library-open-setup"]').trigger('click')
-        expect(router.push).toHaveBeenLastCalledWith({ name: 'setting-workflows-setup', params: { project: 9 } })
+        expect(router.push).toHaveBeenLastCalledWith({ name: 'workflows-setup', params: { project: 'seo' } })
         await wrapper.find('[data-testid="library-open-designer"]').trigger('click')
-        expect(router.push).toHaveBeenLastCalledWith({ name: 'setting-workflows-manage', query: { open: 'seo' } })
+        expect(router.push).toHaveBeenLastCalledWith({ name: 'workflows', query: { open: 'seo' } })
     })
 
     it('offers no install for a template whose module is off', async () => {
@@ -396,7 +398,7 @@ describe('library page', () => {
         expect(button.attributes('disabled')).toBeUndefined()
         await button.trigger('click')
         await flushPromises()
-        expect(router.push).toHaveBeenCalledWith({ name: 'setting-workflows-setup', params: { project: 12 } })
+        expect(router.push).toHaveBeenCalledWith({ name: 'workflows-setup', params: { project: 12 } })
     })
 
     it('names the missing modules and stops when an install is refused for them', async () => {

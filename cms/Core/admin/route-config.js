@@ -261,6 +261,56 @@ export const coreApprovalsRouteConfig = {
     ],
 }
 
+/**
+ * Workflows ("Quy trình tự động hoá"): a top-level group, so the list, the template library, the import and the
+ * credentials are one click from the sidebar. `setting/automation/workflows[/...]` and
+ * `setting/automation/workflow-credentials` redirect here.
+ */
+export const coreWorkflowsRouteConfig = {
+    text: 'nav.a.workflows',
+    path: 'workflows',
+    redirect: { name: 'workflows' },
+    load: SettingWorkflow,
+    group: 'workflows',
+    name: 'workflows-group',
+    // The rule sits on each page: the shell does not pass a group rule down to the pages of an extra Core group.
+    children: [
+        { text: 'nav.a.workflows-site', path: 'manage', name: 'workflows', load: SettingWorkflowManage, meta: { rule: 'workflow_project.viewAny' } },
+        // Sample workflows from the iSPA hub: what each one does and may do, then install (always switched off).
+        {
+            text: 'text.workflow.library.title',
+            path: 'library',
+            name: 'workflows-library',
+            load: SettingWorkflowLibrary,
+            meta: { rule: 'workflow_project.viewAny' },
+        },
+        // Review and install a workflow package from another site (always installed switched off).
+        {
+            text: 'text.workflow.package.title',
+            path: 'import',
+            name: 'workflows-import',
+            load: SettingWorkflowPackageImport,
+            meta: { rule: 'workflow_project.create' },
+        },
+        // The few choices a site makes after installing a sample workflow; `project` is its id or its slug. No menu
+        // entry: the list stays highlighted.
+        {
+            text: 'text.workflow.setup.nav',
+            path: 'setup/:project',
+            name: 'workflows-setup',
+            load: SettingWorkflowSetup,
+            meta: { rule: 'workflow_project.viewAny', activeNav: 'workflows' },
+        },
+        {
+            text: 'text.workflow_credential.title',
+            path: 'credentials',
+            name: 'workflow-credentials',
+            load: SettingWorkflowCredentials,
+            meta: { rule: 'workflow_credential.manage' },
+        },
+    ],
+}
+
 export const coreWidgetLibraryRouteConfig = {
     text: 'nav.a.widget-library',
     path: 'widget-library',
@@ -417,46 +467,28 @@ export const coreSettingRouteContributions = [
     {
         parent: 'setting-automation',
         routes: [
+            // The workflows moved to the sidebar ("Quy trình tự động hoá"); the old addresses and route names keep working.
+            { path: 'workflows', name: 'setting-workflows', redirect: (to) => ({ name: 'workflows', query: to.query }) },
+            { path: 'workflows/manage', name: 'setting-workflows-manage', redirect: (to) => ({ name: 'workflows', query: to.query }) },
             {
-                text: 'nav.a.workflows',
-                path: 'workflows',
-                name: 'setting-workflows',
-                redirect: { name: 'setting-workflows-manage' },
-                load: SettingWorkflow,
-                children: [
-                    { text: 'nav.a.manage', path: 'manage', name: 'setting-workflows-manage', load: SettingWorkflowManage },
-                    // Sample workflows from the iSPA hub: what each one does and may do, then install (always switched off).
-                    {
-                        text: 'text.workflow.library.title',
-                        path: 'library',
-                        name: 'setting-workflows-library',
-                        load: SettingWorkflowLibrary,
-                        meta: { rule: 'workflow_project.viewAny' },
-                    },
-                    // Review and install a workflow package from another site (always installed switched off).
-                    {
-                        text: 'text.workflow.package.title',
-                        path: 'import',
-                        name: 'setting-workflows-import',
-                        load: SettingWorkflowPackageImport,
-                        meta: { rule: 'workflow_project.create' },
-                    },
-                    // The few choices a site makes after installing a sample workflow; `project` is its id or its slug.
-                    {
-                        text: 'text.workflow.setup.nav',
-                        path: 'setup/:project',
-                        name: 'setting-workflows-setup',
-                        load: SettingWorkflowSetup,
-                        meta: { rule: 'workflow_project.viewAny' },
-                    },
-                ],
+                path: 'workflows/library',
+                name: 'setting-workflows-library',
+                redirect: (to) => ({ name: 'workflows-library', query: to.query }),
             },
             {
-                text: 'text.workflow_credential.title',
+                path: 'workflows/import',
+                name: 'setting-workflows-import',
+                redirect: (to) => ({ name: 'workflows-import', query: to.query }),
+            },
+            {
+                path: 'workflows/setup/:project',
+                name: 'setting-workflows-setup',
+                redirect: (to) => ({ name: 'workflows-setup', params: { project: to.params.project }, query: to.query }),
+            },
+            {
                 path: 'workflow-credentials',
                 name: 'setting-workflow-credentials',
-                load: SettingWorkflowCredentials,
-                meta: { rule: 'workflow_credential.manage' },
+                redirect: (to) => ({ name: 'workflow-credentials', query: to.query }),
             },
             { text: 'text.agentic.cms', path: 'agentic', name: 'setting-agentic', load: AgenticDashboard },
             {

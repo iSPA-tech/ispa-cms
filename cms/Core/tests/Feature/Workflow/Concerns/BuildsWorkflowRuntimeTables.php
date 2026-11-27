@@ -21,6 +21,7 @@ trait BuildsWorkflowRuntimeTables
 
         Schema::create('workflow_projects', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable()->unique();
             $table->string('name');
             $table->boolean('is_active')->nullable();
             $table->timestamps();

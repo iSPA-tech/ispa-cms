@@ -42,6 +42,7 @@ beforeEach(function (): void {
 
     Schema::create('workflow_projects', function (Blueprint $table): void {
         $table->id();
+        $table->uuid('uuid')->nullable()->unique();
         $table->unsignedBigInteger('users_id')->nullable();
         $table->string('name');
         $table->string('slug')->unique();

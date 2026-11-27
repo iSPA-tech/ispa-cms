@@ -39,8 +39,9 @@ use Symfony\Component\Console\Output\BufferedOutput;
  * Source tree and extracted package differ only where the builder itself changes the tree:
  *  - source: `tests`, `node_modules`, `.git*`, `.DS_Store` and `._*` are skipped (the builder never packages them), so
  * are the module's non-runtime notes (`docs/`, `guidelines/`, `reports/`, `the module notes`, `the module notes` at the module
- *    root) and SQL dumps under `database/seeders/sql/` that no seeder loads (its PHP translation sidecars stay), and
- *    a `frontend-build/` folder is refused (the builder writes it);
+ *    root) and SQL dumps under `database/seeders/sql/` that no seeder loads (its PHP translation sidecars stay), so
+ *    are the files module.json `package.exclude` names ({@see self::packageProblems()}), and a `frontend-build/`
+ *    folder is refused (the builder writes it);
  *  - extracted: nothing is skipped (every file that would be installed is audited) and `frontend-build/` is accepted
  *    when module.json declares `frontend.entries` (the builder wrote it); the unpacked total is checked too (the
  *    builder checks it on the files it actually zips, built output included).
@@ -209,6 +210,9 @@ final class PackageAudit
 
         $declaresFrontend = is_array($manifest['frontend'] ?? null) && is_array($manifest['frontend']['entries'] ?? null) && $manifest['frontend']['entries'] !== [];
         $paths = $this->collect($dir, '', $extracted, $extracted && $declaresFrontend);
+        if (!$extracted) {
+            $paths = $this->withoutPackageExcludes($module, $manifest, $paths);
+        }
         $limits = array_merge(self::DEFAULT_LIMITS, (array) config('core.module_packages', []));
         if (count($paths) > (int) $limits['max_files']) {
             throw new PackageBuildException(PackageBuildException::LIMITS, 'Too many files: ' . count($paths) . ' (limit ' . $limits['max_files'] . ').');
@@ -225,6 +229,72 @@ final class PackageAudit
         }
 
         return ['root' => $root, 'dir' => $dir, 'manifest' => $manifest, 'version' => $version, 'paths' => $paths, 'composer' => $composer, 'limits' => $limits, 'admin_packages' => $adminPackages, 'frontend' => $frontend, 'warnings' => $this->warnings];
+    }
+
+    /**
+     * Problems of a module.json `package` value, one plain sentence each; empty when it is valid (2026-11-26).
+     *
+     * `package` is an object whose only field `exclude` lists module-relative file paths left out of packages built
+     * from source (a site-specific data migration, for example). A path is relative with `/` separators: no empty,
+     * `.` or `..` segment, no leading `/`, no drive letter, no backslash, and never `module.json`. cms:manifest-lint
+     * reports these problems; the audit additionally refuses a path that is not a packaged file.
+     *
+     * @return list<string>
+     */
+    public static function packageProblems(mixed $package): array
+    {
+        if (!is_array($package) || ($package !== [] && array_is_list($package))) {
+            return ["'package' must be an object"];
+        }
+        $problems = [];
+        foreach (array_keys($package) as $field) {
+            if ($field !== 'exclude') {
+                $problems[] = "package has unknown field '{$field}'";
+            }
+        }
+        $exclude = $package['exclude'] ?? [];
+        if (!is_array($exclude) || !array_is_list($exclude)) {
+            return [...$problems, "'package.exclude' must be a list of file paths"];
+        }
+        foreach ($exclude as $path) {
+            if (!is_string($path) || $path === '' || str_contains($path, '\\') || str_starts_with($path, '/') || preg_match('/^[A-Za-z]:/', $path) === 1
+                || array_intersect(explode('/', $path), ['', '.', '..']) !== []) {
+                $problems[] = "'package.exclude' entries must be relative file paths inside the module (found " . (is_string($path) ? "'{$path}'" : 'a non-string value') . ')';
+            } elseif (strtolower($path) === 'module.json') {
+                $problems[] = "'package.exclude' may not name module.json";
+            }
+        }
+
+        return $problems;
+    }
+
+    /**
+     * Drop the files module.json `package.exclude` names from the audited source files.
+     *
+     * @param array<string, mixed> $manifest
+     * @param array<int, string>   $paths    audited files
+     *
+     * @return array<int, string>
+     *
+     * @throws PackageBuildException LINT when the value is malformed or names a file the package would not hold
+     */
+    private function withoutPackageExcludes(string $module, array $manifest, array $paths): array
+    {
+        if (!array_key_exists('package', $manifest)) {
+            return $paths;
+        }
+        $problems = self::packageProblems($manifest['package']);
+        if ($problems !== []) {
+            throw new PackageBuildException(PackageBuildException::LINT, 'Manifest lint failed: ' . implode('; ', $problems));
+        }
+        $exclude = array_values(array_unique($manifest['package']['exclude'] ?? []));
+        foreach ($exclude as $path) {
+            if (!in_array($path, $paths, true)) {
+                throw new PackageBuildException(PackageBuildException::LINT, 'package.exclude of ' . $module . ' names ' . $path . ', which is not a packaged file of the module.');
+            }
+        }
+
+        return array_values(array_diff($paths, $exclude));
     }
 
     /**

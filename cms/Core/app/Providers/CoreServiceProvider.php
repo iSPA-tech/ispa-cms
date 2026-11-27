@@ -393,6 +393,18 @@ final class CoreServiceProvider extends ModuleServiceProvider
         $this->app->afterResolving(\Illuminate\Console\Scheduling\Schedule::class, static function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
             $schedule->call(static fn () => app(\Cms\Core\Services\Scheduler\SchedulerHeartbeat::class)->beat())
                 ->everyMinute()->name('core:scheduler-heartbeat');
+            // Upgrade-all (spec 2026-11-26): while a run is open, move it on every minute in a process of its own, on
+            // every site (a queue site also gets a pushed job after each install; the runner's lock keeps one at a time).
+            $schedule->command(\Cms\Core\Console\Commands\UpdateBatchAdvanceCommand::NAME)
+                ->everyMinute()->name(\Cms\Core\Console\Commands\UpdateBatchAdvanceCommand::NAME)
+                ->withoutOverlapping(\Cms\Core\Services\Modules\Install\InstallRunDispatcher::lockMinutes())->runInBackground()
+                ->when(static function (): bool {
+                    try {
+                        return app(\Cms\Core\Services\UpdateBatch\UpdateBatches::class)->open() !== null;
+                    } catch (\Throwable) {
+                        return false;
+                    }
+                });
             if (! \Cms\Core\Services\Modules\Install\InstallRunDispatcher::schedulerRunsInstalls()) {
                 return;
             }
@@ -639,12 +651,14 @@ final class CoreServiceProvider extends ModuleServiceProvider
             \Cms\Core\Console\Commands\WorkflowResealCommand::class,
             \Cms\Core\Console\Commands\WorkflowPauseAllCommand::class,
             \Cms\Core\Console\Commands\AdminConfigCommand::class,
+            \Cms\Core\Console\Commands\EnvSetCommand::class,
             \Cms\Core\Console\Commands\BuildCommand::class,
             \Cms\Core\Console\Commands\DevCommand::class,
             \Cms\Core\Console\Commands\ModulePackageBuildCommand::class,
             \Cms\Core\Console\Commands\ModulePackageAuditCommand::class,
             \Cms\Core\Console\Commands\ModuleInstallCommandRunCommand::class,
             \Cms\Core\Console\Commands\ModuleInstallRunPendingCommand::class,
+            \Cms\Core\Console\Commands\UpdateBatchAdvanceCommand::class,
         ]);
     }
 

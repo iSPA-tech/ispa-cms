@@ -30,7 +30,7 @@
                 v-if="summary?.hub"
                 :hub="summary.hub"
                 :name="accountName"
-                :version="appVersion"
+                :version="summary.hub.version || appVersion"
                 :webmaster="webmaster"
                 :locale="adminLocale"
             />

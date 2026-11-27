@@ -45,7 +45,7 @@ class WorkflowRunController extends Controller
      */
     public function run(Request $request, string $project, WorkflowProjectRunService $runService): AppResponse
     {
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (! $model) {
             return ires()->notFound(__('mgs.model.404'));
         }
@@ -79,7 +79,7 @@ class WorkflowRunController extends Controller
      */
     public function schedule(Request $request, string $project, WorkflowProjectRunService $runService): AppResponse
     {
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (! $model) {
             return ires()->notFound(__('mgs.model.404'));
         }
@@ -117,7 +117,7 @@ class WorkflowRunController extends Controller
             return ires()->forbidden(__('mgs.no.permission'));
         }
 
-        $model = WorkflowProject::query()->find($project);
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (! $model) {
             return ires()->notFound(__('mgs.model.404'));
         }

@@ -190,7 +190,7 @@ describe('workflow package import page', () => {
         expect(find(wrapper, 'package-installed').text()).toContain('text.workflow.package.installed_off')
 
         await find(wrapper, 'package-open').trigger('click')
-        expect(router.push).toHaveBeenCalledWith({ name: 'setting-workflows-manage', query: { open: 'sync-crm-copy-2' } })
+        expect(router.push).toHaveBeenCalledWith({ name: 'workflows', query: { open: 'sync-crm-copy-2' } })
     })
 
     it('uses the sample record of the package when it has one', async () => {
@@ -286,7 +286,7 @@ describe('workflow package binding field', () => {
     it('says when no credential fits and links to the credentials page', async () => {
         const wrapper = mountField({ row: row({ credentialType: 'smtp' }), canManageCredentials: true })
         expect(wrapper.find('[data-testid="binding-credential-none"]').text()).toContain('text.workflow.package.binding.credential_none')
-        expect(wrapper.find('[data-testid="binding-credential-link"]').attributes('data-to')).toBe('setting-workflow-credentials')
+        expect(wrapper.find('[data-testid="binding-credential-link"]').attributes('data-to')).toBe('workflow-credentials')
         await wrapper.find('[data-testid="binding-reload"]').trigger('click')
         expect(wrapper.emitted('reload')?.[0]).toEqual(['credentials'])
         expect(mountField({ row: row({ credentialType: 'smtp' }) }).find('[data-testid="binding-credential-link"]').exists()).toBe(false)

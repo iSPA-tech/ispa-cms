@@ -17,6 +17,7 @@ use Cms\Core\Helpers\RedisHelper;
 use Cms\Core\Models\Setting;
 use Cms\Core\Services\CMSSettingRuntime;
 use Cms\Core\Services\ConfigPackage\SecretGuard;
+use Cms\Core\Services\Settings\EnvBoundSettings;
 use Illuminate\Support\Facades\Artisan;
 use InvalidArgumentException;
 use RuntimeException;
@@ -25,33 +26,27 @@ use Throwable;
 /**
  * Lists, sets and clears environment-bound settings (: only rows already declared as settings).
  *
- * Allowed rows are the ones `cms:setting-initialize --updateEnv=true` sends to `.env`: `input_setting.isEnv` true or
- * one of the nine `email.MAIL_*` keys (GenerateSettingCommand::MAIL_ENV_SETTING_KEYS). Values are saved through
- * Eloquent `save()` so the `EncryptedSettingValue` cast encrypts them, then the changed row alone is written to the
- * environment file through `env_update()` (same escaping as `prepare_env`) and the same caches as the settings save
- * are dropped. Secret values are write-only: list() never returns them. No value ever reaches a log, an exception
- * message or an audit entry (audit payload is `{key, secret}` only).
+ * Allowed rows are the env-bound ones (EnvBoundSettings::isEnvBound(): `input_setting.isEnv` true or one of the nine
+ * `email.MAIL_*` keys). Values are saved through Eloquent `save()` so the `EncryptedSettingValue` cast encrypts them.
+ * With the settings runtime on (the default) the row is the only source and `.env` is not written; on a legacy site
+ * (runtime off) the changed row alone is also written to the environment file through `env_update()` (same escaping
+ * as `prepare_env`). Then the caches the settings feed are dropped. Build and boot keys (the theme folder) are
+ * refused: they change through `cms:env-set`. Secret values are write-only: list() never returns them. No value ever
+ * reaches a log, an exception message or an audit entry (audit payload is `{key, secret}` only).
  */
 class EnvironmentSettingService
 {
     /** Keys GenerateSettingCommand always sends to `.env` even without `isEnv` (kept in sync with that command). */
-    public const MAIL_ENV_SETTING_KEYS = [
-        'email.MAIL_MAILER',
-        'email.MAIL_HOST',
-        'email.MAIL_PORT',
-        'email.MAIL_ENCRYPTION',
-        'email.MAIL_USERNAME',
-        'email.MAIL_PASSWORD',
-        'email.MAIL_FROM_ADDRESS',
-        'email.MAIL_FROM_NAME',
-        'email.MAIL_REPLY',
-    ];
+    public const MAIL_ENV_SETTING_KEYS = EnvBoundSettings::MAIL_KEYS;
 
     /** Longest accepted value. */
     public const MAX_VALUE_LENGTH = 4096;
 
-    /** Groups whose change restarts the queue workers (they cache mail and notifier configuration). */
-    private const QUEUE_RESTART_PREFIXES = ['email.', 'notify.'];
+    /**
+     * Groups whose change restarts the queue workers: they keep the config they booted with (mail, notifier, and the
+     * API keys AppServiceProvider puts into the config from the settings).
+     */
+    private const QUEUE_RESTART_PREFIXES = ['email.', 'notify.', 'api.'];
 
     /**
      * @param SecretGuard $guard Shared secret classifier.
@@ -100,7 +95,7 @@ class EnvironmentSettingService
      */
     public function set(string $key, string $value, int $userId): void
     {
-        $setting = $this->findAllowed($key);
+        $setting = $this->findChangeable($key);
         self::assertValidValue($value);
 
         $this->write($setting, $value, 'config.env.update', $userId);
@@ -117,7 +112,7 @@ class EnvironmentSettingService
      */
     public function clear(string $key, int $userId): void
     {
-        $this->write($this->findAllowed($key), null, 'config.env.clear', $userId);
+        $this->write($this->findChangeable($key), null, 'config.env.clear', $userId);
     }
 
     /**
@@ -185,13 +180,15 @@ class EnvironmentSettingService
     }
 
     /**
-     * Drop the same caches as the settings save (SettingController::synchronizeSettingFile) after `.env` changed.
+     * Drop the caches the settings feed after a change (as SettingController::synchronizeSettingFile does).
+     *
+     * Never `config:clear` or `cache:clear`: `cache:clear` empties the whole Redis cache database, which several sites
+     * share on server .215, and `config:clear` left a production site without its config cache. A legacy `.env` write
+     * rebuilds the config cache itself (env_update()).
      */
     private function synchronize(string $key): void
     {
         try {
-            Artisan::call('config:clear');
-            Artisan::call('cache:clear');
             RedisHelper::getInstance()->del(CacheConstants::CACHE_SETTINGS);
             app(CMSSettingRuntime::class)->forget();
 
@@ -225,6 +222,21 @@ class EnvironmentSettingService
                 'exception_class' => $e::class,
             ]);
         }
+    }
+
+    /**
+     * An allowed row that may change here: build and boot keys (the theme folder) change only through cms:env-set.
+     *
+     * @throws InvalidArgumentException
+     */
+    private function findChangeable(string $key): Setting
+    {
+        $setting = $this->findAllowed($key);
+        if (EnvBoundSettings::isBootKey($key)) {
+            throw new InvalidArgumentException('This value is read when the site is built; change it with php artisan cms:env-set and deploy.');
+        }
+
+        return $setting;
     }
 
     /**
@@ -288,17 +300,18 @@ class EnvironmentSettingService
      */
     private function envName(Setting $setting): array
     {
+        $legacy = !EnvBoundSettings::databaseIsSource();
         $count = 0;
         $name = str_replace(['email.', 'advanced.', 'api.'], '', (string) $setting->setting_key, $count);
 
         if ($setting->name === 'CACHE_DRIVER') {
-            return ['name' => str_replace('cache.', '', (string) $setting->setting_key), 'in_env_file' => true];
+            return ['name' => str_replace('cache.', '', (string) $setting->setting_key), 'in_env_file' => $legacy];
         }
         if ($setting->name === 'ANALYTICS_VIEW_ID') {
-            return ['name' => str_replace('tracking.', '', (string) $setting->setting_key), 'in_env_file' => true];
+            return ['name' => str_replace('tracking.', '', (string) $setting->setting_key), 'in_env_file' => $legacy];
         }
         if ($count > 0) {
-            return ['name' => $name, 'in_env_file' => true];
+            return ['name' => $name, 'in_env_file' => $legacy];
         }
 
         // Not written by env_update (e.g. notify.*): show the last key segment as its name.

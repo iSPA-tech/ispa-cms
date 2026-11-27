@@ -241,7 +241,8 @@ Route::group(['prefix' => 'v2', 'namespace' => 'V2'], static function () {
             Route::resource('track', 'TrackController')->except(['create', 'show', 'update', 'massDestroy']);
 
             Route::get('workflows/function-list', '\\Cms\\Core\\Http\\Controllers\\V2\\Admin\\WorkflowProjectController@functionList');
-            Route::resource('workflows', '\\Cms\\Core\\Http\\Controllers\\V2\\Admin\\WorkflowProjectController')->except(['show', 'create']);
+            // Workflows are addressed by their uuid (UUID-first), never by the row id.
+            Route::resource('workflows', '\\Cms\\Core\\Http\\Controllers\\V2\\Admin\\WorkflowProjectController')->except(['show', 'create'])->whereUuid('workflow');
 
             Route::prefix('workflow')->group(function () {
                 Route::post(

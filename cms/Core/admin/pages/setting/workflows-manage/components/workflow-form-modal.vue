@@ -145,6 +145,7 @@ const slugTouched = ref(false)
 
 const formDefault = () => ({
     id: 0,
+    uuid: '',
     name: '',
     slug: '',
     trigger_event: '',
@@ -239,6 +240,7 @@ const openEdit = (workflow) => {
     state.open = true
     Object.assign(form, {
         id: workflow.id,
+        uuid: workflow.uuid || '',
         name: workflow.name,
         slug: workflow.slug,
         trigger_event: workflow.trigger_event,
@@ -274,7 +276,7 @@ const submitForm = () => {
             try {
                 let res
                 if (state.isEdit) {
-                    res = await updateWorkflow(form.id, payload)
+                    res = await updateWorkflow(form.uuid, payload)
                 } else {
                     res = await storeWorkflow({
                         ...payload,

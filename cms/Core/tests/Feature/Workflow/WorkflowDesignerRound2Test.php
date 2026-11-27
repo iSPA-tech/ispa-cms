@@ -264,7 +264,7 @@ it('lists what the site must decide, with plain-word preset lines', function ():
     $project = round2Project();
     $this->actingAs(round2Editor(), 'sanctum');
 
-    $data = $this->getJson("/api/v2/admin/workflows/{$project->id}/setup")->assertOk()->json('data');
+    $data = $this->getJson("/api/v2/admin/workflows/{$project->uuid}/setup")->assertOk()->json('data');
 
     expect(array_column($data['questions'], 'key'))->toBe(['sort.labels', 'review.reviewer_permission', 'tell.credential', 'tell.chat', 'notify.permission', 'schedule'])
         ->and($data['complete'])->toBeFalse()
@@ -272,7 +272,8 @@ it('lists what the site must decide, with plain-word preset lines', function ():
         ->and(round2Question($data, 'review.reviewer_permission')['assignees_allowed'])->toBeTrue()
         ->and(round2Question($data, 'review.reviewer_permission'))->toMatchArray(['kind' => 'reviewers', 'answered' => false, 'label' => 'Who reviews at “Review the reply”?'])
         ->and(round2Question($data, 'sort.labels'))->toMatchArray(['kind' => 'required_field', 'answered' => false])
-        ->and(round2Question($data, 'notify.permission'))->toMatchArray(['kind' => 'notify_channel', 'answered' => true, 'current' => 'post.update'])
+        ->and(round2Question($data, 'notify.permission'))->toMatchArray(['kind' => 'notify_channel', 'answered' => true])
+        ->and(round2Question($data, 'notify.permission')['current'])->toMatchArray(['permission' => 'post.update', 'users' => []])
         ->and(round2Question($data, 'schedule'))->toMatchArray(['kind' => 'schedule', 'answered' => false])
         ->and(round2Question($data, 'schedule'))->not->toHaveKey('step_code')
         ->and(array_column($data['preset'], 'label'))->toContain('Reviewers may edit: Summary');
@@ -284,7 +285,7 @@ it('answers the questions on the draft, schedule through the schedule rule, neve
     WorkflowCredential::query()->create(['name' => 'parish-bot', 'type' => 'telegram_bot', 'payload' => ['token' => 'secret-token-123']]);
     $this->actingAs($editor, 'sanctum');
 
-    $response = $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => [
+    $response = $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => [
         'sort.labels' => [['key' => 'question', 'description' => 'Question']],
         'review.reviewer_permission' => ['permission' => 'post.update', 'assignees' => [$editor->uuid]],
         'tell.credential' => 'parish-bot',
@@ -317,15 +318,15 @@ it('saves the reviewer group of a step that names no people even when the form s
     WorkflowConnection::query()->create(['project_id' => $project->id, 'from_step_id' => $notify->id, 'to_step_id' => $ask->id, 'condition' => null]);
     $this->actingAs(round2Editor(), 'sanctum');
 
-    $before = $this->getJson("/api/v2/admin/workflows/{$project->id}/setup")->assertOk()->json('data');
+    $before = $this->getJson("/api/v2/admin/workflows/{$project->uuid}/setup")->assertOk()->json('data');
     expect(round2Question($before, 'ask.reviewer_permission'))->toMatchArray(['kind' => 'reviewers', 'assignees_allowed' => false]);
 
-    $data = $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => [
+    $data = $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => [
         'ask.reviewer_permission' => ['permission' => 'post.update', 'assignees' => []],
     ]])->assertOk()->json('data');
     expect(round2Question($data, 'ask.reviewer_permission'))->toMatchArray(['answered' => true]);
 
-    $errors = $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => [
+    $errors = $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => [
         'ask.reviewer_permission' => ['permission' => 'post.update', 'assignees' => [(string) Str::uuid()]],
     ]])->assertStatus(422)->json('data.errors');
     expect($errors)->not->toBe([]);
@@ -338,13 +339,13 @@ it('lets an editor run the safe test of the draft without the package install ri
     $this->actingAs($editor, 'sanctum');
 
     // The empty account field of the telegram step keeps the draft from being checked until it is answered.
-    $this->postJson("/api/v2/admin/workflows/{$project->id}/setup/test-run")->assertStatus(422)->assertJsonPath('error_code', 'setup_incomplete');
+    $this->postJson("/api/v2/admin/workflows/{$project->uuid}/setup/test-run")->assertStatus(422)->assertJsonPath('error_code', 'setup_incomplete');
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => ['tell.credential' => 'parish-bot']])->assertOk();
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => ['tell.credential' => 'parish-bot']])->assertOk();
     $projects = WorkflowProject::withTrashed()->count();
     $steps = WorkflowStep::query()->where('project_id', $project->id)->orderBy('id')->get(['step_code', 'step_config'])->toArray();
 
-    $response = $this->postJson("/api/v2/admin/workflows/{$project->id}/setup/test-run")->assertOk();
+    $response = $this->postJson("/api/v2/admin/workflows/{$project->uuid}/setup/test-run")->assertOk();
     $data = $response->json('data');
 
     expect($data)->toHaveKeys(['dry_run', 'problems', 'target_slug'])
@@ -355,14 +356,14 @@ it('lets an editor run the safe test of the draft without the package install ri
         ->and(WorkflowStep::query()->where('project_id', $project->id)->orderBy('id')->get(['step_code', 'step_config'])->toArray())->toBe($steps);
 
     $this->actingAs(round2User('viewer', ['workflow_project.viewAny', 'workflow_project.view']), 'sanctum');
-    $this->postJson("/api/v2/admin/workflows/{$project->id}/setup/test-run")->assertForbidden();
+    $this->postJson("/api/v2/admin/workflows/{$project->uuid}/setup/test-run")->assertForbidden();
 });
 
 it('records "run only by hand" as an answered schedule', function (): void {
     $project = round2Project();
     $this->actingAs(round2Editor(), 'sanctum');
 
-    $data = $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => ['schedule' => ['cron' => null]]])->assertOk()->json('data');
+    $data = $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => ['schedule' => ['cron' => null]]])->assertOk()->json('data');
 
     expect(round2Question($data, 'schedule'))->toMatchArray(['answered' => true, 'current' => ['cron' => null, 'timezone' => null, 'by_hand' => true]])
         ->and($project->fresh()->tags)->toContain(WorkflowScheduleService::MANUAL_TAG);
@@ -372,7 +373,7 @@ it('refuses invalid answers with the draft save checks and writes nothing', func
     $project = round2Project();
     $this->actingAs(round2Editor(), 'sanctum');
 
-    $errors = $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => $answers])->assertStatus(422)->json('data.errors');
+    $errors = $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => $answers])->assertStatus(422)->json('data.errors');
 
     expect(array_column($errors, 'code'))->toContain($code)
         ->and(WorkflowStep::query()->where('project_id', $project->id)->where('step_code', 'review')->sole()->step_config)->not->toHaveKey('reviewer_permission')
@@ -390,9 +391,9 @@ it('needs view to read the setup and update to answer it', function (): void {
     $project = round2Project();
 
     $this->actingAs(round2User('lister', ['workflow_project.viewAny']), 'sanctum');
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/setup")->assertStatus(403);
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/setup")->assertStatus(403);
 
     $this->actingAs(round2User('viewer', ['workflow_project.viewAny', 'workflow_project.view']), 'sanctum');
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/setup")->assertOk();
-    $this->putJson("/api/v2/admin/workflows/{$project->id}/setup", ['answers' => ['schedule' => ['cron' => null]]])->assertStatus(403);
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/setup")->assertOk();
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}/setup", ['answers' => ['schedule' => ['cron' => null]]])->assertStatus(403);
 });

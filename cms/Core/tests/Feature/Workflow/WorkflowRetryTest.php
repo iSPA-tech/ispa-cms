@@ -106,6 +106,7 @@ class WorkflowRetryTest extends TestCase
 
         Schema::create('workflow_projects', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable()->unique();
             $table->string('name');
             $table->softDeletes();
             $table->timestamps();

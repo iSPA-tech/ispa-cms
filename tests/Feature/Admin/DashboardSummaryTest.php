@@ -223,6 +223,40 @@ final class DashboardSummaryTest extends TestCase
     }
 
     /**
+     * An admin Core upgrade on a CI-deployed site rewrites core-manifest.json but never VERSION (deploy-owned), so the
+     * band shows the manifest version; without a manifest it falls back to VERSION.
+     */
+    public function test_hub_block_version_prefers_core_manifest_over_version_file(): void
+    {
+        // A temp tree root, so a real core-manifest.json (a release install has one) is never read or overwritten.
+        $base = sys_get_temp_dir().'/dashboard-manifest-'.bin2hex(random_bytes(6));
+        mkdir($base, 0755, true);
+        $path = $base.'/core-manifest.json';
+        config(['ispa-cms.core_manifest_base' => $base, 'ispa-cms.app_version' => '2026.11.05']);
+        $headers = ['ISPA-ADMIN-AUTH-KEY' => 'admin-test-key'];
+
+        $this->withHeaders($headers)->getJson('/api/v2/admin/dashboard/summary?reload=1')
+            ->assertJsonPath('data.hub.version', '2026.11.05');
+
+        file_put_contents($path, json_encode([
+            'format' => 1, 'version' => '2026.11.07', 'php_min' => '8.2', 'origin' => 'deploy',
+            'upgraded_from' => '2026.11.05', 'checked' => (object) [], 'replaced' => [],
+        ]));
+        try {
+            $this->withHeaders($headers)->getJson('/api/v2/admin/dashboard/summary')
+                ->assertJsonPath('data.hub.version', '2026.11.07');
+
+            // An unreadable manifest never breaks the dashboard.
+            file_put_contents($path, '{broken');
+            $this->withHeaders($headers)->getJson('/api/v2/admin/dashboard/summary')
+                ->assertOk()->assertJsonPath('data.hub.version', '2026.11.05');
+        } finally {
+            @unlink($path);
+            @rmdir($base);
+        }
+    }
+
+    /**
      * The hub block is read on every request, so a site connected a minute ago never shows "not connected".
      */
     public function test_hub_block_is_not_cached(): void

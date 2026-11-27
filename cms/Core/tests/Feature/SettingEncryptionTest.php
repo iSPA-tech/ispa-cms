@@ -441,6 +441,8 @@ afterEach(function () {
 });
 
 test('quickUpdate with clear empties an env-bound secret, its env line, and audits the key only', function () {
+    // A legacy site (settings runtime off) still writes `.env`; set the mode so the site's own .env never decides it.
+    config(['ispa-cms.setting_runtime_enabled' => false]);
     $this->withoutMiddleware();
     actAsAdmin($this);
     \Illuminate\Support\Facades\Artisan::spy();
@@ -464,6 +466,38 @@ test('quickUpdate with clear empties an env-bound secret, its env line, and audi
         ->and($response->json('data'))->not->toHaveKey('value')
         ->and((string) file_get_contents($this->clearEnvDir . '/.env'))->toContain('MAIL_PASSWORD=""')
         ->not->toContain('CLEAR-ME-ENV-SECRET');
+
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \Cms\Core\Events\AuditLogEvent::class,
+        fn (\Cms\Core\Events\AuditLogEvent $e): bool => $e->action === 'config.env.clear'
+            && $e->changed === ['key' => 'email.MAIL_PASSWORD', 'secret' => true]
+    );
+});
+
+test('quickUpdate with clear and the settings runtime on empties the env-bound row and leaves the env file alone', function () {
+    config(['ispa-cms.setting_runtime_enabled' => true]);
+    $this->withoutMiddleware();
+    actAsAdmin($this);
+    \Illuminate\Support\Facades\Artisan::spy();
+    \Illuminate\Support\Facades\Event::fake([\Cms\Core\Events\AuditLogEvent::class]);
+    $envContent = "APP_NAME=Test\nMAIL_PASSWORD=KEEP-ENV-LINE-SECRET\n";
+    useTempEnvFile($this, $envContent);
+
+    $setting = createEncSetting([
+        'setting_key' => 'email.MAIL_PASSWORD',
+        'type' => 'password',
+        'group_name' => 'email',
+        'name' => 'MAIL_PASSWORD',
+        'value' => 'CLEAR-ME-ROW-SECRET',
+        'input_setting' => ['isEnv' => true, 'isPublic' => false],
+    ]);
+
+    $response = $this->putJson("/api/v2/admin/setting/{$setting->id}/quick", ['clear' => true])->assertOk();
+
+    expect(getRawSettingValue($setting->id))->toBeIn([null, ''])
+        ->and($response->getContent())->not->toContain('CLEAR-ME-ROW-SECRET')
+        ->and($response->json('data.has_value'))->toBeFalse()
+        ->and((string) file_get_contents($this->clearEnvDir . '/.env'))->toBe($envContent);
 
     \Illuminate\Support\Facades\Event::assertDispatched(
         \Cms\Core\Events\AuditLogEvent::class,

@@ -72,8 +72,9 @@ export const getWorkflows = async (params) => {
     })
 }
 
-export const getWorkflow = async (id) => {
-    return await ajax.get(`workflows/${id}/edit`).then((res) => res.data.data || {})
+/** One workflow with its graph, named by its uuid (UUID-first). */
+export const getWorkflow = async (uuid) => {
+    return await ajax.get(`workflows/${encodeURIComponent(uuid)}/edit`).then((res) => res.data.data || {})
 }
 
 export const getFunctionsList = async () => {
@@ -96,11 +97,12 @@ export const storeWorkflow = async (data = {}) => {
     return await ajax.post('workflows', data).then((res) => res.data || {})
 }
 
-export const updateWorkflow = async (id, data = {}) => {
+/** Save a workflow, named by its uuid. */
+export const updateWorkflow = async (uuid, data = {}) => {
     // A refused graph save (422) lists the nodes at fault; the designer highlights them from this shared record.
     clearSaveErrors()
     return await ajax
-        .put(`workflows/${id}`, data)
+        .put(`workflows/${encodeURIComponent(uuid)}`, data)
         .then((res) => res.data || {})
         .catch((error) => {
             recordSaveErrors(error)
@@ -108,6 +110,7 @@ export const updateWorkflow = async (id, data = {}) => {
         })
 }
 
-export const deleteWorkflow = async (id) => {
-    return await ajax.delete(`workflows/${id}`).then((res) => res.data || {})
+/** Delete a workflow, named by its uuid. */
+export const deleteWorkflow = async (uuid) => {
+    return await ajax.delete(`workflows/${encodeURIComponent(uuid)}`).then((res) => res.data || {})
 }

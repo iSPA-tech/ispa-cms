@@ -92,6 +92,17 @@
                                 @click.stop="$emit('open-builder', workflow)"
                             />
                         </a-tooltip>
+                        <a-tooltip v-if="canUpdate && !workflow.system_managed && setupTotals[workflow.id] > 0">
+                            <template #title>{{ t('text.workflow.setup.nav') }}</template>
+                            <a-button
+                                size="small"
+                                type="text"
+                                :aria-label="t('text.workflow.setup.nav')"
+                                :icon="h(ControlOutlined)"
+                                data-testid="workflow-setup-open"
+                                @click.stop="$emit('setup', workflow)"
+                            />
+                        </a-tooltip>
                         <a-tooltip v-if="canExport">
                             <template #title>{{ t('text.workflow.package.export_action') }}</template>
                             <a-button
@@ -175,7 +186,7 @@
 
 <script setup>
 import dayjs from 'dayjs'
-import { BranchesOutlined, DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { BranchesOutlined, ControlOutlined, DeleteOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons-vue'
 import { h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { pausedInfo, versionState } from '../../../../workflow-guard-report'
@@ -196,6 +207,11 @@ defineProps({
         default: null,
     },
     activationState: {
+        type: Object,
+        default: () => ({}),
+    },
+    /** `{ [workflowId]: n }`: how many setup questions a workflow has at all (answered or not): the setup button. */
+    setupTotals: {
         type: Object,
         default: () => ({}),
     },

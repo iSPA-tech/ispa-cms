@@ -6,7 +6,7 @@
 -->
 
 <template>
-    <template v-if="rule('workflow_project.viewAny')">
+    <template v-if="allowed">
         <router-view></router-view>
     </template>
     
@@ -14,8 +14,13 @@
 </template>
 
 <script setup>
-import { defineComponent } from 'vue'
+import { computed, defineComponent } from 'vue'
+import { useRoute } from 'vue-router'
 import { rule } from '@/mixins'
+
+const route = useRoute()
+// The credentials page sits in this group with a rule of its own; every other page needs the right to see workflows.
+const allowed = computed(() => rule(route.name === 'workflow-credentials' ? 'workflow_credential.manage' : 'workflow_project.viewAny'))
 
 defineComponent({
     name: 'WorkflowsPage',

@@ -325,13 +325,13 @@ const stopPolling = () => {
 
 /** Load one page of runs. A quiet reload (polling) keeps the table steady and leaves the schedule form alone. */
 async function loadRuns(page = meta.value.page, { quiet = false } = {}) {
-    const projectId = props.workflow?.id
+    const projectId = props.workflow?.uuid
     if (!projectId) return
     stopPolling()
     if (!quiet) loadingRuns.value = true
     try {
         const result = await getWorkflowRuns(projectId, { page, perPage: PER_PAGE })
-        if (projectId !== props.workflow?.id) return
+        if (projectId !== props.workflow?.uuid) return
         runs.value = result.runs
         meta.value = { ...meta.value, ...result.meta }
         runsError.value = ''
@@ -355,7 +355,7 @@ async function runNow() {
     if (running.value || runBlockedReason.value) return
     running.value = true
     try {
-        await runWorkflowProject(props.workflow.id)
+        await runWorkflowProject(props.workflow.uuid)
         message.success(t('text.workflow.runs.started'))
         await loadRuns(1, { quiet: true })
     } catch (error) {
@@ -376,7 +376,7 @@ async function saveSchedule() {
     saving.value = true
     scheduleError.value = ''
     try {
-        const saved = await saveWorkflowSchedule(props.workflow.id, { cron, timezone: cron ? form.timezone : null })
+        const saved = await saveWorkflowSchedule(props.workflow.uuid, { cron, timezone: cron ? form.timezone : null })
         applySchedule(saved)
         message.success(t(cron ? 'text.workflow.schedule.saved' : 'text.workflow.schedule.turned_off'))
         emit('changed')

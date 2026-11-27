@@ -72,7 +72,9 @@ const options = computed(() => {
         const title = row.module_label || row.module || ''
         let group = groups.find((item) => item.label === title)
         if (!group) groups.push((group = { label: title, options: [] }))
-        group.options.push({ value: row.key, label: row.label || row.key })
+        // Module, what it is about and the action, so a chosen "View all" still says of what ("Education › Giảng viên ›
+        // Xem tất cả"); a one-part group has no middle part.
+        group.options.push({ value: row.key, label: [title, row.resource_label, row.label || row.key].filter(Boolean).join(' › ') })
     })
     // A saved permission stays readable while the list loads or after it left the list.
     if (value.value && !rows.value.some((row) => row.key === value.value)) {

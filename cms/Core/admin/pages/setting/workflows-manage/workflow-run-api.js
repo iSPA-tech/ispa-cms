@@ -9,7 +9,7 @@ import ajax from '@/ajax'
 
 /**
  * API calls for running and scheduling an authored workflow project and reading its runs.
- * Workflow projects have no uuid column, so they are addressed by their numeric id.
+ * Workflow projects are addressed by their uuid (UUID-first); runs still by their row id.
  *
  * Requests are sent with `silent: true`: the panel shows its own translated message for each
  * known error code instead of the raw server text.
@@ -17,20 +17,20 @@ import ajax from '@/ajax'
 const quiet = { silent: true }
 
 /** Start a run now. Resolves with the new run ({id, status, source, ...}). */
-export const runWorkflowProject = async (projectId) => {
-    const res = await ajax.post(`workflow/projects/${projectId}/run`, {}, quiet)
+export const runWorkflowProject = async (projectUuid) => {
+    const res = await ajax.post(`workflow/projects/${projectUuid}/run`, {}, quiet)
     return res.data?.data?.instance || null
 }
 
 /** Save the schedule; an empty cron turns it off. Resolves with the stored schedule. */
-export const saveWorkflowSchedule = async (projectId, { cron = null, timezone = null } = {}) => {
-    const res = await ajax.put(`workflow/projects/${projectId}/schedule`, { cron: cron || null, timezone: timezone || null }, quiet)
+export const saveWorkflowSchedule = async (projectUuid, { cron = null, timezone = null } = {}) => {
+    const res = await ajax.put(`workflow/projects/${projectUuid}/schedule`, { cron: cron || null, timezone: timezone || null }, quiet)
     return res.data?.data?.schedule || null
 }
 
 /** One page of the project's runs, newest first, with the current schedule. */
-export const getWorkflowRuns = async (projectId, { page = 1, perPage = 10 } = {}) => {
-    const res = await ajax.get(`workflow/projects/${projectId}/instances`, { params: { page, per_page: perPage }, ...quiet })
+export const getWorkflowRuns = async (projectUuid, { page = 1, perPage = 10 } = {}) => {
+    const res = await ajax.get(`workflow/projects/${projectUuid}/instances`, { params: { page, per_page: perPage }, ...quiet })
     const payload = res.data?.data || {}
     return {
         runs: Array.isArray(payload.data) ? payload.data : [],

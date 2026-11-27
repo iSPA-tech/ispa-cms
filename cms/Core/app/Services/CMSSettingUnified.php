@@ -13,6 +13,7 @@ use Illuminate\Support\Arr;
 use Cms\Core\Models\Setting;
 use Cms\Core\Facades\CMSLogger;
 use Cms\Core\Helpers\RedisHelper;
+use Cms\Core\Services\Settings\EnvBoundSettings;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -56,9 +57,13 @@ class CMSSettingUnified
 
         [$isEnv, $isPublic] = $this->classifyInputSetting($meta['input_setting'] ?? []);
 
-        // Env settings are sourced by env variable name from Setting.name, not setting_key.
+        // Env settings: the database row first for application settings (the runtime env scope resolves it, cached),
+        // then the env variable named by Setting.name, not setting_key (EnvBoundSettings).
         if ($isEnv) {
-            $value = $this->resolveEnvValue($meta['name'] ?? null);
+            $value = EnvBoundSettings::databaseFirst($settingKey)
+                ? app(CMSSettingRuntime::class)->get($settingKey)
+                : null;
+            $value ??= $this->resolveEnvValue($meta['name'] ?? null);
 
             return $value !== null ? $value : $this->resolveOptionalDbFallback($settingKey, $default, $options);
         }

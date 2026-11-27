@@ -3,7 +3,7 @@
     "edition": "open",
     "alias": "widget",
     "description": "Site Layout widget slots bounded context: instances, placements, drafts/releases, and rendering (scaffold only).",
-    "version": "2026.11.00",
+    "version": "2026.11.01",
     "keywords": [
         "widget",
         "site-layout",

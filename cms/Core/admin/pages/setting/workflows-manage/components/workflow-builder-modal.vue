@@ -141,6 +141,10 @@
                             {{ t('text.workflow.setup.list_badge', { count: setupOpenCount }) }}
                         </span>
                     </a-button>
+                    <!-- Everything answered: the setup screen stays one click away, to change an answer later. -->
+                    <a-button v-else-if="setupQuestions.length && !isReadOnly" data-testid="builder-setup-again" @click="openSetup">
+                        {{ t('text.workflow.setup.nav') }}
+                    </a-button>
 
                     <div class="ml-auto flex items-center gap-0.5 rounded-lg border border-solid border-gray-200 bg-white p-0.5">
                         <a-tooltip :title="t('text.workflow.builder.undo')">
@@ -295,7 +299,7 @@
                                     :selected-node="selectedNode"
                                     :steps="nodes"
                                     :edges="edges"
-                                    :workflow-id="workflow?.id ?? null"
+                                    :workflow-id="workflow?.uuid ?? null"
                                     @update-node-config="handleUpdateNodeConfig"
                                     @update-on-error="handleUpdateOnError"
                                 />
@@ -668,7 +672,7 @@ const stepNameMap = computed(() => stepNames(nodes.value))
 let draftToken = 0
 /** Ask whether the saved draft differs from the version that runs. A failure only leaves the tags out. */
 const loadDraftStatus = async () => {
-    const id = props.workflow?.id
+    const id = props.workflow?.uuid
     const token = ++draftToken
     if (!id) {
         draftStatus.value = null
@@ -690,7 +694,7 @@ const loadDraftStatus = async () => {
 const setupQuestions = ref([])
 let setupToken = 0
 const loadSetupQuestions = async () => {
-    const id = props.workflow?.id
+    const id = props.workflow?.uuid
     const token = ++setupToken
     setupQuestions.value = []
     if (!id) return
@@ -710,7 +714,7 @@ const setupOpenCount = computed(
 // Review steps that read a JEV verdict say on their card who decides: ask the server where auto-publish stands.
 watch(
     () => [
-        props.workflow?.id || null,
+        props.workflow?.uuid || null,
         nodes.value
             .filter((node) => catalog.approvalTypes.includes(node.data?.step_type) && readsVerdict(node.data?.step_config) && node.data?.step_code)
             .map((node) => node.data.step_code)
@@ -727,7 +731,7 @@ watch(
 const openSetup = async () => {
     if (!props.workflow?.id) return
     if (hasUnsavedChanges.value && !isReadOnly.value && !(await saveWorkflowDesign({ quiet: true }))) return
-    router.push({ name: 'setting-workflows-setup', params: { project: props.workflow.id } })
+    router.push({ name: 'workflows-setup', params: { project: props.workflow.slug || props.workflow.uuid } })
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -775,7 +779,7 @@ const loadWorkflowDesign = async (workflow) => {
     }
 
     loading.value = true
-    workflowId.value = workflow.id
+    workflowId.value = workflow.uuid
     let data = null
     try {
         const res = await refetchWorkflowDetail()
@@ -1148,7 +1152,7 @@ const saveWorkflowDesign = async ({ quiet = false } = {}) => {
     saving.value = true
     try {
         const state = snapshot()
-        const res = await updateWorkflow(props.workflow.id, serializeGraph(state.nodes, state.edges, catalog.byType))
+        const res = await updateWorkflow(props.workflow.uuid, serializeGraph(state.nodes, state.edges, catalog.byType))
 
         if (res?.status !== 'success') {
             iAlert(res && typeof res === 'object' ? res : { message: t('text.workflow.builder.save_failed') }, true)

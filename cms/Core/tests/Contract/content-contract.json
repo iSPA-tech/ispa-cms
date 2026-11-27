@@ -1678,6 +1678,30 @@
             "target": "public function target(): Illuminate\\Database\\Eloquent\\Relations\\MorphTo"
         }
     },
+    "Cms\\Core\\Models\\Email": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "boot": "public static function boot(): void",
+            "bootHasUuid": "public static function bootHasUuid(): void",
+            "contact": "public function contact(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "getFormattedDateAttribute": "public function getFormattedDateAttribute(): string"
+        }
+    },
     "Cms\\Core\\Models\\Enumerate": {
         "kind": "class",
         "extends": "Illuminate\\Database\\Eloquent\\Model",
@@ -1843,6 +1867,29 @@
             "xl": "public function xl(): Illuminate\\Database\\Eloquent\\Casts\\Attribute"
         }
     },
+    "Cms\\Core\\Models\\Workflows\\WorkflowConnection": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "fromStep": "public function fromStep(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "project": "public function project(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+            "toStep": "public function toStep(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
+        }
+    },
     "Cms\\Core\\Models\\Workflows\\WorkflowInstance": {
         "kind": "class",
         "extends": "Illuminate\\Database\\Eloquent\\Model",
@@ -1882,12 +1929,36 @@
             "table": "public $table"
         },
         "methods": {
+            "bootHasUuid": "public static function bootHasUuid(): void",
             "connections": "public function connections(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
             "instances": "public function instances(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
             "publishedVersion": "public function publishedVersion(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
             "scheduledBy": "public function scheduledBy(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
             "steps": "public function steps(): Illuminate\\Database\\Eloquent\\Relations\\HasMany",
             "versions": "public function versions(): Illuminate\\Database\\Eloquent\\Relations\\HasMany"
+        }
+    },
+    "Cms\\Core\\Models\\Workflows\\WorkflowStep": {
+        "kind": "class",
+        "extends": "Illuminate\\Database\\Eloquent\\Model",
+        "implements": [
+            "ArrayAccess",
+            "Illuminate\\Contracts\\Broadcasting\\HasBroadcastChannel",
+            "Illuminate\\Contracts\\Queue\\QueueableEntity",
+            "Illuminate\\Contracts\\Routing\\UrlRoutable",
+            "Illuminate\\Contracts\\Support\\Arrayable",
+            "Illuminate\\Contracts\\Support\\CanBeEscapedWhenCastToString",
+            "Illuminate\\Contracts\\Support\\Jsonable",
+            "JsonSerializable",
+            "Stringable"
+        ],
+        "properties": {
+            "table": "public $table"
+        },
+        "methods": {
+            "incomingConnections": "public function incomingConnections(): Illuminate\\Database\\Eloquent\\Relations\\HasMany|Cms\\Core\\Models\\Workflows\\WorkflowStep",
+            "outgoingConnections": "public function outgoingConnections(): Illuminate\\Database\\Eloquent\\Relations\\HasMany|Cms\\Core\\Models\\Workflows\\WorkflowStep",
+            "project": "public function project(): Illuminate\\Database\\Eloquent\\Relations\\BelongsTo"
         }
     },
     "Cms\\Core\\Policies\\AbstractModelPolicy": {
@@ -1902,6 +1973,7 @@
             "ownershipKey": "protected function ownershipKey(): string",
             "owns": "protected function owns(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
             "perm": "protected function perm(string $action): string",
+            "permissionFor": "public function permissionFor(string $action): string",
             "prefix": "abstract protected function prefix(): string",
             "restore": "public function restore(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
             "update": "public function update(Illuminate\\Contracts\\Auth\\Authenticatable $user, Illuminate\\Database\\Eloquent\\Model $model): bool",
@@ -2213,6 +2285,16 @@
         "kind": "interface",
         "methods": {
             "items": "abstract public function items(): array"
+        }
+    },
+    "Cms\\Core\\Services\\Workflow\\Setup\\WorkflowGraphLayout": {
+        "kind": "final class",
+        "constants": {
+            "CARD_HEIGHT": 96,
+            "CARD_WIDTH": 300
+        },
+        "methods": {
+            "tidy": "public static function tidy(array $stepCodes, array $edges): array"
         }
     },
     "Cms\\Core\\Services\\Workflow\\WorkflowExecutor": {

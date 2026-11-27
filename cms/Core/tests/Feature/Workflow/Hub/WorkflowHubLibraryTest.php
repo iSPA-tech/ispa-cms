@@ -236,7 +236,7 @@ it('installs a fresh template inactive, with provenance and the setup screen nex
     $result = $this->postJson(WLIB_API . '/ispa.church-story/install')->assertCreated()->json('data');
     $project = WorkflowProject::query()->findOrFail($result['project_id']);
 
-    expect($result)->toMatchArray(['slug' => 'church-story', 'name' => 'Church story', 'is_active' => false, 'as_copy' => false, 'copy_reason' => null, 'setup_url' => '/setting/automation/workflows/setup/' . $project->id])
+    expect($result)->toMatchArray(['slug' => 'church-story', 'name' => 'Church story', 'is_active' => false, 'as_copy' => false, 'copy_reason' => null, 'setup_url' => '/setting/automation/workflows/setup/' . $project->slug])
         ->and($project->is_active)->toBeFalse()
         ->and($project->source)->toMatchArray(['kind' => 'hub', 'key' => 'ispa.church-story', 'version' => 20261201, 'checksum' => $this->bundle->contentSha256])
         ->and($project->source['installed_hash'])->toMatch('/^[0-9a-f]{64}$/')
@@ -248,7 +248,7 @@ it('installs a fresh template inactive, with provenance and the setup screen nex
     expect($installed)->toMatchArray(['project_id' => $project->id, 'version' => 20261201, 'modified' => false, 'is_active' => false]);
 
     // Answering the setup questions is not a local modification.
-    $this->putJson('/api/v2/admin/workflows/' . $project->id . '/setup', ['answers' => ['review.reviewer_permission' => 'workflow_project.viewAny']])->assertOk();
+    $this->putJson('/api/v2/admin/workflows/' . $project->uuid . '/setup', ['answers' => ['review.reviewer_permission' => 'workflow_project.viewAny']])->assertOk();
     expect($this->getJson(WLIB_API)->json('data.0.installed.modified'))->toBeFalse();
 });
 
@@ -374,7 +374,7 @@ function wlibV2(int $version = 20261202, array $extra = [], array $extraEdges = 
 function wlibInstallAnswered(object $test, WorkflowBundle $v1, User $user): WorkflowProject
 {
     ($test->serve)($v1);
-    $id = $test->postJson(WLIB_API . '/ispa.church-story/install')->assertCreated()->json('data.project_id');
+    $id = $test->postJson(WLIB_API . '/ispa.church-story/install')->assertCreated()->json('data.project_uuid');
     \Cms\Core\Models\Workflows\WorkflowCredential::query()->create(['name' => 'parish-bot', 'type' => 'telegram_bot', 'payload' => ['token' => 'secret-token-123']]);
     $test->putJson("/api/v2/admin/workflows/{$id}/setup", ['answers' => [
         'review.reviewer_permission' => ['permission' => 'workflow_project.viewAny', 'assignees' => [$user->uuid]],
@@ -383,7 +383,7 @@ function wlibInstallAnswered(object $test, WorkflowBundle $v1, User $user): Work
         'schedule' => ['cron' => '0 6 * * *', 'timezone' => 'Asia/Ho_Chi_Minh'],
     ]])->assertOk();
 
-    return WorkflowProject::query()->findOrFail($id);
+    return WorkflowProject::query()->where('uuid', $id)->firstOrFail();
 }
 
 /** @return array<string, WorkflowStep> */
@@ -410,7 +410,7 @@ it('updates an unmodified install in place, keeping setup answers, the published
 
     $result = $this->postJson(WLIB_API . '/ispa.church-story/install')->assertOk()->json('data');
     expect($result)->toMatchArray(['project_id' => $project->id, 'slug' => 'church-story', 'as_copy' => false, 'copy_reason' => null,
-        'updated_in_place' => true, 'is_active' => true, 'version' => 20261202, 'setup_url' => '/setting/automation/workflows/setup/' . $project->id])
+        'updated_in_place' => true, 'is_active' => true, 'version' => 20261202, 'setup_url' => '/setting/automation/workflows/setup/' . $project->slug])
         ->and(WorkflowProject::query()->count())->toBe(1);
 
     $project->refresh();
@@ -468,6 +468,36 @@ it('installs a newer version as a copy once the draft was edited after install',
     expect($copy)->toMatchArray(['as_copy' => true, 'copy_reason' => 'modified', 'updated_in_place' => false])
         ->and($copy['project_id'])->not->toBe($project->id)
         ->and($project->fresh()->source['version'])->toBe(20261201);
+});
+
+it('updates in place only for upgrade-all and refuses a modified install instead of making a copy', function (): void {
+    $v1 = wlibV1();
+    $v2 = wlibV2();
+    $user = wlibUser();
+    Sanctum::actingAs($user);
+    $project = wlibInstallAnswered($this, $v1, $user);
+    WorkflowStep::query()->where('project_id', $project->id)->where('step_code', 'note')->update(['name' => 'Tell the bishop']);
+    ($this->serve)($v2);
+    $before = WorkflowProject::query()->count();
+
+    expect(fn () => app(\Cms\Core\Services\Workflow\Hub\WorkflowHubInstaller::class)->updateInPlaceOnly('ispa.church-story', $user))
+        ->toThrow(fn (WorkflowHubException $e) => expect($e->errorCode)->toBe(WorkflowHubException::CHANGED));
+    expect(WorkflowProject::query()->count())->toBe($before)
+        ->and($project->fresh()->source['version'])->toBe(20261201);
+});
+
+it('updates an unmodified install in place through the upgrade-all call', function (): void {
+    $v1 = wlibV1();
+    $v2 = wlibV2();
+    $user = wlibUser();
+    Sanctum::actingAs($user);
+    $project = wlibInstallAnswered($this, $v1, $user);
+    ($this->serve)($v2);
+
+    $result = app(\Cms\Core\Services\Workflow\Hub\WorkflowHubInstaller::class)->updateInPlaceOnly('ispa.church-story', $user);
+
+    expect($result)->toMatchArray(['project_id' => $project->id, 'updated_in_place' => true])
+        ->and($project->fresh()->source['version'])->toBe(20261202);
 });
 
 it('refuses the same version of an unmodified install unless a copy is asked', function (): void {

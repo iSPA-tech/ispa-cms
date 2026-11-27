@@ -15,7 +15,7 @@
     <no-permission-error v-if="!allowed" data-testid="workflow-setup-not-allowed" />
     <div v-else class="mx-auto max-w-3xl space-y-4" data-testid="workflow-setup-page">
         <section class="i-box space-y-2">
-            <router-link :to="{ name: 'setting-workflows-manage' }" class="text-sm" data-testid="setup-back">{{ t('text.workflow.package.back') }}</router-link>
+            <router-link :to="{ name: 'workflows' }" class="text-sm" data-testid="setup-back">{{ t('text.workflow.package.back') }}</router-link>
 
             <div v-if="stage === 'loading'" class="flex items-center gap-3" role="status" data-testid="setup-loading">
                 <a-spin />
@@ -58,7 +58,7 @@
                 </h2>
                 <p class="m-0 text-sm">{{ t(`text.workflow.setup.outcome_${outcome}_hint`) }}</p>
                 <div class="flex flex-wrap gap-2">
-                    <a-button type="primary" data-testid="setup-to-list" @click="router.push({ name: 'setting-workflows-manage' })">{{ t('text.workflow.setup.to_list') }}</a-button>
+                    <a-button type="primary" data-testid="setup-to-list" @click="router.push({ name: 'workflows' })">{{ t('text.workflow.setup.to_list') }}</a-button>
                     <a-button data-testid="setup-to-designer" @click="openDesigner">{{ t('text.workflow.setup.view_designer') }}</a-button>
                 </div>
             </section>
@@ -125,13 +125,51 @@
                     <!-- Who is told -->
                     <template v-else-if="question.kind === 'notify_channel'">
                         <template v-if="question.field === 'permission'">
-                            <PermissionPicker
-                                :model-value="answers[question.key]"
-                                :read-only="!canUpdate"
-                                required
-                                :label="question.label"
-                                @update:model-value="(value) => (answers[question.key] = value || '')"
-                            />
+                            <div class="space-y-1" data-testid="setup-notice-people">
+                                <p class="m-0 text-sm font-medium">{{ t('text.workflow.setup.notify_people') }}</p>
+                                <ReviewerPicker
+                                    :model-value="answers[question.key].users"
+                                    :read-only="!canUpdate"
+                                    audience="notice"
+                                    :label="t('text.workflow.setup.notify_people')"
+                                    @update:model-value="(value) => (answers[question.key].users = value)"
+                                />
+                            </div>
+                            <!-- The sample's suggestion, shown as the people it names today: one click puts them in. -->
+                            <div
+                                v-if="canUpdate && noticeSuggestion[question.key]?.people?.length && !answers[question.key].users?.length && !answers[question.key].permission"
+                                class="space-y-1 rounded-md border border-solid border-green-200 bg-green-50 px-3 py-2"
+                                data-testid="setup-notice-suggestion"
+                            >
+                                <p class="m-0 text-sm">
+                                    {{ t('text.workflow.setup.notify_suggest_people') }}
+                                    <span class="font-medium">{{ noticeSuggestion[question.key].people.map(personName).join(', ') }}</span>
+                                </p>
+                                <a-button size="small" type="primary" data-testid="setup-notice-use-suggestion" @click="useNoticeSuggestion(question)">
+                                    {{ t('text.workflow.setup.notify_use_suggestion') }}
+                                </a-button>
+                            </div>
+                            <!-- Everyone holding a permission (it follows role changes): for those who know the permission list. -->
+                            <div v-if="noticeAdvanced[question.key] || answers[question.key].permission" class="space-y-1" data-testid="setup-notice-group">
+                                <p class="m-0 text-sm font-medium">{{ t('text.workflow.setup.notify_advanced') }}</p>
+                                <PermissionPicker
+                                    :model-value="answers[question.key].permission"
+                                    :read-only="!canUpdate"
+                                    :label="t('text.workflow.setup.notify_advanced')"
+                                    @update:model-value="(value) => (answers[question.key].permission = value || '')"
+                                />
+                            </div>
+                            <a-button
+                                v-else-if="canUpdate"
+                                type="link"
+                                size="small"
+                                class="!h-auto !p-0 !text-xs"
+                                data-testid="setup-notice-advanced"
+                                @click="noticeAdvanced[question.key] = true"
+                            >
+                                {{ t('text.workflow.setup.notify_advanced') }}
+                            </a-button>
+                            <p class="m-0 break-words text-sm" role="status" data-testid="setup-notice-preview">{{ noticePreviewText(question) }}</p>
                             <p class="m-0 text-xs text-ink-muted">{{ t('text.workflow.setup.notify_in_app') }}</p>
                         </template>
                         <a-input v-else v-model:value="answers[question.key]" :disabled="!canUpdate" :aria-label="question.label" data-testid="setup-text-answer" />
@@ -153,7 +191,7 @@
                         />
                         <p class="m-0 text-xs text-ink-muted">
                             {{ t(credentials.failed ? 'text.workflow.setup.credential_failed' : 'text.workflow.setup.credential_hint') }}
-                            <router-link v-if="canManageCredentials" :to="{ name: 'setting-workflow-credentials' }" data-testid="setup-credential-manage">
+                            <router-link v-if="canManageCredentials" :to="{ name: 'workflow-credentials' }" data-testid="setup-credential-manage">
                                 {{ t('text.workflow.setup.credential_manage') }}
                             </router-link>
                         </p>
@@ -307,10 +345,12 @@ import { dryRunRows, dryRunState } from '../../workflow-package-report'
 import {
     SCHEDULE_CHOICES,
     changedAnswers,
+    fetchNoticeRecipients,
     fetchWorkflowSetup,
     findWorkflow,
     initialAnswer,
     isAnswered,
+    isNoticeQuestion,
     safeTestRun,
     setupIncomplete,
     saveWorkflowSetup,
@@ -345,7 +385,8 @@ const takeSetup = (body) => {
     setup.value = body
     Object.keys(answers).forEach((key) => delete answers[key])
     body.questions.forEach((question) => (answers[question.key] = initialAnswer(question)))
-    openKey.value = body.questions.find((question) => question.required && !isAnswered(question, answers[question.key]))?.key || ''
+    // A question the server still counts as open stays open, also when a suggestion filled it in, so the suggestion is seen.
+    openKey.value = body.questions.find((question) => question.required && (!question.answered || !isAnswered(question, answers[question.key])))?.key || ''
     problems.value = {}
 }
 
@@ -360,7 +401,7 @@ async function load() {
             stage.value = 'missing'
             return
         }
-        const body = await fetchWorkflowSetup(found.id)
+        const body = await fetchWorkflowSetup(found.uuid)
         if (mine !== token) return
         workflow.value = found
         takeSetup(body)
@@ -386,26 +427,97 @@ const stepNameMap = computed(() =>
     )
 )
 
-const openDesigner = () => router.push({ name: 'setting-workflows-manage', query: { open: workflow.value?.slug } })
+const openDesigner = () => router.push({ name: 'workflows', query: { open: workflow.value?.slug } })
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Names for the answers
 // ---------------------------------------------------------------------------------------------------------------------
 
 const permissionNames = ref({})
+const permissionRows = ref([])
 fetchPermissionOptions()
-    .then((rows) => (permissionNames.value = Object.fromEntries(rows.map((row) => [row.key, row.label || row.key]))))
+    .then((rows) => {
+        permissionRows.value = rows
+        permissionNames.value = Object.fromEntries(rows.map((row) => [row.key, row.label || row.key]))
+    })
     .catch(() => {})
 
+// "Who is told": named people first. The sample's suggestion (the people who may see what the notice is about) is shown
+// as those people's names, one click puts them in; choosing by permission stays behind "advanced".
+const noticeAdvanced = reactive({})
+const noticeSuggestion = reactive({})
+watch(
+    () => questions.value.filter(isNoticeQuestion).map((question) => `${question.key}:${question.current?.suggested || ''}`).join('|'),
+    async () => {
+        for (const question of questions.value.filter(isNoticeQuestion)) {
+            const permission = question.current?.suggested
+            if (!permission || !workflow.value || noticeSuggestion[question.key]) continue
+            try {
+                noticeSuggestion[question.key] = await fetchNoticeRecipients(workflow.value.uuid, { permission, users: [] })
+            } catch (error) {
+                // No suggestion line: the people picker still works.
+            }
+        }
+    },
+    { immediate: true }
+)
+const useNoticeSuggestion = (question) => {
+    answers[question.key].users = (noticeSuggestion[question.key]?.people || []).map((person) => person.uuid)
+    answers[question.key].permission = ''
+}
+
+// Who the notice would reach with the answer on screen (same rule as the run).
+const noticePreview = reactive({})
+let previewTimer = null
+watch(
+    () => JSON.stringify(questions.value.filter(isNoticeQuestion).map((question) => [question.key, answers[question.key]])),
+    () => {
+        clearTimeout(previewTimer)
+        previewTimer = setTimeout(async () => {
+            for (const question of questions.value.filter(isNoticeQuestion)) {
+                const answer = answers[question.key]
+                if (!isAnswered(question, answer) || !workflow.value) {
+                    noticePreview[question.key] = { state: 'empty' }
+                    continue
+                }
+                noticePreview[question.key] = { ...(noticePreview[question.key] || {}), state: 'loading' }
+                try {
+                    noticePreview[question.key] = { state: 'ready', ...(await fetchNoticeRecipients(workflow.value.uuid, answer)) }
+                } catch (error) {
+                    noticePreview[question.key] = { state: 'failed' }
+                }
+            }
+        }, 300)
+    },
+    { immediate: true }
+)
+const noticePreviewText = (question) => {
+    const preview = noticePreview[question.key] || { state: 'empty' }
+    if (preview.state === 'loading') return t('text.workflow.setup.notify_preview_loading')
+    if (preview.state === 'failed') return t('text.workflow.setup.notify_preview_failed')
+    if (preview.state !== 'ready') return t('text.workflow.setup.notify_preview_empty')
+    if (!preview.count) return t('text.workflow.setup.notify_preview_none')
+    const names = preview.people.map(personName).join(', ')
+    return preview.more
+        ? t('text.workflow.setup.notify_preview_more', { count: preview.count, names, more: preview.more })
+        : t('text.workflow.setup.notify_preview', { count: preview.count, names })
+}
+
+/** "Name - username": the username, or the email of an account without one, tells two people with one name apart. */
+const personName = (person) => (person?.detail && person.detail !== person?.name ? `${person?.name || ''} - ${person.detail}` : person?.name || '')
 const peopleNames = ref({})
 watch(
-    () => questions.value.filter((question) => question.kind === 'reviewers').flatMap((question) => answers[question.key]?.assignees || []).join('|'),
+    () =>
+        [
+            ...questions.value.filter((question) => question.kind === 'reviewers').flatMap((question) => answers[question.key]?.assignees || []),
+            ...questions.value.filter(isNoticeQuestion).flatMap((question) => answers[question.key]?.users || []),
+        ].join('|'),
     async (uuids) => {
         const missing = uuids.split('|').filter((uuid) => uuid && !(uuid in peopleNames.value))
         if (!missing.length) return
         try {
             const rows = await resolveReviewers(missing)
-            peopleNames.value = { ...peopleNames.value, ...Object.fromEntries(rows.map((row) => [row.uuid, row.name])) }
+            peopleNames.value = { ...peopleNames.value, ...Object.fromEntries(rows.map((row) => [row.uuid, personName(row)])) }
         } catch (error) {
             // The summary then counts the people instead of naming them.
         }
@@ -499,7 +611,15 @@ const summaryOf = (question) => {
     }
     if (question.kind === 'schedule') return scheduleText(answer.cron)
     if (question.kind === 'choice') return t(answer ? 'text.workflow.setup.choice_on' : 'text.workflow.setup.choice_off')
-    if (question.kind === 'notify_channel' && question.field === 'permission') return t('text.workflow.setup.summary_group', { name: permissionNames.value[answer] || answer })
+    if (isNoticeQuestion(question)) {
+        const parts = []
+        if (answer.users?.length) {
+            const names = answer.users.map((uuid) => peopleNames.value[uuid]).filter(Boolean)
+            parts.push(names.length === answer.users.length ? names.join(', ') : t('text.workflow.setup.summary_people', { count: answer.users.length }))
+        }
+        if (answer.permission) parts.push(t('text.workflow.setup.summary_group', { name: permissionNames.value[answer.permission] || answer.permission }))
+        return parts.join(' · ')
+    }
     return typeof answer === 'string' ? answer : t('text.workflow.setup.chosen')
 }
 
@@ -513,7 +633,7 @@ async function testRun() {
     if (run.state === 'running' || !workflow.value?.id) return
     run.state = 'running'
     try {
-        const report = await safeTestRun(workflow.value.id)
+        const report = await safeTestRun(workflow.value.uuid)
         run.rows = dryRunRows(report, stepNameMap.value)
         run.state = dryRunState(report)
     } catch (error) {
@@ -534,7 +654,7 @@ const outcome = ref('')
 
 async function enable() {
     try {
-        const res = await updateWorkflow(workflow.value.id, { is_active: true })
+        const res = await updateWorkflow(workflow.value.uuid, { is_active: true })
         if (res?.status !== 'success') throw res
         outcome.value = 'enabled'
     } catch (error) {
@@ -551,7 +671,7 @@ async function saveAndEnable() {
         const changed = changedAnswers(questions.value, answers)
         if (Object.keys(changed).length) {
             const open = openKey.value
-            takeSetup(await saveWorkflowSetup(workflow.value.id, changed))
+            takeSetup(await saveWorkflowSetup(workflow.value.uuid, changed))
             openKey.value = questions.value.some((question) => question.key === open && !answered(question)) ? open : openKey.value
         }
     } catch (error) {
@@ -567,7 +687,7 @@ async function saveAndEnable() {
     // Publishing goes through the usual dialog (what changes, a confirmation or a second person when it is sensitive).
     // A draft that is already what runs has nothing to publish: the workflow is switched on straight away.
     try {
-        const preview = await previewPublish(workflow.value.id)
+        const preview = await previewPublish(workflow.value.uuid)
         if (preview?.unchanged) await enable()
         else {
             publishAnswer.value = null

@@ -112,6 +112,50 @@
                 />
 
                 <!--
+                    After an update this page watched succeed: the admin reloads itself to run the new build. The
+                    sentence is said once to a screen reader (hidden line, fixed number); the visible one counts down.
+                -->
+                <div v-if="reloadPrompt.mode && !running" class="space-y-2" data-testid="core-update-reload">
+                    <template v-if="reloadPrompt.mode === 'countdown'">
+                        <p class="sr-only" role="status" aria-live="polite" data-testid="core-update-reload-live">
+                            {{ $t('text.modules.core_update.reload_countdown', { seconds: RELOAD_SECONDS }) }}
+                        </p>
+                        <p class="m-0 text-base font-semibold" aria-hidden="true" data-testid="core-update-reload-text">
+                            {{ $t('text.modules.core_update.reload_countdown', { seconds: reloadPrompt.seconds }) }}
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <i-button
+                                variant="primary"
+                                size="md"
+                                data-testid="core-update-reload-now"
+                                :loading="reloadPrompt.busy"
+                                :disabled="reloadPrompt.busy"
+                                @click="reloadNow"
+                            >
+                                {{ $t('text.modules.core_update.action.reload_now') }}
+                            </i-button>
+                            <i-button size="md" data-testid="core-update-reload-later" :disabled="reloadPrompt.busy" @click="reloadLater">
+                                {{ $t('text.modules.core_update.action.reload_later') }}
+                            </i-button>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <p class="m-0 text-sm" data-testid="core-update-reload-hint">
+                            {{ $t('text.modules.core_update.reload_hint') }}
+                        </p>
+                        <i-button
+                            size="md"
+                            data-testid="core-update-reload-page"
+                            :loading="reloadPrompt.busy"
+                            :disabled="reloadPrompt.busy"
+                            @click="reloadNow"
+                        >
+                            {{ $t('text.modules.core_update.action.reload_page') }}
+                        </i-button>
+                    </template>
+                </div>
+
+                <!--
                     Queued or running: one live line (the same element for both, so a reader hears the change), a bar,
                     and the note that nobody has to reload. A queued request has no percentage yet: its bar only pulses.
                 -->
@@ -324,6 +368,7 @@ import {
     SyncOutlined,
 } from '@ant-design/icons-vue'
 import ajax from '@/ajax'
+import { reloadAdminBuild } from './admin-reload'
 
 defineComponent({
     name: 'CoreUpdateCard',
@@ -335,6 +380,8 @@ const emit = defineEmits(['finished'])
 const POLL_MS = 5000
 const ENDPOINT = 'core-update'
 const TASK_ENDPOINT = 'background-tasks'
+/** Seconds before the admin reloads itself after an update this page watched succeed. */
+const RELOAD_SECONDS = 5
 /** Milliseconds the copy button says "copied". */
 const COPIED_MS = 2000
 /** Preflight codes that have their own plain text; anything else falls back to the generic text. */
@@ -379,10 +426,13 @@ const confirm = reactive({ open: false, backup: false, loading: false, error: ''
 const restore = reactive({ open: false, checked: false, loading: false, error: '' })
 /** Outcome of the last task followed on this page. */
 const result = reactive({ ok: false, text: '' })
+/** The reload offer after an update: '' (none), 'countdown' or 'later' (countdown stopped, plain button left). */
+const reloadPrompt = reactive({ mode: '', seconds: RELOAD_SECONDS, busy: false })
 /** Which copy button says "copied". */
 const copied = reactive({ line: false, prompt: false, owner: false })
 
 let timer = null
+let reloadTimer = null
 let disposed = false
 let hadRunning = false
 /** The task being followed: its uuid, and what this page asked for ('upgrade' | 'restore' | '' when unknown). */
@@ -503,7 +553,7 @@ const hasBody = computed(() => {
     if (state.loading && !state.loaded) return true
     if (state.error) return true
     if (!state.loaded || managed.value) return false
-    return !!running.value || !!result.text || blocked.value
+    return !!running.value || !!result.text || blocked.value || !!reloadPrompt.mode
 })
 const issueRows = computed(() =>
     issues.value.map((issue) => ({
@@ -567,11 +617,13 @@ const showOutcome = async () => {
         const task = res?.data?.data
         if (disposed || !task || state.info.running) return
         if (task.status === 'succeeded') {
+            const restored = !!task.result?.restored || kind === 'restore'
             result.ok = true
-            result.text =
-                task.result?.restored || kind === 'restore'
-                    ? t('text.modules.core_update.result.restored')
-                    : t('text.modules.core_update.result.updated', { version: task.result?.to || state.info.installed })
+            result.text = restored
+                ? t('text.modules.core_update.result.restored')
+                : t('text.modules.core_update.result.updated', { version: task.result?.to || state.info.installed })
+            // The update rebuilt the admin: this page still runs the old build until it reloads.
+            if (!restored) startReloadCountdown()
         } else if (task.status === 'failed' && task.message_params?.code === 'CORE_MODULE_NEEDS_UPDATE') {
             // Modules updated on their own would not accept the new version: name them so they are updated first.
             result.ok = false
@@ -588,6 +640,42 @@ const showOutcome = async () => {
     }
 }
 
+const stopReloadTimer = () => {
+    clearInterval(reloadTimer)
+    reloadTimer = null
+}
+
+/**
+ * Count down to the reload. Only showOutcome() starts it, so only for an update this page saw queued or running and
+ * then read as succeeded; a page that loads later never reloads on its own.
+ */
+const startReloadCountdown = () => {
+    stopReloadTimer()
+    reloadPrompt.mode = 'countdown'
+    reloadPrompt.seconds = RELOAD_SECONDS
+    reloadPrompt.busy = false
+    reloadTimer = setInterval(() => {
+        if (disposed) return stopReloadTimer()
+        reloadPrompt.seconds = Math.max(0, reloadPrompt.seconds - 1)
+        if (reloadPrompt.seconds === 0) reloadNow()
+    }, 1000)
+}
+
+/** Reload the admin now. A second call while the first is on its way does nothing. */
+const reloadNow = async () => {
+    if (reloadPrompt.busy) return
+    reloadPrompt.busy = true
+    stopReloadTimer()
+    await reloadAdminBuild()
+}
+
+/** Stop the countdown; a plain reload button stays. */
+const reloadLater = () => {
+    if (reloadPrompt.busy) return
+    stopReloadTimer()
+    reloadPrompt.mode = 'later'
+}
+
 /**
  * Show the queued state at once and start following the new task.
  */
@@ -599,15 +687,17 @@ const follow = (res, kind) => {
 }
 
 /**
- * Load the card. A silent refresh (the poll) keeps the last data when it fails.
+ * Load the card. A silent refresh (the poll) keeps the last data when it fails. With `fresh` the API asks the hub for
+ * the newest version now instead of answering from its hour-long cache (the page's reload button only; never the
+ * mount, the poll or "check again").
  */
-const load = async (silent = false) => {
+const load = async (silent = false, fresh = false) => {
     if (!silent) {
         state.loading = true
         state.error = ''
     }
     try {
-        const res = await ajax.get(ENDPOINT, quiet)
+        const res = await ajax.get(ENDPOINT, fresh ? { ...quiet, params: { refresh: 1 } } : quiet)
         const data = res?.data?.data
         if (data && typeof data === 'object') {
             state.info = { ...state.info, ...data }
@@ -751,6 +841,24 @@ const recheck = () => {
     load()
 }
 
+/**
+ * Reload from the page's reload button: the hub is asked for the newest version, and what is on screen stays until
+ * the answer arrives (a failed read keeps it). A second call while one runs sends nothing.
+ */
+let refreshing = false
+const refresh = async () => {
+    if (refreshing || state.loading) return
+    refreshing = true
+    try {
+        await load(state.loaded, true)
+    } finally {
+        refreshing = false
+    }
+}
+
+// `info` lets the Modules page tell the upgrade-all band whether a newer iSPA CMS can be installed now.
+defineExpose({ refresh, info: computed(() => state.info) })
+
 const copyPrompt = async () => markCopied('prompt', await copyText(agentPrompt.value, promptPre))
 
 onMounted(() => load())
@@ -758,6 +866,7 @@ onMounted(() => load())
 onBeforeUnmount(() => {
     disposed = true
     clearTimeout(timer)
+    stopReloadTimer()
     clearTimeout(copiedTimers.line)
     clearTimeout(copiedTimers.prompt)
     clearTimeout(copiedTimers.owner)

@@ -27,6 +27,7 @@ use App\Services\Import\ContactImportDefinition;
 use App\Support\Achievements\NullAchievementReader;
 use App\Support\Achievements\NullAchievementRecorder;
 use App\Support\LocaleManager;
+use App\Support\Mail\MailBrand;
 use App\Support\Modules\MaintenanceOnlyModuleLifecycleBarrier;
 use App\Support\Modules\ManagedModuleDisabler;
 use App\Support\Modules\ModuleDeploymentPreflightRegistry;
@@ -47,6 +48,8 @@ use App\Support\Widget\NullWidgetSlotRuntime;
 use Cms\Core\Responses\AppResponse;
 use Cms\Core\Services\CMSSettingRuntime;
 use Cms\Core\Services\Import\ImportDefinitionRegistry;
+use App\Cache\PrefixScopedRedisStore;
+use Illuminate\Cache\CacheManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\SendQueuedMailable;
 use Illuminate\Notifications\SendQueuedNotifications;
@@ -73,6 +76,22 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         Passkeys::ignoreRoutes();
+
+        // `redis` cache stores flush only their own prefix, never the whole Redis database: on .215 several sites
+        // share one cache database, and FLUSHDB from one site's cache:clear emptied all of them.
+        $this->callAfterResolving('cache', function (CacheManager $cache): void {
+            $cache->extend('redis', function ($app, array $config) {
+                $connection = $config['connection'] ?? 'default';
+                $store = new PrefixScopedRedisStore(
+                    $app['redis'],
+                    $this->getPrefix($config),
+                    $connection,
+                    $this->getSerializableClasses($config),
+                );
+
+                return $this->repository($store->setLockConnection($config['lock_connection'] ?? $connection), $config);
+            });
+        });
 
         $this->app->register(CollectionMacro::class);
         $this->app->bind(AppResponse::class, fn() => new AppResponse());
@@ -158,6 +177,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->applyMailRuntimeSettings();
+        $this->applyEnvBoundRuntimeSettings();
         $this->registerQueuedMailRuntimeRefresh();
         $this->warnAboutSkippedRuntimeModules();
         if (! self::$runtimeModulesQuarantined) {
@@ -279,7 +299,6 @@ class AppServiceProvider extends ServiceProvider
             'mail.mailers.smtp.username' => 'email.MAIL_USERNAME',
             'mail.mailers.smtp.password' => 'email.MAIL_PASSWORD',
             'mail.from.address' => 'email.MAIL_FROM_ADDRESS',
-            'mail.from.name' => 'email.MAIL_FROM_NAME',
             'mail.reply' => 'email.MAIL_REPLY',
         ];
 
@@ -293,6 +312,44 @@ class AppServiceProvider extends ServiceProvider
             }
         } catch (\Throwable $exception) {
             Log::warning('Mail runtime settings unavailable', [
+                'exception' => $exception::class,
+            ]);
+        }
+
+        // The system sender is named after the site brand (Settings → basic brand), whatever MAIL_FROM_NAME or the
+        // email.MAIL_FROM_NAME row says, so every mail that uses the default sender reads "<brand> <address>".
+        // Mail that sets its own From (an email_send step with its own SMTP credential) keeps it.
+        config(['mail.from.name' => MailBrand::name()]);
+    }
+
+    /**
+     * Put the env-bound application settings that code reads through config() into the config, from the settings
+     * runtime (database row first, `.env` when the row is empty; EnvBoundSettings). The admin save writes only the
+     * row, so without this overlay a change would reach config() only at the next deploy. A no-op while the settings
+     * runtime is off (the runtime then returns null and the config keeps its `.env` values).
+     */
+    private function applyEnvBoundRuntimeSettings(): void
+    {
+        $mapping = [
+            'services.mailgun.secret' => 'email.MAILGUN_SECRET',
+            'services.telegram.token' => 'notify.TELEGRAM_BOT_TOKEN',
+            'services.telegram.chat_id' => 'notify.TELEGRAM_CHAT_ID',
+            'services.turnstile.site_key' => 'api.CLOUDFLARE_TURNSTILE_SITE_KEY',
+            'services.recaptcha.site_key' => 'api.GOOGLE_RECAPTCHA_SITE_KEY',
+            'logging.logger_provider' => 'notify.LOGGER_PROVIDER',
+            'ispa-cms.ggApi' => 'api.GOOGLE_API',
+        ];
+
+        try {
+            $settings = $this->app->make(CMSSettingRuntime::class);
+            foreach ($mapping as $configKey => $settingKey) {
+                $value = $settings->get($settingKey);
+                if ($value !== null && $value !== '') {
+                    config([$configKey => $value]);
+                }
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Env-bound runtime settings unavailable', [
                 'exception' => $exception::class,
             ]);
         }

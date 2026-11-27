@@ -3,7 +3,7 @@
 return array (
   'core.widget-1' => 
   array (
-    'version' => 20261101,
+    'version' => 20261102,
     'inputs' => 
     array (
       'input-19' => 'image',
@@ -16,7 +16,7 @@ return array (
   ),
   'core.widget-2' => 
   array (
-    'version' => 2,
+    'version' => 20261101,
     'inputs' => 
     array (
       'input-3' => 'text',
@@ -25,7 +25,7 @@ return array (
   ),
   'core.widget-3' => 
   array (
-    'version' => 20261101,
+    'version' => 20261102,
     'inputs' => 
     array (
       'input-5' => 'text',
@@ -33,7 +33,7 @@ return array (
   ),
   'core.widget-4' => 
   array (
-    'version' => 20261101,
+    'version' => 20261102,
     'inputs' => 
     array (
       'input-23' => 'query',
@@ -43,7 +43,7 @@ return array (
   ),
   'core.widget-5' => 
   array (
-    'version' => 20261101,
+    'version' => 20261102,
     'inputs' => 
     array (
       'input-26' => 'iSeo',
@@ -57,7 +57,7 @@ return array (
   ),
   'core.widget-6' => 
   array (
-    'version' => 20261101,
+    'version' => 20261102,
     'inputs' => 
     array (
       'input-29' => 'image',
@@ -70,7 +70,7 @@ return array (
   ),
   'core.widget-7' => 
   array (
-    'version' => 2,
+    'version' => 20261101,
     'inputs' => 
     array (
       'input-33' => 'textarea',
@@ -84,7 +84,7 @@ return array (
   ),
   'core.widget-8' => 
   array (
-    'version' => 2,
+    'version' => 20261101,
     'inputs' => 
     array (
       'input-39' => 'text',
@@ -117,7 +117,7 @@ return array (
   ),
   'core.widget-20' => 
   array (
-    'version' => 2,
+    'version' => 20261101,
     'inputs' => 
     array (
       'input-72' => 'list',
@@ -126,7 +126,7 @@ return array (
   ),
   'core.widget-21' => 
   array (
-    'version' => 2,
+    'version' => 20261101,
     'inputs' => 
     array (
       'input-74' => 'text',

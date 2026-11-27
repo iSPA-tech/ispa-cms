@@ -244,6 +244,31 @@ describe('Modules page while installs are blocked', () => {
         preflightBody = { name: 'Helpdesk', version: '1.2.0', can_install: true, blocking: [], warnings: [], changes: [] }
     })
 
+    it('the reload button also reloads the Core card, asking the hub for the newest version', async () => {
+        const core = (latest: string) => ({ installed: '2026.11.06', latest, notes_url: null, can_update: true, preflight: { ok: true, issues: [] }, running: null, command: './ispa upgrade', managed: false })
+        ajaxMock.get.mockImplementation((url: string, config?: { params?: { refresh?: number } }) => {
+            if (url === 'core-update') return Promise.resolve({ data: { data: core(config?.params?.refresh ? '2026.11.08' : '2026.11.07') } })
+            if (url === 'utilities/modules/install-setting') return Promise.resolve({ data: { data: allowed() } })
+            return Promise.resolve({ data: { data: [] } })
+        })
+        const w = mount(SettingModules, {
+            global: { mocks: { $t: tr }, stubs: { ...pageStubs, 'core-update-card': false, 'a-progress': true } },
+        })
+        await flushPromises()
+        // On mount the card answers from the API's cache: no refresh flag.
+        const coreCalls = () => ajaxMock.get.mock.calls.filter(([url]) => url === 'core-update')
+        expect(coreCalls()).toHaveLength(1)
+        expect(coreCalls()[0][1]?.params).toBeUndefined()
+        expect(w.get('[data-testid=core-update-latest]').text()).toBe('2026.11.07')
+
+        await w.get('[data-testid=modules-reload]').trigger('click')
+        await flushPromises()
+        expect(coreCalls()).toHaveLength(2)
+        expect(coreCalls()[1][1]).toEqual(expect.objectContaining({ params: { refresh: 1 } }))
+        expect(w.get('[data-testid=core-update-latest]').text()).toBe('2026.11.08')
+        w.unmount()
+    })
+
     it('hides the switch from everyone but the Webmaster', async () => {
         state.webmaster = false
         ajaxMock.get.mockResolvedValue({ data: { data: [] } })

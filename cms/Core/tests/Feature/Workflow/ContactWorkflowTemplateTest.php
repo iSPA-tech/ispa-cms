@@ -135,9 +135,9 @@ function contactTemplateReady(User $operator, bool $ai = false): WorkflowProject
 }
 
 /** A visitor sends the public contact form through the site's own controller action (storeContact). */
-function contactSubmit(string $subject = 'Hỏi lịch tĩnh tâm', string $email = 'lan@example.test'): void
+function contactSubmit(string $subject = 'Hỏi lịch tĩnh tâm', string $email = 'lan@example.test', string $formId = 'contact'): void
 {
-    $form = new Field(['form_id' => 'contact']);
+    $form = new Field(['form_id' => $formId]);
     $form->setRelation('items', collect());
     $fields = Mockery::mock(FieldInterface::class);
     $fields->shouldReceive('findBy')->andReturn($form);
@@ -147,7 +147,7 @@ function contactSubmit(string $subject = 'Hỏi lịch tĩnh tâm', string $emai
     app()->instance(SpamEmailBlocklistService::class, $blocklist);
 
     app()->instance('request', Request::create('/ajax/contact-request', 'POST', [
-        'id' => 'contact', 'fullname' => 'Lan Nguyễn', 'email' => $email, 'mobile' => '09' . random_int(10000000, 99999999),
+        'id' => $formId, 'fullname' => 'Lan Nguyễn', 'email' => $email, 'mobile' => '09' . random_int(10000000, 99999999),
         'subject' => $subject, 'message' => "Cho con hỏi lịch.\nCảm ơn.",
     ], server: ['HTTP_REFERER' => 'https://acme.test/lien-he']));
 
@@ -167,7 +167,7 @@ test('the installer adds the template once: inactive, no schedule, Vietnamese na
         ->and($project->schedule_cron)->toBeNull()
         ->and($project->name)->toBe('Liên hệ mới')
         ->and($project->description)->toBe('Sửa tay')
-        ->and($project->steps()->orderBy('position_x')->pluck('name')->all())
+        ->and($project->steps()->orderBy('position_y')->pluck('name')->all())
         ->toBe(['Có liên hệ mới', 'Đọc tin nhắn vừa gửi', 'Dùng AI đánh dấu thư rác?', 'AI đánh dấu thư rác', 'Báo quản trị viên', 'AI cho là thư rác?', 'Trả lời tự động cho người gửi'])
         ->and($project->steps()->where('step_type', 'approval')->count())->toBe(0);
 
@@ -194,6 +194,26 @@ test('the installer adds the template once: inactive, no schedule, Vietnamese na
     $project->delete();
     $this->artisan('cms:workflow-install-contact')->expectsOutputToContain('left deleted')->assertSuccessful();
     expect(WorkflowProject::withTrashed()->where('slug', InstallContactWorkflowCommand::PROJECT)->count())->toBe(1);
+});
+
+test('the installer lays the graph out top to bottom with each branch in the order of its outputs, as the designer tidies it', function () {
+    $this->artisan('cms:workflow-install-contact')->assertSuccessful();
+    $project = WorkflowProject::query()->where('slug', InstallContactWorkflowCommand::PROJECT)->sole();
+    $at = WorkflowStep::query()->where('project_id', $project->id)->get()->keyBy('step_code');
+
+    $children = [];
+    foreach (InstallContactWorkflowCommand::edges() as [$from, $to]) {
+        // Links enter a card at the top and leave from its bottom: every link goes down.
+        expect($at[$to]->position_y)->toBeGreaterThan($at[$from]->position_y, "{$from} -> {$to}");
+        $children[$from][] = $to;
+    }
+    foreach ($children as $from => $next) {
+        // A branch's next steps sit left to right in the order of its outputs, so links never cross.
+        $xs = array_map(static fn (string $code): int => (int) $at[$code]->position_x, $next);
+        $sorted = $xs;
+        sort($sorted);
+        expect($xs)->toBe($sorted, "outputs of {$from}");
+    }
 });
 
 test('the guard allows the Contact trigger and the message read, never users; the graph passes the draft checks', function () {
@@ -512,4 +532,78 @@ test('a stored trigger_event config without a version still validates and upgrad
 
     expect($problems)->toBe([])
         ->and((new \Cms\Core\Workflows\Upgrade\StepConfigUpgrader())->upgrade($config, 'trigger_event')['config']['_v'] ?? null)->toBe(2);
+});
+
+/*
+ * 2026-11-28 owner: "bật workflow thì không gửi đường thường, không bật thì gửi đường thường", with forms told apart in
+ * code (no form setting). A newsletter sign-up fires no ContactMessageReceived; while the template is on, the built-in
+ * confirmation and admin e-mail of a contact message step aside (WorkflowTakeover), and come back when it is off.
+ */
+function contactTakeoverMailsFor(string $email): array
+{
+    $contact = Contact::query()->where('email', $email)->sole();
+    $event = new SendConfirmToContactor($email, Contact::class, $contact->id);
+    \Illuminate\Support\Facades\Mail::fake();
+    app(\App\Listeners\SendConfirmToContactorHandle::class)->handle($event);
+    app(\App\Listeners\SendNotifyNewContactToAdminHandle::class)->handle($event);
+
+    return \Illuminate\Support\Facades\Mail::sent(\App\Mail\SendMail::class)
+        ->map(fn ($mail): string => $mail->to[0]['address'] ?? '')->values()->all();
+}
+
+test('a newsletter sign-up is kept as a contact but starts no run, a contact message still does', function () {
+    \Illuminate\Support\Facades\Mail::fake();
+    $operator = contactUser('operator', ['workflow_project.viewAny', 'workflow_project.update', 'workflow_project.publish', 'email.viewAny']);
+    contactUser('staff', ['contacts.viewAny']);
+    $project = contactTemplateReady($operator);
+    auth()->logout();
+
+    contactSubmit('Đăng ký nhận tin', 'tin@example.test', 'subscribe');
+
+    expect(Contact::query()->where('email', 'tin@example.test')->value('source'))->toBe('subscribe')
+        ->and(Email::query()->where('type', 'inbox')->count())->toBe(1)
+        ->and(WorkflowInstance::query()->where('project_id', $project->id)->count())->toBe(0);
+
+    contactFreshRequest();
+    contactSubmit('Hỏi lịch tĩnh tâm', 'lan@example.test');
+
+    expect(WorkflowInstance::query()->where('project_id', $project->id)->count())->toBe(1);
+});
+
+test('while the template is on, the built-in confirmation and admin e-mail step aside; switched off, both send again', function () {
+    config()->set('setting.contact.admin_email', 'admin@example.test');
+    $operator = contactUser('operator', ['workflow_project.viewAny', 'workflow_project.update', 'workflow_project.publish', 'email.viewAny']);
+    contactUser('staff', ['contacts.viewAny']);
+    \Illuminate\Support\Facades\Mail::fake();
+    contactSubmit('Hỏi lịch tĩnh tâm', 'lan@example.test');
+    contactFreshRequest();
+    contactSubmit('Đăng ký nhận tin', 'tin@example.test', 'subscribe');
+
+    // No workflow yet: the built-in path sends both e-mails.
+    expect(contactTakeoverMailsFor('lan@example.test'))->toBe(['lan@example.test', 'admin@example.test']);
+
+    $project = contactTemplateReady($operator);
+    auth()->logout();
+    expect(contactTakeoverMailsFor('lan@example.test'))->toBe([])
+        // A newsletter sign-up starts no run, so nothing takes its mail over.
+        ->and(contactTakeoverMailsFor('tin@example.test'))->toBe(['tin@example.test', 'admin@example.test']);
+
+    // Paused by a query update (as the circuit breaker does): the trigger index still lists it, the live re-read does not.
+    WorkflowProject::query()->whereKey($project->id)->update(['is_active' => false]);
+    expect(contactTakeoverMailsFor('lan@example.test'))->toBe(['lan@example.test', 'admin@example.test']);
+});
+
+test('a template without its auto-reply leaves the sender confirmation to the built-in path and still takes the admin e-mail', function () {
+    config()->set('setting.contact.admin_email', 'admin@example.test');
+    $operator = contactUser('operator', ['workflow_project.viewAny', 'workflow_project.update', 'workflow_project.publish', 'email.viewAny']);
+    contactUser('staff', ['contacts.viewAny']);
+    test()->artisan('cms:workflow-install-contact')->assertSuccessful();
+    contactDropAutoReply();
+    contactTemplateReady($operator);
+    auth()->logout();
+    \Illuminate\Support\Facades\Mail::fake();
+    contactSubmit('Hỏi lịch tĩnh tâm', 'lan@example.test');
+
+    expect(\Cms\Core\Services\Workflow\Triggers\WorkflowTakeover::covers(\App\Events\ContactMessageReceived::class, \Cms\Core\Services\Workflow\Triggers\WorkflowTakeover::SUBJECT_MAIL))->toBeFalse()
+        ->and(contactTakeoverMailsFor('lan@example.test'))->toBe(['lan@example.test']);
 });

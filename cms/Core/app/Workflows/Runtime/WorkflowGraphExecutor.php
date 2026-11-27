@@ -530,7 +530,11 @@ class WorkflowGraphExecutor
             return $byKey;
         }
 
-        return $steps->sortBy('position_x')->first();
+        // Graphs read top to bottom (designer Tidy up, WorkflowGraphLayout::tidy()), so the start card is often not
+        // the leftmost one: the trigger node first, then the step marked as start, the leftmost card last (legacy).
+        return RunGraph::triggerStart($steps)
+            ?? $steps->filter(fn($s) => (bool) ($s->is_start ?? false))->sortBy('id')->first()
+            ?? $steps->sortBy('position_x')->first();
     }
 
     protected function pickExecutionStartStep(

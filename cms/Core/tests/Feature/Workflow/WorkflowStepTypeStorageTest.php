@@ -31,6 +31,7 @@ function stepTypeMigrate(callable $beforeChange = null): void
     }
 
     (require $dir . '2026_11_24_000001_change_workflow_steps_step_type_to_string.php')->up();
+    (require $dir . '2026_11_27_000100_add_uuid_to_workflow_projects.php')->up();
 }
 
 function stepTypeActingUser(): User
@@ -109,7 +110,7 @@ it('saves modern runner types and keeps them after reload', function (): void {
     Sanctum::actingAs(stepTypeActingUser());
     $project = stepTypeProject();
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
         'nodes' => stepTypeNodes([
             'r' => ['step_type' => 'retrieve', 'step_config' => ['model' => \Cms\Core\Models\Tag::class, 'storeAs' => 'vars.p']],
             'ai' => ['step_type' => 'ai_reasoning', 'step_config' => []],
@@ -129,7 +130,7 @@ it('refuses a node with an unknown type and lists its step code', function (): v
     Sanctum::actingAs(stepTypeActingUser());
     $project = stepTypeProject();
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
         'nodes' => stepTypeNodes(['ok' => ['step_type' => 'log_message'], 'bad_one' => ['step_type' => 'rocket']]),
         'edges' => [],
     ])->assertStatus(422)->assertJsonPath('message', 'Unknown step type for steps: bad_one.');
@@ -142,7 +143,7 @@ it('refuses a blueprint_callable step whose class the guard refuses', function (
     Sanctum::actingAs(stepTypeActingUser());
     $project = stepTypeProject();
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
         'nodes' => stepTypeNodes(['call' => ['step_type' => 'blueprint_callable', 'step_config' => [
             'callableType' => 'command', 'class' => \Illuminate\Database\Console\WipeCommand::class,
         ]]]),

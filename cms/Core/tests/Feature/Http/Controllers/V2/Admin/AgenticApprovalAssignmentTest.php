@@ -221,16 +221,16 @@ it('unknown assignee uuid is refused on save', function (): void {
     ]], 'edges' => []];
     $unknown = (string) Str::uuid();
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", $graph(['assignees' => [$known->uuid, $unknown], 'sla' => '4h']))
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", $graph(['assignees' => [$known->uuid, $unknown], 'sla' => '4h']))
         ->assertStatus(422)
         ->assertJsonPath('data.errors.0.code', 'assignee_unknown')
         ->assertJsonPath('data.errors.0.step_code', 'ask');
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", $graph(['sla' => 'soon']))
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", $graph(['sla' => 'soon']))
         ->assertStatus(422)
         ->assertJsonPath('data.errors.0.code', 'config_invalid');
     expect(WorkflowStep::query()->where('project_id', $project->id)->count())->toBe(0);
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", $graph(['assignees' => [$known->uuid], 'sla' => '4h']))->assertOk();
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", $graph(['assignees' => [$known->uuid], 'sla' => '4h']))->assertOk();
     expect(WorkflowStep::query()->where('project_id', $project->id)->value('step_config')['assignees'] ?? null)->toBe([$known->uuid]);
 });
 
@@ -264,8 +264,8 @@ it('reviewers lists only permission holders', function (): void {
     $rows = $this->getJson('/api/v2/admin/workflows/reviewers?q=an')->assertOk()->json('data');
 
     expect($rows)->toBe([
-        ['uuid' => $andy->uuid, 'name' => 'andy reviewer', 'can_review' => true],
-        ['uuid' => $anna->uuid, 'name' => 'anna reviewer', 'can_review' => true],
+        ['uuid' => $andy->uuid, 'name' => 'andy reviewer', 'detail' => $andy->username, 'can_review' => true],
+        ['uuid' => $anna->uuid, 'name' => 'anna reviewer', 'detail' => $anna->username, 'can_review' => true],
     ])
         ->and($this->getJson('/api/v2/admin/workflows/reviewers')->assertOk()->json('data'))->toHaveCount(3);
 
@@ -273,15 +273,19 @@ it('reviewers lists only permission holders', function (): void {
     $this->getJson('/api/v2/admin/workflows/reviewers')->assertForbidden();
 });
 
-it('reviewers never exposes emails', function (): void {
+// two people with the same name must be told apart, so a row names the username, and the email only
+// for an account without one. No `email` field is ever sent.
+it('reviewers name the username, and the email only for an account without a username', function (): void {
     $anna = aaaUser('anna');
+    $bea = aaaUser('bea');
+    $bea->forceFill(['username' => null])->save();
     Sanctum::actingAs(aaaEditor());
 
     $list = $this->getJson('/api/v2/admin/workflows/reviewers?q=anna')->assertOk()->getContent();
-    $named = $this->getJson('/api/v2/admin/workflows/reviewers?' . http_build_query(['uuids' => [$anna->uuid]]))->assertOk()->getContent();
+    $named = $this->getJson('/api/v2/admin/workflows/reviewers?' . http_build_query(['uuids' => [$anna->uuid, $bea->uuid]]))->assertOk()->json('data');
 
-    expect($list)->toContain($anna->uuid)->not->toContain('@example.com')->not->toContain('"email"')
-        ->and($named)->toContain($anna->uuid)->not->toContain('@example.com')->not->toContain('"email"');
+    expect($list)->toContain($anna->uuid)->toContain($anna->username)->not->toContain('@example.com')->not->toContain('"email"')
+        ->and(collect($named)->pluck('detail', 'name')->all())->toBe(['anna' => $anna->username, 'bea' => $bea->email]);
 });
 
 it('uuids resolves names and flags non-reviewers', function (): void {
@@ -293,7 +297,7 @@ it('uuids resolves names and flags non-reviewers', function (): void {
         ->assertOk()->json('data');
 
     expect($rows)->toBe([
-        ['uuid' => $anna->uuid, 'name' => 'anna', 'can_review' => true],
-        ['uuid' => $viewer->uuid, 'name' => 'vic', 'can_review' => false],
+        ['uuid' => $anna->uuid, 'name' => 'anna', 'detail' => $anna->username, 'can_review' => true],
+        ['uuid' => $viewer->uuid, 'name' => 'vic', 'detail' => $viewer->username, 'can_review' => false],
     ]);
 });

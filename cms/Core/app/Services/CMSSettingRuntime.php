@@ -13,6 +13,7 @@ use Illuminate\Support\Arr;
 use Cms\Core\Models\Setting;
 use Cms\Core\Facades\CMSLogger;
 use Cms\Core\Helpers\RedisHelper;
+use Cms\Core\Services\Settings\EnvBoundSettings;
 
 /**
  * Runtime settings resolver with three-tier scoping (env, private, public).
@@ -20,7 +21,8 @@ use Cms\Core\Helpers\RedisHelper;
  * Loads CMS settings from the database, caches them in Redis and
  * per-request static memory. Settings are classified as environment
  * variables, private, or public based on their input_setting metadata.
- * Env-scoped settings resolve via env() with DB fallback.
+ * Env-scoped settings resolve from the database row first and the `.env` value when the row is empty (build and
+ * boot keys keep `.env` first, see EnvBoundSettings; since 2026-11-27, before that `.env` always came first).
  *
  * @see Setting
  * @package Cms\Core\Services
@@ -156,7 +158,7 @@ class CMSSettingRuntime
             }
 
             $resolved = $isEnv
-                ? env_file_value($setting->name, $setting->value)
+                ? $this->resolveEnvBound($setting)
                 : $setting->value;
 
             $result[$setting->setting_key] = $resolved;
@@ -213,6 +215,22 @@ class CMSSettingRuntime
         $isPublic = (bool)Arr::get($data, 'isPublic', Arr::get($data, 'is_public', false));
 
         return [$isEnv, $isPublic];
+    }
+
+    /**
+     * Value of an env-bound row: the database row first for application settings (the admin save no longer writes
+     * `.env`, so the row is the source), the `.env` value only when the row is empty; build and boot keys keep `.env`
+     * first ({@see EnvBoundSettings}).
+     */
+    private function resolveEnvBound(Setting $setting): mixed
+    {
+        if (EnvBoundSettings::databaseFirst((string) $setting->setting_key)) {
+            $value = $setting->value;
+
+            return $value !== null && $value !== '' ? $value : env_file_value((string) $setting->name);
+        }
+
+        return env_file_value((string) $setting->name, $setting->value);
     }
 
     /**

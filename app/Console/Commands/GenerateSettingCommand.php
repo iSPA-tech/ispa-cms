@@ -11,23 +11,16 @@ namespace App\Console\Commands;
 use Throwable;
 use Cms\Core\Models\Setting;
 use Illuminate\Console\Command;
+use App\Constants\CacheConstants;
 use Cms\Core\Facades\CMSLogger;
 use Cms\Core\Helpers\RedisHelper;
+use Cms\Core\Services\CMSSettingRuntime;
+use Cms\Core\Services\Settings\EnvBoundSettings;
 use Illuminate\Support\Facades\Artisan;
 
 class GenerateSettingCommand extends Command
 {
-    private const MAIL_ENV_SETTING_KEYS = [
-        'email.MAIL_MAILER',
-        'email.MAIL_HOST',
-        'email.MAIL_PORT',
-        'email.MAIL_ENCRYPTION',
-        'email.MAIL_USERNAME',
-        'email.MAIL_PASSWORD',
-        'email.MAIL_FROM_ADDRESS',
-        'email.MAIL_FROM_NAME',
-        'email.MAIL_REPLY',
-    ];
+    private const MAIL_ENV_SETTING_KEYS = EnvBoundSettings::MAIL_KEYS;
 
     /** @var bool */
     public bool $isDiscovery = false;
@@ -109,8 +102,7 @@ class GenerateSettingCommand extends Command
             }
 
             if ($shouldUpdateEnv && $envSettings->isNotEmpty()) {
-                $this->info('Updating .env file...');
-                env_update($envSettings, $isCacheEnableValue);
+                $this->writeEnvironmentFile($envSettings, $isCacheEnableValue);
             }
 
             if (!empty($privateSettings) && config('database.redis.enable', false)) {
@@ -130,18 +122,75 @@ class GenerateSettingCommand extends Command
                 RedisHelper::websiteSetting();
             }
 
-            $this->info('Clearing config cache...');
-            Artisan::call('config:clear');
-            Artisan::call('cache:clear');
+            $this->refreshSettingCaches();
         } catch (Throwable $e) {
             $this->error($e->getMessage());
         }
     }
 
+    /**
+     * Write the env-bound rows to `.env`, on legacy sites only.
+     *
+     * With the settings runtime on, the database row is the only source of env-bound application settings and `.env`
+     * is never written here (build and boot keys change through cms:env-set; EnvBoundSettings). Legacy sites (runtime
+     * off) still read `.env`, so the save keeps writing it there.
+     *
+     * @param \Illuminate\Support\Collection<int, Setting> $envSettings
+     *
+     * @return bool Whether `.env` was written.
+     */
+    protected function writeEnvironmentFile(\Illuminate\Support\Collection $envSettings, string $isCacheEnableValue): bool
+    {
+        if (EnvBoundSettings::databaseIsSource()) {
+            $this->info('Settings are read from the database; .env is not written (theme and boot keys: cms:env-set).');
+
+            return false;
+        }
+
+        $this->info('Updating .env file...');
+        env_update($envSettings, $isCacheEnableValue);
+
+        return true;
+    }
+
+    /**
+     * Make the new settings visible without emptying the application cache.
+     *
+     * The command used to end with `config:clear` and `cache:clear`. `cache:clear` flushes the whole cache store, and on a
+     * Redis database shared by several sites (server .215) every admin settings save emptied the cache of all of them
+     * (2026-11-27). Only what the settings feed is refreshed: the CMSSettingRuntime scopes and the public settings payload.
+     * A cached configuration is rebuilt so it carries the new `config/setting.php` and `.env`; an uncached one stays
+     * uncached. Other cached entries keep their own TTL.
+     */
+    protected function refreshSettingCaches(): void
+    {
+        app(CMSSettingRuntime::class)->forget();
+
+        try {
+            RedisHelper::getInstance()->del(CacheConstants::CACHE_SETTINGS);
+        } catch (Throwable $e) {
+            CMSLogger::warning([
+                'message' => 'GenerateSettingCommand could not drop the public settings payload',
+                'exception' => $e,
+            ]);
+        }
+
+        if (app()->configurationIsCached()) {
+            $this->info('Rebuilding the config cache...');
+            try {
+                Artisan::call('config:cache');
+            } catch (Throwable $e) {
+                CMSLogger::error([
+                    'message' => 'GenerateSettingCommand could not rebuild the config cache',
+                    'exception' => $e,
+                ]);
+            }
+        }
+    }
+
     private function shouldSynchronizeToEnvironment(string $settingKey, array $inputSetting): bool
     {
-        return ($inputSetting['isEnv'] ?? false) === true
-            || in_array($settingKey, self::MAIL_ENV_SETTING_KEYS, true);
+        return EnvBoundSettings::isEnvBound($settingKey, $inputSetting);
     }
 
     protected function assignToGroupedSettings(array $groupedSettings, Setting $setting): array

@@ -90,6 +90,9 @@ function essEnvLines(object $test): array
 
 beforeEach(function (): void {
     $this->realEnvHash = is_file(base_path('.env')) ? hash_file('sha256', base_path('.env')) : null;
+    // These cases cover a legacy site (settings runtime off), where a change is still written to `.env`. With the
+    // runtime on the row is the only source: cms/Core/tests/Feature/Settings/EnvBoundSettingsTest.php.
+    config(['ispa-cms.setting_runtime_enabled' => false]);
     Artisan::spy();
     essSeed($this);
     $this->service = app(EnvironmentSettingService::class);

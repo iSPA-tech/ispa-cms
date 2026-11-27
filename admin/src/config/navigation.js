@@ -24,6 +24,8 @@ const BASE_NAV_ORDER = [
     'dashboard',
     // Core approvals waiting for a person ("Chờ duyệt"), right under the dashboard so they are one click away.
     'approvals',
+    // Core workflows ("Quy trình tự động hoá"), right under the approvals.
+    'workflows',
     'calendar',
     'education-dashboard',
     'education-question-bank',

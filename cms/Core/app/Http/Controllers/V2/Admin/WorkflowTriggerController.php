@@ -86,9 +86,11 @@ class WorkflowTriggerController extends Controller
             return $model;
         }
 
-        $targetId = $request->input('error_workflow_project_id');
-        if ($targetId !== null && $targetId !== '') {
-            $target = ctype_digit((string) $targetId) ? WorkflowProject::query()->find((int) $targetId) : null;
+        // The error workflow is named by its uuid (UUID-first); empty turns it off.
+        $targetUuid = $request->input('error_workflow_uuid');
+        $target = null;
+        if ($targetUuid !== null && $targetUuid !== '') {
+            $target = is_string($targetUuid) ? WorkflowProject::query()->where('uuid', $targetUuid)->first() : null;
             if (! $target || $target->id === $model->id) {
                 return ires()->error()->code(422)->errorCode('error_workflow_invalid')->message('Choose another workflow project.');
             }
@@ -102,7 +104,7 @@ class WorkflowTriggerController extends Controller
         }
 
         $before = $model->error_workflow_project_id;
-        $model->forceFill(['error_workflow_project_id' => $targetId ? (int) $targetId : null])->save();
+        $model->forceFill(['error_workflow_project_id' => $target?->id])->save();
         if ($before !== $model->error_workflow_project_id) {
             WorkflowAudit::project(WorkflowAudit::ERROR_WORKFLOW_CHANGED, $model, [
                 'from' => $before,
@@ -110,7 +112,7 @@ class WorkflowTriggerController extends Controller
             ], 'warning', $this->actorId($request));
         }
 
-        return ires()->data(['error_workflow_project_id' => $model->error_workflow_project_id]);
+        return ires()->data(['error_workflow_uuid' => $target?->uuid]);
     }
 
     protected function actorId(Request $request): ?int
@@ -122,7 +124,7 @@ class WorkflowTriggerController extends Controller
 
     protected function authorizedProject(Request $request, string $project): WorkflowProject|AppResponse
     {
-        $model = ctype_digit($project) ? WorkflowProject::query()->find((int) $project) : null;
+        $model = WorkflowProject::query()->where('uuid', $project)->first();
         if (! $model) {
             return ires()->notFound(__('mgs.model.404'));
         }

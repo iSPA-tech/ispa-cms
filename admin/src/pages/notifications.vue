@@ -46,6 +46,7 @@
                         <template v-if="column.key === 'type'">
                             <span :class="record.read_at ? 'text-ink-muted' : 'font-semibold text-ink'">{{ record.label }}</span>
                             <a-tag v-if="!record.read_at" color="blue" class="ml-2">{{ t('text.notifications.filter_unread') }}</a-tag>
+                            <div v-if="record.detail" class="mt-1 text-sm text-ink-muted" data-testid="notification-detail">{{ record.detail }}</div>
                         </template>
                         <template v-else-if="column.key === 'time'">
                             <span class="whitespace-nowrap text-ink-muted">{{ record.time }}</span>
@@ -65,7 +66,7 @@ import dayjs from 'dayjs'
 import { adminNotificationTypes } from '@/config/admin-modules'
 import { useListQueryState } from '@/hooks/useListQueryState'
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/libs/notifications'
-import { announceNotificationsChanged, resolveNotificationTarget } from '@/utils/notifications'
+import { announceNotificationsChanged, resolveNotificationDetail, resolveNotificationTarget } from '@/utils/notifications'
 
 // Every notification of the signed-in person ("View all" from the header bell). Filter (all / unread) and page live
 // in the route query, so reload and Back restore them. Server pagination, one request in flight (a newer load aborts
@@ -97,6 +98,7 @@ const rows = computed(() =>
             label: entry?.text && te(entry.text) ? t(entry.text) : t('text.notifications.unknown_type'),
             time: row.created_at ? dayjs(row.created_at).format('DD/MM/YYYY HH:mm') : '',
             target: resolveNotificationTarget(row, adminNotificationTypes).location,
+            detail: resolveNotificationDetail(row, adminNotificationTypes, t),
         }
     })
 )

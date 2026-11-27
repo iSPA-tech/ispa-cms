@@ -125,7 +125,7 @@ it('pauses on a high error rate over a full window, and a person resumes it', fu
         ->and(wgPauseAlerts())->toBe(1);
 
     $editor = wgUser('editor', ['workflow_project.update']);
-    $url = "https://localhost/api/v2/admin/workflow/projects/{$project->id}/resume";
+    $url = "https://localhost/api/v2/admin/workflow/projects/{$project->uuid}/resume";
     $this->actingAs($editor, 'sanctum')->postJson($url)->assertForbidden();
 
     if (array_key_exists('published_version_id', $project->fresh()->getAttributes())) {
@@ -222,7 +222,7 @@ it('traces every record a workflow run writes to the run, field names only', fun
         ->and($row->target_id)->toBe($instance->id)
         ->and($row->user_id)->toBe($this->webmaster->id)
         ->and($row->changed)->toMatchArray(['instance_id' => $instance->id, 'step_code' => 'rename', 'operation' => 'change',
-            'model' => WorkflowProject::class, 'key' => $project->id, 'fields' => ['description']])
+            'model' => WorkflowProject::class, 'key' => $project->uuid, 'fields' => ['description']])
         ->and(json_encode($row->changed))->not->toContain('Private note');
 
     $create = new StepDefinition(id: 2, projectId: $project->id, stepType: 'create_object', stepCode: 'make', stepKey: null, stepName: 'Make',

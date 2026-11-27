@@ -408,6 +408,7 @@ class WorkflowRuntimeVarsGuardTest extends TestCase
 
         Schema::create('workflow_projects', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable()->unique();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->string('trigger_event')->nullable();

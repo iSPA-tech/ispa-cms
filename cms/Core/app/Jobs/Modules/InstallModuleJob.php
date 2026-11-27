@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Cms\Core\Jobs\Modules;
 
+use Cms\Core\Jobs\UpdateBatch\AdvanceUpdateBatchJob;
 use Cms\Core\Models\ModuleInstall;
 use Cms\Core\Services\Modules\Install\ModuleInstaller;
 use Illuminate\Bus\Queueable;
@@ -51,12 +52,17 @@ final class InstallModuleJob implements ShouldQueue
      */
     public function handle(ModuleInstaller $installer): void
     {
-        $install = ModuleInstall::query()->where('uuid', $this->installUuid)->first();
-        if ($install === null || $install->status !== ModuleInstall::STATUS_QUEUED) {
-            return;
-        }
+        try {
+            $install = ModuleInstall::query()->where('uuid', $this->installUuid)->first();
+            if ($install === null || $install->status !== ModuleInstall::STATUS_QUEUED) {
+                return;
+            }
 
-        $installer->run($install);
+            $installer->run($install);
+        } finally {
+            // Upgrade-all: an open run moves on to its next item (queue sites; the scheduler handles its own).
+            AdvanceUpdateBatchJob::kick();
+        }
     }
 
     /**
@@ -74,5 +80,6 @@ final class InstallModuleJob implements ShouldQueue
             $installer->markFailed($install, 'MODULE_INSTALL_JOB_FAILED');
         }
         $installer->cleanStaging($install);
+        AdvanceUpdateBatchJob::kick();
     }
 }

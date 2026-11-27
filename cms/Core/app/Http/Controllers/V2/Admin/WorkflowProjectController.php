@@ -611,22 +611,17 @@ class WorkflowProjectController extends AdminController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
+     * @param string $uuid Workflow uuid (UUID-first admin API)
      *
      * @return mixed $res
      * @author malayvuong
      */
-    public function edit($id)
+    public function edit($uuid)
     {
-        $id = (int)$id;
-
-        if ($id < 1) {
-            return ires()->error()->message(__('mgs.model.404'));
-        }
-
         $model = $this->model->model()
             ->with(['steps', 'connections.fromStep', 'connections.toStep'])
-            ->find($id);
+            ->where('uuid', (string) $uuid)
+            ->first();
 
         if (!$model) {
             return ires()->error()->message(__('mgs.model.404'));
@@ -642,21 +637,15 @@ class WorkflowProjectController extends AdminController
     /**
      * Update the specified resource in storage.
      *
-     * @param Integer $id
+     * @param string $uuid Workflow uuid (UUID-first admin API)
      * @param UpdateWorkflowProjectRequest $request
      *
      * @return mixed $res
      * @author malayvuong
      */
-    public function update($id, UpdateWorkflowProjectRequest $request)
+    public function update($uuid, UpdateWorkflowProjectRequest $request)
     {
-        $id = (int)$id;
-
-        if ($id < 1) {
-            return ires()->error()->message(__('mgs.model.404'));
-        }
-
-        $model = $this->model->find($id);
+        $model = $this->model->model()->where('uuid', (string) $uuid)->first();
 
         if (!$model) {
             return ires()->error()->message(__('mgs.model.404'));
@@ -727,20 +716,14 @@ class WorkflowProjectController extends AdminController
     /**
      * Remove the specified resource from storage.
      *
-     * @param Integer $id
+     * @param string $uuid Workflow uuid (UUID-first admin API)
      *
      * @return mixed $res
      * @author malayvuong
      */
-    public function destroy($id)
+    public function destroy($uuid)
     {
-        $id = (int)$id;
-
-        if ($id < 1) {
-            return ires()->error()->message(__('mgs.model.404'));
-        }
-
-        $model = $this->model->find($id);
+        $model = $this->model->model()->where('uuid', (string) $uuid)->first();
 
         if (!$model) {
             return ires()->error()->message(__('mgs.model.404'));

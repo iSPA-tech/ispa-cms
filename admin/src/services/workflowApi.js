@@ -58,15 +58,17 @@ export const fetchSelectableModels = () => {
 const reviewerRows = (res) =>
     (Array.isArray(res?.data?.data) ? res.data.data : [])
         .filter((row) => row?.uuid)
-        .map((row) => ({ uuid: row.uuid, name: row.name || '', can_review: row.can_review !== false }))
+        .map((row) => ({ uuid: row.uuid, name: row.name || '', detail: row.detail || '', can_review: row.can_review !== false }))
 
 /**
- * People a workflow step may name as reviewers, found by name: `[{ uuid, name, can_review }]` (at most 20, only people
- * who may approve, never an email). Silent: the picker shows its own "could not load" line.
+ * People a workflow step may name as reviewers, found by name: `[{ uuid, name, detail, can_review }]` (at most 20, only
+ * people who may approve; `detail` = username, or the email of an account without one). Silent: the picker shows its
+ * own "could not load" line.
  */
-export const searchReviewers = async (keywords = '') => {
+export const searchReviewers = async (keywords = '', audience = 'review') => {
     const q = String(keywords ?? '').trim()
-    const res = await ajax.get('workflows/reviewers', { params: q !== '' ? { q } : {}, silent: true })
+    const params = { ...(q !== '' ? { q } : {}), ...(audience === 'notice' ? { for: 'notice' } : {}) }
+    const res = await ajax.get('workflows/reviewers', { params, silent: true })
     return reviewerRows(res)
 }
 
@@ -74,10 +76,10 @@ export const searchReviewers = async (keywords = '') => {
  * Saved reviewers (user uuids) as `[{ uuid, name, can_review }]`. An account that no longer exists is not returned;
  * `can_review: false` marks a person who lost the right to approve.
  */
-export const resolveReviewers = async (uuids = []) => {
+export const resolveReviewers = async (uuids = [], audience = 'review') => {
     const list = (Array.isArray(uuids) ? uuids : []).filter((uuid) => typeof uuid === 'string' && uuid !== '')
     if (!list.length) return []
-    const res = await ajax.get('workflows/reviewers', { params: { uuids: list }, silent: true })
+    const res = await ajax.get('workflows/reviewers', { params: { uuids: list, ...(audience === 'notice' ? { for: 'notice' } : {}) }, silent: true })
     return reviewerRows(res)
 }
 
@@ -93,12 +95,12 @@ export const fetchNodeCatalog = async () => {
 
 /**
  * Data of the workflow's most recent run, used as sample values in the step form: `{ vars, trigger }`, or null when
- * the workflow never ran or the account may not see runs. Silent: the form then shows data types instead of samples.
+ * the workflow (named by its uuid) never ran or the account may not see runs. Silent: the form then shows data types instead of samples.
  */
-export const fetchLastRunContext = async (projectId) => {
-    if (!projectId) return null
+export const fetchLastRunContext = async (projectUuid) => {
+    if (!projectUuid) return null
     try {
-        const list = await ajax.get(`workflow/projects/${projectId}/instances`, { params: { page: 1, per_page: 1 }, silent: true })
+        const list = await ajax.get(`workflow/projects/${encodeURIComponent(projectUuid)}/instances`, { params: { page: 1, per_page: 1 }, silent: true })
         const run = list?.data?.data?.data?.[0]
         if (!run?.id) return null
         const detail = await ajax.get(`workflow/instances/${run.id}`, { silent: true })
@@ -157,8 +159,8 @@ export const fetchPermissionOptions = () => {
  * paused, estimate: { "0.6": n, "0.8": n, "0.9": n, of: n }, last_30_days: { auto, human, withdrawn } }`.
  * Silent: a step the server does not know yet (never saved) simply has no such section.
  */
-export const fetchAutoApproval = async (projectId, stepCode) => {
-    const res = await ajax.get(`workflows/${encodeURIComponent(projectId)}/steps/${encodeURIComponent(stepCode)}/auto-approval`, { silent: true })
+export const fetchAutoApproval = async (projectUuid, stepCode) => {
+    const res = await ajax.get(`workflows/${encodeURIComponent(projectUuid)}/steps/${encodeURIComponent(stepCode)}/auto-approval`, { silent: true })
     const data = res?.data?.data
     return data && typeof data === 'object' && !Array.isArray(data) ? data : { available: false }
 }

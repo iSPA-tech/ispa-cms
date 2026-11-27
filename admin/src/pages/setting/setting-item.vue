@@ -86,11 +86,19 @@
                           }))
                         : item.input_setting.options
                 "
+                :disabled="item.name === 'VITE_TEMPLATE_FOLDER'"
                 :required="item.input_setting.required"
                 :setting="item"
                 no-style
                 @change="immediateSync"
             />
+            <p
+                v-if="item.name === 'VITE_TEMPLATE_FOLDER'"
+                class="text-xs text-gray-600"
+                data-testid="setting-theme-read-only"
+            >
+                {{ t('text.setting.theme_read_only') }}
+            </p>
             <p
                 v-if="hasStoredSecret && isSelectItem"
                 class="text-xs text-gray-600"

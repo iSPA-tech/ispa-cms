@@ -116,7 +116,7 @@ describe('approval step: reviewers and review deadline', () => {
         const w = mount(SchemaFormEditor, { props: { schema: approvalSchema, modelValue: { title: 'Duyệt' } }, global: { stubs } })
         await picker(w).trigger('focusin')
         await flushPromises()
-        expect(api.searchReviewers).toHaveBeenCalledWith('')
+        expect(api.searchReviewers).toHaveBeenCalledWith('', 'review')
         expect(w.findAll('[data-testid="reviewer-picker-select"] .option').map((option) => option.text())).toEqual(['Nguyễn An', 'Trần Bình'])
         pick(w, ['u-2', 'u-1'])
         expect(lastEmit(w)).toEqual({ title: 'Duyệt', assignees: ['u-2', 'u-1'] })
@@ -126,7 +126,7 @@ describe('approval step: reviewers and review deadline', () => {
         const w = mount(SchemaFormEditor, { props: { schema: approvalSchema, modelValue: { assignees: ['u-2', 'gone'] } }, global: { stubs } })
         await flushPromises()
         expect(api.resolveReviewers).toHaveBeenCalledTimes(1)
-        expect(api.resolveReviewers).toHaveBeenCalledWith(['u-2', 'gone'])
+        expect(api.resolveReviewers).toHaveBeenCalledWith(['u-2', 'gone'], 'review')
         const labels = w.findAll('[data-testid="reviewer-picker-select"] .option').map((option) => option.text())
         expect(labels).toEqual(['Trần Bình', 'text.workflow.field.assignees_unknown'])
         expect(w.get('[data-field="assignees"]').text()).not.toMatch(/u-2|gone/)
@@ -228,5 +228,42 @@ describe('AI action step: reviewers and review deadline', () => {
         expect(w.get('[data-testid="reviewer-picker-select"] .option').text()).toBe('Nguyễn An')
         expect((w.get('[data-testid="sla-amount"]').element as HTMLInputElement).value).toBe('30')
         expect(w.get('[data-testid="sla-unit"]').attributes('data-value')).toBe('"m"')
+    })
+})
+
+// two people with one name are told apart by the username (or the email of an account without one),
+// and a notice step's "people told" is picked by name from every admin account instead of typed as JSON uuids.
+describe('people told by a notice step', () => {
+    const notifySchema = {
+        type: 'object',
+        properties: {
+            permission: { type: ['string', 'null'] },
+            users: { type: ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null'], 'x-expr': true },
+        },
+    }
+
+    beforeEach(() => {
+        const people = [
+            { uuid: 'u-1', name: 'IT_CAFIT', detail: 'it_cafit', can_review: true },
+            { uuid: 'u-2', name: 'IT_CAFIT', detail: 'cafit-webmaster', can_review: true },
+        ]
+        api.searchReviewers.mockReset().mockResolvedValue(people)
+        api.resolveReviewers.mockReset().mockImplementation(async (uuids: string[]) => people.filter((row) => uuids.includes(row.uuid)))
+    })
+
+    it('is a people picker over every admin account, unless it already holds data from an earlier step', () => {
+        expect(fieldKind(refineFieldSchema('users', notifySchema.properties.users), null)).toBe('users')
+        expect(fieldKind(refineFieldSchema('users', notifySchema.properties.users), ['u-1'])).toBe('users')
+        expect(fieldKind(refineFieldSchema('users', notifySchema.properties.users), 'vars.trigger.owner')).toBe('expr')
+    })
+
+    it('names each person with the username next to the name', async () => {
+        const w = mount(SchemaFormEditor, { props: { schema: notifySchema, modelValue: { users: ['u-2'] } }, global: { stubs } })
+        await flushPromises()
+        expect(api.resolveReviewers).toHaveBeenCalledWith(['u-2'], 'notice')
+        await picker(w).trigger('focusin')
+        await flushPromises()
+        expect(api.searchReviewers).toHaveBeenCalledWith('', 'notice')
+        expect(w.findAll('[data-testid="reviewer-picker-select"] .option').map((option) => option.text())).toEqual(['IT_CAFIT - it_cafit', 'IT_CAFIT - cafit-webmaster'])
     })
 })

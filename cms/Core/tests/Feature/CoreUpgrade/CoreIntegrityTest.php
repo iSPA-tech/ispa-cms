@@ -159,6 +159,43 @@ test('the checker returns the hub core entry and caches it', function () {
         ->and($GLOBALS['ci_hub_calls'])->toBe(1);
 });
 
+test('a refresh skips the cached value, asks the hub and stores the fresh answer', function () {
+    Cache::put(CoreUpdateChecker::CACHE_KEY, ['version' => '2026.11.06', 'notes_url' => null], CoreUpdateChecker::TTL_SECONDS);
+    ciFakeHub(['modules' => [], 'core' => ['kind' => 'core', 'name' => 'ispa-cms', 'version' => '2026.11.07', 'notes_url' => 'https://ispa.tech/notes']]);
+    $checker = new CoreUpdateChecker();
+
+    // A normal load keeps the hour-long cache.
+    expect($checker->latest())->toBe(['version' => '2026.11.06', 'notes_url' => null])
+        ->and($GLOBALS['ci_hub_calls'])->toBe(0);
+
+    expect($checker->latest(true))->toBe(['version' => '2026.11.07', 'notes_url' => 'https://ispa.tech/notes'])
+        ->and($GLOBALS['ci_hub_calls'])->toBe(1)
+        ->and(Cache::get(CoreUpdateChecker::CACHE_KEY))->toBe(['version' => '2026.11.07', 'notes_url' => 'https://ispa.tech/notes'])
+        // The next normal load reads the fresh value from the cache.
+        ->and($checker->latest())->toBe(['version' => '2026.11.07', 'notes_url' => 'https://ispa.tech/notes'])
+        ->and($GLOBALS['ci_hub_calls'])->toBe(1);
+});
+
+test('a refresh the hub does not answer keeps the cached value', function () {
+    $cached = ['version' => '2026.11.06', 'notes_url' => null];
+    Cache::put(CoreUpdateChecker::CACHE_KEY, $cached, CoreUpdateChecker::TTL_SECONDS);
+
+    ciFakeHub(['error' => 'boom'], 500);
+    expect((new CoreUpdateChecker())->latest(true))->toBe($cached)
+        ->and($GLOBALS['ci_hub_calls'])->toBeGreaterThan(0)
+        ->and(Cache::get(CoreUpdateChecker::CACHE_KEY))->toBe($cached);
+
+    // An answer without a usable core entry does not wipe it either.
+    ciFakeHub(['modules' => []]);
+    expect((new CoreUpdateChecker())->latest(true))->toBe($cached)
+        ->and(Cache::get(CoreUpdateChecker::CACHE_KEY))->toBe($cached);
+
+    // Nothing cached and no answer: still "no information".
+    Cache::flush();
+    ciFakeHub(['error' => 'boom'], 500);
+    expect((new CoreUpdateChecker())->latest(true))->toBeNull();
+});
+
 test('the checker returns null when the hub has no core entry', function () {
     ciFakeHub(['modules' => []]);
 

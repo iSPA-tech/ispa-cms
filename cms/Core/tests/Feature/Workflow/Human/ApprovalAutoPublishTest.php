@@ -318,12 +318,12 @@ it('never counts its own approvals as agreement: calibration and the pause windo
 it('describes the calibration and estimate of a step through the admin API', function (): void {
     $project = apProject(['mode' => 'human', 'jev' => ['verdict_from' => 'vars.jev', 'min_confidence' => 0.9]]);
     apLearn($project, 3, 1);
-    $url = "/api/v2/admin/workflows/{$project->id}/steps/ask/auto-approval";
+    $url = "/api/v2/admin/workflows/{$project->uuid}/steps/ask/auto-approval";
 
     $this->withoutMiddleware();
     $this->actingAs(apUser('outsider'), 'sanctum')->getJson($url)->assertStatus(403);
     $this->actingAs(apUser('viewer', ['workflow_project.view']), 'sanctum');
-    $this->getJson("/api/v2/admin/workflows/{$project->id}/steps/nope/auto-approval")->assertNotFound();
+    $this->getJson("/api/v2/admin/workflows/{$project->uuid}/steps/nope/auto-approval")->assertNotFound();
 
     $data = $this->getJson($url)->assertOk()->json('data');
     expect(array_keys($data))->toBe(['available', 'mode', 'min_confidence', 'source', 'decided', 'required', 'agreed', 'disagreed', 'agreement_rate', 'minimum_agreement', 'approved_after_edit', 'excluded', 'ready', 'paused', 'estimate', 'last_30_days'])
@@ -343,7 +343,7 @@ it('describes the calibration and estimate of a step through the admin API', fun
         ->and($data['last_30_days'])->toBe(['auto' => 0, 'human' => 4, 'withdrawn' => 0]);
 
     $plain = apProject(['mode' => 'human']);
-    expect($this->getJson("/api/v2/admin/workflows/{$plain->id}/steps/ask/auto-approval")->json('data.available'))->toBeFalse();
+    expect($this->getJson("/api/v2/admin/workflows/{$plain->uuid}/steps/ask/auto-approval")->json('data.available'))->toBeFalse();
 });
 
 it('refuses switching auto-publish on before the calibration is ready', function () use ($auto): void {

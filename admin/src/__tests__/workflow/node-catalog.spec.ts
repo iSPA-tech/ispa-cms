@@ -145,6 +145,36 @@ describe('workflow node catalog helpers', () => {
         expect(lintTaint(lookalike, [{ source: 'n1', target: 'n2' }])).toEqual([])
     })
 
+    it('skips a write the catalog marks taint_sink false, as the server does', () => {
+        const catalog = {
+            approvalTypes: ['approval'],
+            byType: {
+                ai_extract: { type: 'ai_extract', safety: ['ai_spend'], taint_output: true },
+                'helpdesk.add_note': { type: 'helpdesk.add_note', safety: ['internal_write'], taint_output: false, taint_sink: false },
+                change: { type: 'change', safety: ['internal_write'], taint_output: false, taint_sink: true },
+                telegram_send: { type: 'telegram_send', safety: ['external_call'], taint_output: false },
+            },
+        }
+        const nodes = [
+            canvasNode('n1', 'ai_extract', { storeAs: 'vars.triage' }, 'triage'),
+            canvasNode('n2', 'helpdesk.add_note', { summary: 'vars.triage.summary' }, 'note'),
+            canvasNode('n3', 'change', { changes: [{ field: 'body', valueExpr: 'vars.triage.summary' }] }, 'save_post'),
+        ]
+        const edges = [
+            { source: 'n1', target: 'n2' },
+            { source: 'n2', target: 'n3' },
+        ]
+
+        expect(lintTaint(nodes, edges, catalog).map((p) => p.step_code)).toEqual(['save_post'])
+
+        // An outside call is guarded too (the server refuses it on save).
+        const outside = [
+            canvasNode('n1', 'ai_extract', { storeAs: 'vars.triage' }, 'triage'),
+            canvasNode('n2', 'telegram_send', { text: '{{ vars.triage.summary }}' }, 'tell'),
+        ]
+        expect(lintTaint(outside, [{ source: 'n1', target: 'n2' }], catalog).map((p) => p.step_code)).toEqual(['tell'])
+    })
+
     it('one bypass path around the approval is enough to warn', () => {
         const nodes = [
             canvasNode('n1', 'ai_action', { storeAs: 'vars.draft' }),

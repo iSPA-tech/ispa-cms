@@ -80,6 +80,7 @@ function nodeMigrate(): void
     $dir = base_path('cms/Core/database/migrations/');
     (require $dir . '2025_06_08_144311_create_workflows_data_tables.php')->up();
     (require $dir . '2026_11_24_000001_change_workflow_steps_step_type_to_string.php')->up();
+    (require $dir . '2026_11_27_000100_add_uuid_to_workflow_projects.php')->up();
 }
 
 /** @param list<string> $extra */
@@ -217,7 +218,7 @@ it('reports every catalog problem of a graph at once and saves nothing', functio
     Sanctum::actingAs(nodeUser());
     $project = nodeProject();
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", nodeGraph([
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", nodeGraph([
         'schema_bad' => ['step_type' => 'set_variable', 'step_config' => ['assignments' => 'nope']],
         'too_new' => ['step_type' => 'log_message', 'step_config' => ['message' => 'x', '_v' => 9]],
         'no_perm' => ['step_type' => 'fixture.secret', 'step_config' => []],
@@ -236,7 +237,7 @@ it('lets a user with the node permission save it, and keeps old configs without 
     Sanctum::actingAs(nodeUser(['fixture.secret_use']));
     $project = nodeProject();
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", nodeGraph([
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", nodeGraph([
         'secret' => ['step_type' => 'fixture.secret', 'step_config' => []],
         'old' => ['step_type' => 'retrieve', 'step_config' => ['model' => \Cms\Core\Models\Tag::class, 'where' => ['slug' => 'root.slug'], 'first' => 'true', 'limit' => '5']],
         'ai' => ['step_type' => 'ai_reasoning', 'step_config' => []],
@@ -253,7 +254,7 @@ it('refuses an AI-fed write without an approval and accepts it with one', functi
     $change = ['step_type' => 'change', 'step_config' => ['targetExpr' => 'root', 'changes' => [['field' => 'name', 'valueExpr' => 'steps.ai.answer']]]];
     $ai = ['step_type' => 'ai_reasoning', 'step_config' => ['goal' => 'name it']];
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", nodeGraph(['ai' => $ai, 'write' => $change], [['ai', 'write']]))
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", nodeGraph(['ai' => $ai, 'write' => $change], [['ai', 'write']]))
         ->assertStatus(422)
         ->assertJsonPath('data.errors.0.code', 'taint_needs_approval')
         ->assertJsonPath('data.errors.0.step_code', 'write');
@@ -261,10 +262,10 @@ it('refuses an AI-fed write without an approval and accepts it with one', functi
     // Taint also flows through a variable copy.
     $copy = ['step_type' => 'set_variable', 'step_config' => ['assignments' => [['key' => 'vars.name', 'valueExpr' => 'steps.ai.answer']]]];
     $write2 = ['step_type' => 'change', 'step_config' => ['targetExpr' => 'root', 'changes' => [['field' => 'name', 'valueExpr' => 'vars.name']]]];
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", nodeGraph(['ai' => $ai, 'copy' => $copy, 'write' => $write2], [['ai', 'copy'], ['copy', 'write']]))
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", nodeGraph(['ai' => $ai, 'copy' => $copy, 'write' => $write2], [['ai', 'copy'], ['copy', 'write']]))
         ->assertStatus(422)->assertJsonPath('data.errors.0.code', 'taint_needs_approval');
 
-    $this->putJson("/api/v2/admin/workflows/{$project->id}", nodeGraph(
+    $this->putJson("/api/v2/admin/workflows/{$project->uuid}", nodeGraph(
         ['ai' => $ai, 'ok' => ['step_type' => 'approval', 'step_config' => ['mode' => 'human']], 'write' => $change],
         [['ai', 'ok'], ['ok', 'write']]
     ))->assertOk();

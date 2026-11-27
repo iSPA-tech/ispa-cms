@@ -22,6 +22,11 @@ use Tests\TestCase;
 
 class ImageHelperTest extends TestCase
 {
+    /**
+     * The `ftyp` and `meta` boxes of a 3840x2160 AVIF cover (no pixel data): enough for getimagesize() to read it.
+     */
+    private const AVIF_HEADER_HEX = '00000020667479706176696600000000617669666d6966316d6961664d413142000000eb6d657461000000000000002168646c72000000000000000070696374000000000000000000000000000000000e7069746d0000000000010000001e696c6f63000000004400000100010000000100000113000b952c0000002869696e660000000000010000001a696e6665020000000001000061763031436f6c6f72000000006a697072700000004b6970636f00000014697370650000000000000f0000000870000000107069786900000000030808080000000c61763143810c0c0000000013636f6c726e636c78000200020001800000001769706d61000000000000000100010401028304';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -118,6 +123,46 @@ class ImageHelperTest extends TestCase
         $this->assertGreaterThan(0, filesize($tmpFile));
 
         @unlink($tmpFile);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // downloadImageWithHeaders — generic binary Content-Type (real local server)
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Some image hosts label AVIF covers `application/octet-stream` (images.hdgmvietnam.com does). The bytes decide
+     * then: a real image is kept. A real HTTP listener on this machine serves it; nothing leaves the machine.
+     */
+    public function test_download_keeps_image_bytes_served_as_octet_stream(): void
+    {
+        $server = $this->startOctetStreamServer();
+        $savePath = sys_get_temp_dir() . '/img-octet-' . bin2hex(random_bytes(4)) . '.avif';
+
+        try {
+            $result = ImageHelper::downloadImageWithHeaders($server['base'] . '/cover.avif', $savePath);
+
+            $this->assertSame($savePath, $result);
+            $this->assertSame(self::AVIF_HEADER_HEX, bin2hex((string) file_get_contents($savePath)));
+        } finally {
+            @unlink($savePath);
+            $this->stopOctetStreamServer($server);
+        }
+    }
+
+    public function test_download_refuses_non_image_bytes_served_as_octet_stream(): void
+    {
+        $server = $this->startOctetStreamServer();
+        $savePath = sys_get_temp_dir() . '/img-octet-' . bin2hex(random_bytes(4)) . '.jpg';
+
+        try {
+            $result = ImageHelper::downloadImageWithHeaders($server['base'] . '/page.html', $savePath);
+
+            $this->assertSame('', $result);
+            $this->assertFileDoesNotExist($savePath);
+        } finally {
+            @unlink($savePath);
+            $this->stopOctetStreamServer($server);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -515,6 +560,58 @@ class ImageHelperTest extends TestCase
     {
         $image = UploadedFile::fake()->image(basename($path), 80, 60);
         Storage::disk('public')->put($path, file_get_contents($image->getPathname()));
+    }
+
+    /**
+     * Start `php -S` on a free loopback port. It answers /cover.avif with AVIF bytes and /page.html with an HTML page,
+     * both labelled `application/octet-stream`.
+     *
+     * @return array{process: resource, dir: string, base: string}
+     */
+    private function startOctetStreamServer(): array
+    {
+        $probe = stream_socket_server('tcp://127.0.0.1:0');
+        $port = (int) substr((string) strrchr((string) stream_socket_get_name($probe, false), ':'), 1);
+        fclose($probe);
+
+        $dir = sys_get_temp_dir() . '/img-octet-server-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        file_put_contents($dir . '/router.php', sprintf(<<<'PHP'
+<?php
+header('Content-Type: application/octet-stream');
+echo parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) === '/cover.avif'
+    ? hex2bin('%s')
+    : '<!doctype html><html><body>Not an image</body></html>';
+PHP, self::AVIF_HEADER_HEX));
+
+        $process = proc_open(
+            [PHP_BINARY, '-S', '127.0.0.1:' . $port, $dir . '/router.php'],
+            [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']],
+            $pipes,
+        );
+
+        $deadline = microtime(true) + 5;
+        while (microtime(true) < $deadline) {
+            $socket = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.2);
+            if ($socket !== false) {
+                fclose($socket);
+
+                return ['process' => $process, 'dir' => $dir, 'base' => 'http://127.0.0.1:' . $port];
+            }
+            usleep(50000);
+        }
+
+        $this->stopOctetStreamServer(['process' => $process, 'dir' => $dir, 'base' => '']);
+        $this->fail('The local test server did not start.');
+    }
+
+    /** @param array{process: resource, dir: string, base: string} $server */
+    private function stopOctetStreamServer(array $server): void
+    {
+        proc_terminate($server['process']);
+        proc_close($server['process']);
+        @unlink($server['dir'] . '/router.php');
+        @rmdir($server['dir']);
     }
 
     private function callIsSocks5Available(): bool

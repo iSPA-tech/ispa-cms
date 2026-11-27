@@ -42,7 +42,7 @@ class WorkflowProjectControllerTest extends TestCase
             'description' => 'Managed by schedule',
         ]);
 
-        $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+        $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
             'name' => 'Edited Wrapper',
         ])->assertStatus(400)
             ->assertJsonPath('status', 'error')
@@ -63,12 +63,33 @@ class WorkflowProjectControllerTest extends TestCase
             'description' => 'Managed by schedule',
         ]);
 
-        $this->deleteJson("/api/v2/admin/workflows/{$project->id}")
+        $this->deleteJson("/api/v2/admin/workflows/{$project->uuid}")
             ->assertStatus(400)
             ->assertJsonPath('status', 'error')
             ->assertJsonPath('message', 'System-managed workflow wrappers can not be modified here.');
 
         $this->assertNull($project->fresh()->deleted_at);
+    }
+
+    public function test_workflow_is_addressed_by_uuid_never_by_row_id(): void
+    {
+        $project = WorkflowProject::query()->create([
+            'name' => 'Daily digest',
+            'slug' => 'daily-digest',
+            'trigger_event' => 'manual',
+            'is_active' => false,
+            'tags' => [],
+        ]);
+
+        // UUID-first: the uuid is generated on create, returned by the list and the detail, and is the only key.
+        $this->assertTrue(\Illuminate\Support\Str::isUuid($project->uuid));
+        $this->getJson('/api/v2/admin/workflows')->assertOk()->assertJsonPath('data.0.uuid', $project->uuid);
+        $this->getJson("/api/v2/admin/workflows/{$project->uuid}/edit")->assertOk()->assertJsonPath('data.uuid', $project->uuid);
+        $this->getJson("/api/v2/admin/workflows/{$project->id}/edit")->assertNotFound();
+        $this->putJson("/api/v2/admin/workflows/{$project->id}", ['name' => 'By id'])->assertNotFound();
+        $this->getJson("/api/v2/admin/workflows/{$project->id}/setup")->assertNotFound();
+        $this->getJson("/api/v2/admin/workflow/projects/{$project->id}/instances")->assertNotFound();
+        $this->assertSame('Daily digest', $project->fresh()->name);
     }
 
     public function test_update_allows_normal_workflow_project(): void
@@ -83,7 +104,7 @@ class WorkflowProjectControllerTest extends TestCase
             'description' => 'Operator managed',
         ]);
 
-        $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+        $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
             'name' => 'Renamed Workflow',
         ])->assertOk()
             ->assertJsonPath('status', 'success');
@@ -103,7 +124,7 @@ class WorkflowProjectControllerTest extends TestCase
             'description' => 'Decision test',
         ]);
 
-        $response = $this->putJson("/api/v2/admin/workflows/{$project->id}", [
+        $response = $this->putJson("/api/v2/admin/workflows/{$project->uuid}", [
             'nodes' => [
                 [
                     'id' => 'input',
@@ -186,6 +207,7 @@ class WorkflowProjectControllerTest extends TestCase
     {
         Schema::create('workflow_projects', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable()->unique();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->string('trigger_event')->nullable();

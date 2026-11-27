@@ -163,10 +163,11 @@ const navigations = {
             {
                 path: 'automation',
                 name: 'setting-automation',
-                redirect: { name: 'setting-workflows-manage' },
+                redirect: { name: 'setting-agentic' },
                 load: SettingCategoryLayout,
                 meta: { settingCategory: 'automation' },
-                // Workflows, agentic console and AI runtime pages come from the Core registry (routeContributions).
+                // Agentic console and AI runtime pages come from the Core registry (routeContributions); the workflows
+                // have their own sidebar group.
                 children: [],
             },
             // === Backwards-compatibility redirects (old flat URLs) ===
@@ -190,7 +191,7 @@ const navigations = {
             { path: 'modules', redirect: { name: 'setting-modules' } },
             { path: 'cache', redirect: { name: 'setting-cache' } },
             { path: 'api-logs', redirect: { name: 'setting-api-logs' } },
-            { path: 'workflows', redirect: { name: 'setting-workflows-manage' } },
+            { path: 'workflows', redirect: { name: 'workflows' } },
             { path: 'agentic', redirect: { name: 'setting-agentic' } },
             { path: 'ai-runtime', redirect: { name: 'setting-ai-runtime' } },
             { path: 'scheduler', redirect: { name: 'setting-hub' } },

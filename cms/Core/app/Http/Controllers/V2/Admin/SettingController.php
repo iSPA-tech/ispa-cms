@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Cms\Core\Constants\CoreTableConstant;
 use Cms\Core\Http\Controllers\AdminController;
 use Cms\Core\Services\CMSSettingRuntime;
+use Cms\Core\Services\Settings\EnvBoundSettings;
 use Cms\Core\Services\ConfigPackage\SecretGuard;
 use Cms\Core\Services\Modules\Install\ModuleInstallPolicy;
 use Cms\Core\Http\Requests\Setting\StoreSettingRequest;
@@ -83,6 +84,8 @@ class SettingController extends AdminController
         \Cms\Core\Workflows\Runtime\Runners\Integration\Http\HttpHostAllowlist::SETTING_KEY,
         // Pause all workflows belongs to WorkflowGuardController / cms:workflow-pause-all (Webmaster, audited, alerted).
         \Cms\Core\Services\Workflow\Guard\WorkflowGlobalPause::SETTING_KEY,
+        // Who reviews workflow changes belongs to WorkflowGuardController (Webmaster, audited, alerted).
+        \Cms\Core\Services\Workflow\Guard\WorkflowChangeReviewers::SETTING_KEY,
     ];
 
     /** Message for a refused write to a protected key. */
@@ -137,6 +140,10 @@ class SettingController extends AdminController
             if ($this->isProtectedKey($setting->setting_key)) {
                 return ires()->error()->code(403)->message(self::PROTECTED_MESSAGE);
             }
+            // The theme folder is read when the site is built: it changes through `cms:env-set` and a deploy.
+            if (EnvBoundSettings::isBootKey((string)$setting->setting_key)) {
+                return ires()->error()->code(422)->message(__('text.setting.theme_read_only'));
+            }
 
             $inputSetting = is_array($setting->input_setting)
                 ? $setting->input_setting
@@ -153,9 +160,11 @@ class SettingController extends AdminController
             // We REQUIRE Eloquent save() to trigger EncryptedSettingValue cast (encrypt at rest).
             $setting->save();
 
+            // Workers keep the config they booted with: restart them after an env-bound change (EnvBoundSettings).
             $this->synchronizeSettingFile(
                 false,
                 str_starts_with($setting->setting_key, 'email.')
+                    || EnvBoundSettings::isEnvBound((string)$setting->setting_key, $inputSetting)
             );
         } catch (Exception $e) {
             CMSLogger::error([
@@ -294,12 +303,15 @@ class SettingController extends AdminController
         //         // This code path is SECURITY-SENSITIVE.
         // Do NOT modify update strategy unless you fully understand
         // Eloquent casts + encrypted setting lifecycle.
-        DB::transaction(function () use ($data) {
+        $envBoundChanged = false;
+        DB::transaction(function () use ($data, &$envBoundChanged) {
             foreach ($data as $item) {
                 if ($item) {
                     foreach ($item as $iKey => $value) {
                         // Protected keys are skipped (not refused): the settings page may send every row back.
-                        if ($this->isProtectedKey((string)$iKey)) {
+                        // Build and boot keys (the theme folder) too: `.env` is their source and they change only
+                        // through `cms:env-set` and a deploy (EnvBoundSettings).
+                        if ($this->isProtectedKey((string)$iKey) || EnvBoundSettings::isBootKey((string)$iKey)) {
                             continue;
                         }
 
@@ -317,21 +329,45 @@ class SettingController extends AdminController
                             continue;
                         }
 
+                        // Plain value before the save (an encrypted value gets a new ciphertext on every save, so the
+                        // stored column always looks changed).
+                        $before = $setting->value;
+
                         $setting->value = $value;
                         // 🚫 AGENT WARNING:
                         // DO NOT replace this with query()->update() or repository update shortcuts.
                         // We REQUIRE Eloquent save() to trigger EncryptedSettingValue cast (encrypt at rest).
                         $setting->save();
+
+                        if (EnvBoundSettings::isEnvBound((string)$setting->setting_key, $inputSetting)
+                            && self::plainValue($before) !== self::plainValue($value)) {
+                            $envBoundChanged = true;
+                        }
                     }
                 }
             }
         });
 
+        // Queue workers keep the config they booted with (mail, Mailgun, Telegram logger, ...): restart them when an
+        // env-bound setting changed, since the save no longer goes through `.env` and a config rebuild.
         $this->synchronizeSettingFile(
-            restartQueue: isset($data['email']) && is_array($data['email']) && $data['email'] !== []
+            restartQueue: $envBoundChanged || (isset($data['email']) && is_array($data['email']) && $data['email'] !== [])
         );
 
         return ires()->message(__('Đã cập nhật thông tin Cài đặt thành công!'));
+    }
+
+    /**
+     * Compare form of a setting value: booleans as 'true'/'false', null as '', other scalars as strings.
+     */
+    private static function plainValue(mixed $value): string
+    {
+        return match (true) {
+            is_bool($value) => $value ? 'true' : 'false',
+            $value === null => '',
+            is_scalar($value) => (string)$value,
+            default => (string)json_encode($value),
+        };
     }
 
     /**

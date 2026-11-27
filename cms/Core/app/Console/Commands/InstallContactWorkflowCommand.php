@@ -10,6 +10,7 @@ use Cms\Core\Models\Workflows\WorkflowConnection;
 use Cms\Core\Models\Workflows\WorkflowProject;
 use Cms\Core\Models\Workflows\WorkflowStep;
 use Cms\Core\Services\Mail\ManagedEmailTemplates;
+use Cms\Core\Services\Workflow\Setup\WorkflowGraphLayout;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -78,8 +79,10 @@ final class InstallContactWorkflowCommand extends Command
             ]);
 
             $made = [];
-            $x = 0;
+            // Laid out top to bottom as the designer's "Tidy up" does.
+            $positions = WorkflowGraphLayout::tidy(array_keys(self::steps()), self::edges());
             foreach (self::steps() as $code => [$type, $name, $config]) {
+                [$x, $y] = $positions[$code];
                 $made[$code] = WorkflowStep::query()->create([
                     'project_id' => $project->id,
                     'step_code' => $code,
@@ -87,11 +90,10 @@ final class InstallContactWorkflowCommand extends Command
                     'step_type' => $type,
                     'is_start' => $code === 'message_received',
                     'position_x' => $x,
-                    'position_y' => 0,
+                    'position_y' => $y,
                     // Stamped with the node's current config version (trigger_event is 2) so the template declares it.
                     'step_config' => \Cms\Core\Workflows\Nodes\NodeRegistry::current()->get($type)?->stamped($config) ?? $config,
                 ]);
-                $x += 280;
             }
 
             foreach (self::edges() as [$from, $to, $handle]) {

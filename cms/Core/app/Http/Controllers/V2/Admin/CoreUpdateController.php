@@ -10,11 +10,13 @@ declare(strict_types=1);
 
 namespace Cms\Core\Http\Controllers\V2\Admin;
 
+use Cms\Core\Services\UpdateBatch\UpdateBatches;
 use Cms\Core\Services\Modules\Install\ModuleVersionConstraint;
 use App\Models\User;
 use Cms\Core\Events\AuditLogEvent;
 use Cms\Core\Http\Controllers\AdminController;
 use Cms\Core\Models\BackgroundTask;
+use Cms\Core\Services\Backup\BackupFolderAccess;
 use Cms\Core\Services\CoreUpgrade\CoreManifest;
 use Cms\Core\Services\CoreUpgrade\CoreRunnerLauncher;
 use Cms\Core\Services\CoreUpgrade\CoreRunnerTick;
@@ -43,6 +45,8 @@ final class CoreUpdateController extends AdminController
     public const COMMAND = './ispa upgrade';
 
     /**
+     * Query `refresh=1` makes the newest version come from the hub, not from the cache (see CoreUpdateChecker::latest).
+     *
      * @return mixed
      */
     public function show(Request $request, CoreUpgrader $upgrader, CoreUpgradePreflight $preflight, CoreUpdateChecker $checker, CoreUpgradeRequests $requests)
@@ -53,7 +57,8 @@ final class CoreUpdateController extends AdminController
         $this->prepareSelfRunner($requests->base());
         $requests->closeAbandoned();
 
-        $latest = $checker->latest();
+        // `?refresh=1` (the page's reload button): ask the hub now instead of answering from the hour-long cache.
+        $latest = $checker->latest($request->boolean('refresh'));
         $manifest = $this->manifest($upgrader);
         $installed = $manifest?->version ?? (string) config('ispa-cms.app_version', '');
         $issues = $manifest === null
@@ -92,6 +97,9 @@ final class CoreUpdateController extends AdminController
         $user = $request->user();
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return $this->forbidden();
+        }
+        if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+            return $refused;
         }
         $this->prepareSelfRunner($requests->base());
         $requests->closeAbandoned();
@@ -154,6 +162,9 @@ final class CoreUpdateController extends AdminController
         $user = $request->user();
         if (! $user instanceof User || ! $user->isWebmaster()) {
             return $this->forbidden();
+        }
+        if (($refused = app(UpdateBatches::class)->refusal()) !== null) {
+            return $refused;
         }
         $this->prepareSelfRunner($requests->base());
         if ($request->input('confirm') !== true) {
@@ -291,6 +302,10 @@ final class CoreUpdateController extends AdminController
             }
             if (CoreRunnerTick::selfRunner($base)) {
                 (new CoreRunnerTick($base))->writeHeartbeat();
+            }
+            // The runner writes the pre-upgrade backup there.
+            if (($opened = BackupFolderAccess::openForRunner(storage_path('backups'))) > 0) {
+                logger()->info('Core update: opened '.$opened.' backup folder(s) to the web group for the upgrade runner.');
             }
         } catch (Throwable $e) {
             report($e);

@@ -14,6 +14,7 @@ use App\Support\Modules\RuntimeModuleAutoloader;
 use Cms\Core\Models\Backup\Backup;
 use Cms\Core\Models\Setting;
 use Cms\Core\Services\Backup\ServerNightlyStatus;
+use Cms\Core\Services\CoreUpgrade\CoreManifest;
 use Cms\Core\Services\Modules\Install\ModuleCatalog;
 use Cms\Core\Services\Modules\Install\ModuleIntegrity;
 use Cms\Core\Services\Modules\Install\RevocationAttentionProvider;
@@ -178,7 +179,7 @@ class SiteStatusReport
         $report = [
             'schema' => self::SCHEMA,
             'domain' => app(HubCredentials::class)->domain(),
-            'app_version' => $this->text(config('ispa-cms.app_version')),
+            'app_version' => $this->text(CoreManifest::installedVersion()),
             'release' => $deploy['release'],
             'revision' => $deploy['revision'],
             'deployed_at' => $deploy['deployed_at'],
@@ -218,7 +219,7 @@ class SiteStatusReport
         return array_combine(self::BASIC_KEYS, [
             self::SCHEMA,
             app(HubCredentials::class)->domain(),
-            $this->text(config('ispa-cms.app_version')),
+            $this->text(CoreManifest::installedVersion()),
             $this->deployInfo()['release'],
             $modules,
         ]);

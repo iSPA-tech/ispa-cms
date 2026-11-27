@@ -11,7 +11,7 @@
 import { BaseEdge, EdgeLabelRenderer, useVueFlow } from '@vue-flow/core'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CARD_DECISION, ERROR_HANDLE, errorLinkVisible, outputTone } from './graphRules'
+import { CARD_DECISION, ERROR_HANDLE, decisionLinkTone, errorLinkVisible, outputTone } from './graphRules'
 import { arrowHead, linkPath } from './graphLayout'
 import { LINK_COLORS, canvasUi as ui, requestRelink } from './canvasUi'
 
@@ -52,10 +52,7 @@ const visible = computed(() => {
 const tone = computed(() => {
     if (isError.value) return 'error'
     if (isBack.value) return 'back'
-    if (props.sourceNode?.type === CARD_DECISION) {
-        const yes = props.sourceNode.data?.step_config?.yes_output === 'target-b' ? 'target-b' : 'target-a'
-        return props.sourceHandleId === yes ? 'green' : 'red'
-    }
+    if (props.sourceNode?.type === CARD_DECISION) return decisionLinkTone(props.sourceNode.data?.step_config, props.sourceHandleId)
     return outputTone(props.sourceHandleId)
 })
 const color = computed(() => LINK_COLORS[tone.value])

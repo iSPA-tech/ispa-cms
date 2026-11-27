@@ -14,6 +14,7 @@
                 setting?.language?.name || ''
             }`"
             class="w-full"
+            :disabled="disabled"
             :mode="setting.input_setting?.multiple === true ? 'multiple' : 'default'"
         />
     </a-form-item>
@@ -30,6 +31,7 @@ export default defineComponent({
         name: { type: [String, Array], default: '' },
         options: { type: Array, default: () => [] },
         noStyle: { type: Boolean, default: false },
+        disabled: { type: Boolean, default: false },
     },
     emits: ['update:modelValue', 'change'],
     setup(props, { emit }) {

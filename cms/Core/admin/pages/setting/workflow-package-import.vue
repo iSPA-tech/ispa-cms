@@ -9,7 +9,7 @@
     <no-permission-error v-if="!allowed" data-testid="workflow-package-not-allowed" />
     <div v-else class="mx-auto max-w-3xl space-y-4" data-testid="workflow-package-page">
         <section class="i-box space-y-3">
-            <router-link :to="{ name: 'setting-workflows-manage' }" class="text-sm" data-testid="package-back">
+            <router-link :to="{ name: 'workflows' }" class="text-sm" data-testid="package-back">
                 {{ t('text.workflow.package.back') }}
             </router-link>
             <h1 class="m-0 text-lg font-semibold">{{ t('text.workflow.package.title') }}</h1>
@@ -260,7 +260,7 @@ const router = useRouter()
 
 /** The API refuses everyone without the right to create workflows; the page says so instead of failing later. */
 const allowed = computed(() => rule('workflow_project.create'))
-const canManageCredentials = computed(() => rule('workflow_credential.manage') && router.hasRoute('setting-workflow-credentials'))
+const canManageCredentials = computed(() => rule('workflow_credential.manage') && router.hasRoute('workflow-credentials'))
 
 const fileInput = ref(null)
 const file = ref(null)
@@ -450,10 +450,10 @@ async function doInstall() {
 
 /** The choices only this site can make (who reviews, when it runs) come first. */
 function setUpInstalled() {
-    router.push({ name: 'setting-workflows-setup', params: { project: installed.value.slug } })
+    router.push({ name: 'workflows-setup', params: { project: installed.value.slug } })
 }
 
 function openInstalled() {
-    router.push({ name: 'setting-workflows-manage', query: { open: installed.value.slug } })
+    router.push({ name: 'workflows', query: { open: installed.value.slug } })
 }
 </script>

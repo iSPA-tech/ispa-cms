@@ -728,6 +728,11 @@ class CoreUpgrader
             if ($artisan(['cms:translation-sync', '--all']) !== 0) {
                 $warnings[] = 'Could not import the new translations; run `php artisan cms:translation-sync --all`.';
             }
+            // The admin and site language packs (storage/app/public/i18n/<VERSION>/..., lang/*) are built from the
+            // translates table, as the deploy does after its sync; without this the new admin texts showed raw keys.
+            if ($artisan(['cms:translation-generate']) !== 0) {
+                $warnings[] = 'Could not rebuild the language packs; run `php artisan cms:translation-generate`.';
+            }
             if (is_file($root.'/.github/deployment/admin-rebuild.sh')) {
                 try {
                     $built = (new \Cms\Core\Services\Modules\Install\AdminRebuilder(null, $root))->rebuild();
@@ -737,6 +742,17 @@ class CoreUpgrader
                 if (($built['ok'] ?? false) !== true) {
                     $warnings[] = 'The admin was not rebuilt; rebuild it from Quản lý Module or with the next deploy.';
                 }
+            }
+        } else {
+            // The admin loads its packs from storage/app/public/i18n/<VERSION>/adm, and VERSION just changed: without
+            // packs under the new version every pack request is a 404 and the admin shows humanized keys. Only the
+            // packs are written (--public-only), as a module install does: lang/* and the module seeders are core files
+            // the next update checks for changes.
+            if ($artisan(['cms:translation-sync', '--all']) !== 0) {
+                $warnings[] = 'Could not import the new translations; run `php artisan cms:translation-sync --all`.';
+            }
+            if ($artisan(['cms:translation-generate', '--public-only']) !== 0) {
+                $warnings[] = 'Could not write the admin language packs; run `php artisan cms:translation-generate --public-only`.';
             }
         }
 

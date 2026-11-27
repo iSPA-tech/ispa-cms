@@ -68,8 +68,12 @@ export const isEndNode = (node) => {
 /**
  * The yes/no card made on the canvas stores which handle means "yes" (`yes_output` / `no_output`, `target-a` /
  * `target-b`); a decision written by a template installer has neither and links on its named outputs `true` / `false`.
+ * A canvas card saved before it stored `yes_output` still links on `target-a` / `target-b` (the server then takes
+ * `target-a` as yes), so its links decide too.
  */
-export const isLegacyDecision = (config = {}) => Boolean(config?.yes_output || config?.no_output)
+export const isLegacyDecision = (config = {}, outgoingEdges = []) =>
+    Boolean(config?.yes_output || config?.no_output) ||
+    (outgoingEdges || []).some((edge) => edge?.sourceHandle === 'target-a' || edge?.sourceHandle === 'target-b')
 
 /** Card component on the canvas: every node uses the step card, except the legacy yes/no card. */
 export const CARD_STEP = 'step'
@@ -281,6 +285,13 @@ export const outputTone = (handle) => {
     return Object.keys(TONES).find((tone) => TONES[tone].includes(name)) || 'slate'
 }
 
+/** Colour of a link leaving a decision: its yes branch green, its no branch red. */
+export const decisionLinkTone = (config = {}, handle = '') => {
+    if (handle === 'true' || handle === 'false') return outputTone(handle)
+    const yes = config?.yes_output === 'target-b' ? 'target-b' : 'target-a'
+    return handle === yes ? 'green' : 'red'
+}
+
 /** Small sign shown before an output name. */
 export const OUTPUT_GLYPHS = { green: '✓', red: '✗', amber: '↺', grey: '⏱', error: '⚡', slate: '' }
 
@@ -392,7 +403,7 @@ export const checkGraph = (nodes = [], edges = [], byType = {}) => {
             const config = stepConfigOf(node)
             const outgoing = edgeList.filter((edge) => edge.source === node.id)
             // A template decision links on `true` / `false`; an unlinked branch just ends there, as for any step.
-            if (!isLegacyDecision(config)) return !outgoing.some((edge) => edge.sourceHandle === 'true' || edge.sourceHandle === 'false')
+            if (!isLegacyDecision(config, outgoing)) return !outgoing.some((edge) => edge.sourceHandle === 'true' || edge.sourceHandle === 'false')
             const yes = config.yes_output || 'target-a'
             const no = config.no_output || 'target-b'
             return !outgoing.some((edge) => edge.sourceHandle === yes) || !outgoing.some((edge) => edge.sourceHandle === no)

@@ -44,9 +44,4 @@ describe('SettingCategoryLayout', () => {
         expect(wrapper.find('[data-testid="setting-wide"]').exists()).toBe(true)
         expect(wrapper.text()).not.toContain('|')
     })
-
-    it('lists workflow credentials in the automation menu for workflow_credential.manage only', () => {
-        expect(mountLayout({}).text()).toContain('text.workflow_credential.title')
-        expect(mountLayout({}, (name) => name !== 'workflow_credential.manage').text()).not.toContain('text.workflow_credential.title')
-    })
 })

@@ -156,12 +156,15 @@ const KINDS = {
     WORKFLOW_TEMPLATE_NOT_INSTALLABLE: 'not_installable',
     WORKFLOW_TEMPLATE_UP_TO_DATE: 'up_to_date',
     WORKFLOW_TEMPLATE_CHANGED: 'changed',
+    // Upgrade all (spec 2026-11-26) is running: single installs wait until it is done.
+    UPDATE_BATCH_RUNNING: 'batch_running',
 }
 
 /**
  * A failed library request in the page's terms: `{ kind, retry, missingModules, report }`.
  * `kind`: unreachable (also a site that is not connected to the hub: the server answers the same), not_found,
  * untrusted, not_available, not_installable, up_to_date, changed (edited or updated while the update waited),
+ * batch_running (an upgrade-all run is open),
  * forbidden, busy (too many tries) or failed. `retry` says whether asking
  * again can help.
  */

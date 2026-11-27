@@ -224,8 +224,9 @@ test('core_version is the installed iSPA CMS package version and core_module_ver
     $build();
     $line = fn (string $key): ?string => collect($this->getJson(DB_BASE . '/Probe/support/preview')->assertOk()->json('data.lines'))->firstWhere('key', $key)['text'] ?? null;
 
-    // No core-manifest.json (a site deployed by iSPA): the configured version, as before.
-    config(['ispa-cms.app_version' => '2026.3.0']);
+    // No core-manifest.json (a site deployed by iSPA): the configured version, as before. The site status report
+    // reads the manifest too, so point it at the same temp site instead of a real tree root.
+    config(['ispa-cms.core_manifest_base' => $site, 'ispa-cms.app_version' => '2026.3.0']);
     expect($line('core_version'))->toBe('2026.3.0')
         ->and($line('core_module_version'))->toBe('2026.16.9');
 

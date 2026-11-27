@@ -8,6 +8,7 @@ use Cms\Core\Models\Workflows\WorkflowInstanceStep;
 use Cms\Core\Models\Workflows\WorkflowProject;
 use Cms\Core\Models\Workflows\WorkflowStep;
 use Cms\Core\Models\Workflows\WorkflowConnection;
+use Cms\Core\Services\Workflow\Triggers\WorkflowTriggers;
 use Cms\Core\Workflows\Runtime\Contracts\StepRunner;
 use Cms\Core\Workflows\Runtime\StepDefinition;
 use Cms\Core\Workflows\Runtime\StepRunResult;
@@ -158,6 +159,97 @@ class WorkflowGraphExecutorTest extends TestCase
         $this->assertEquals(0, WorkflowInstanceStep::where('instance_id', $instance->id)->count());
     }
 
+    public function test_run_without_resume_step_starts_at_the_marked_start_step_when_it_is_not_leftmost(): void
+    {
+        // Trigger-less graph laid out top to bottom: the start card sits right of a step whose code also sorts first.
+        $project = WorkflowProject::create(['name' => 'Marked start']);
+        $end = WorkflowStep::create([
+            'project_id' => $project->id,
+            'step_type' => 'output',
+            'step_code' => 'a_end',
+            'position_x' => 0,
+        ]);
+        $start = WorkflowStep::create([
+            'project_id' => $project->id,
+            'step_type' => 'output',
+            'step_code' => 'b_start',
+            'is_start' => true,
+            'position_x' => 300,
+        ]);
+        WorkflowConnection::create([
+            'project_id' => $project->id,
+            'from_step_id' => $start->id,
+            'to_step_id' => $end->id,
+            'condition' => null,
+        ]);
+
+        $this->assertSame([$start->id, $end->id], $this->runWithoutResumeStep($project));
+    }
+
+    public function test_run_without_resume_step_starts_at_the_trigger_laid_out_in_the_middle(): void
+    {
+        // Trigger graph laid out top to bottom: the trigger card is centred above a step that is further left.
+        $project = WorkflowProject::create(['name' => 'Trigger in the middle']);
+        $left = WorkflowStep::create([
+            'project_id' => $project->id,
+            'step_type' => 'output',
+            'step_code' => 'a_left',
+            'position_x' => 0,
+        ]);
+        $trigger = WorkflowStep::create([
+            'project_id' => $project->id,
+            'step_type' => WorkflowTriggers::MANUAL,
+            'step_code' => 'm_trigger',
+            'position_x' => 300,
+        ]);
+        $right = WorkflowStep::create([
+            'project_id' => $project->id,
+            'step_type' => 'output',
+            'step_code' => 'z_right',
+            'position_x' => 600,
+        ]);
+        WorkflowConnection::create([
+            'project_id' => $project->id,
+            'from_step_id' => $trigger->id,
+            'to_step_id' => $left->id,
+            'condition' => null,
+        ]);
+        WorkflowConnection::create([
+            'project_id' => $project->id,
+            'from_step_id' => $left->id,
+            'to_step_id' => $right->id,
+            'condition' => null,
+        ]);
+
+        $this->assertSame([$trigger->id, $left->id, $right->id], $this->runWithoutResumeStep($project));
+    }
+
+    /**
+     * Run a hand-made instance with no resume_step_id (agent-schedule wrappers, CLI samples, legacy graphs) and
+     * return the executed step ids in order.
+     *
+     * @return list<int>
+     */
+    protected function runWithoutResumeStep(WorkflowProject $project): array
+    {
+        $instance = \Cms\Core\Tests\Support\WorkflowTestVersions::instance([
+            'project_id' => $project->id,
+            'target_type' => DummyTarget::class,
+            'target_id' => 1,
+            'status' => 'pending',
+        ]);
+
+        app(WorkflowGraphExecutor::class)->execute($instance->id);
+
+        $this->assertSame('completed', $instance->refresh()->status);
+
+        return WorkflowInstanceStep::where('instance_id', $instance->id)
+            ->orderBy('id')
+            ->pluck('step_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     protected function migrateTables(): void
     {
         Schema::create('dummy_targets', function (Blueprint $table) {
@@ -167,6 +259,7 @@ class WorkflowGraphExecutorTest extends TestCase
 
         Schema::create('workflow_projects', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->nullable()->unique();
             $table->string('name');
             $table->timestamps();
             $table->softDeletes();
@@ -179,6 +272,7 @@ class WorkflowGraphExecutorTest extends TestCase
             $table->string('name')->nullable();
             $table->string('step_type');
             $table->json('step_config')->nullable();
+            $table->boolean('is_start')->default(false);
             $table->integer('position_x')->nullable();
             $table->timestamps();
             $table->softDeletes();

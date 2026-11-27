@@ -63,6 +63,7 @@
                                 @click="row.target ? openRow(row) : null"
                             >
                                 <span class="block">{{ row.label }}</span>
+                                <span v-if="row.detail" class="line-clamp-2 block text-xs font-normal text-gray-600 dark:text-gray-300" data-testid="notification-detail">{{ row.detail }}</span>
                                 <span class="block text-xs font-normal text-gray-500">{{ row.time }}</span>
                             </component>
                         </li>
@@ -85,7 +86,7 @@ import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { adminNotificationTypes } from '@/config/admin-modules'
 import { getNotifications, getUnreadCount, markAllNotificationsRead, markNotificationRead } from '@/libs/notifications'
-import { NOTIFICATIONS_CHANGED_EVENT, resolveNotificationTarget } from '@/utils/notifications'
+import { NOTIFICATIONS_CHANGED_EVENT, resolveNotificationDetail, resolveNotificationTarget } from '@/utils/notifications'
 
 // Header bell: unread badge polled every 60 s while the tab is visible (and refreshed the moment it becomes visible
 // again); the dropdown loads the latest 20 only when opened. A row opens its target through the registry `open(payload)`
@@ -112,6 +113,7 @@ const rows = computed(() =>
             label: entry?.text && te(entry.text) ? t(entry.text) : t('text.notifications.unknown_type'),
             time: row.created_at ? dayjs(row.created_at).format('DD/MM/YYYY HH:mm') : '',
             target: resolveNotificationTarget(row, adminNotificationTypes).location,
+            detail: resolveNotificationDetail(row, adminNotificationTypes, t),
         }
     })
 )

@@ -9,6 +9,7 @@
 namespace Cms\Core\Models\Workflows;
 
 use Cms\Core\Constants\CoreTableConstant as Tables;
+use Cms\Core\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\User;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @since 1.0.0
  *
  * @property integer id
+ * @property string uuid                    Public key of the admin API (UUID-first; generated on create)
  * @property string name
  * @property string slug
  * @property string trigger_event
@@ -57,7 +59,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  */
 class WorkflowProject extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, HasUuid, SoftDeletes;
 
     /** @var string */
     public $table = Tables::WORKFLOW_PROJECT;

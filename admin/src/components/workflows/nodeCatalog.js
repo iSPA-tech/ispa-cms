@@ -305,6 +305,9 @@ const stepCodeOf = (node) => String(node?.data?.step_code || node?.id || '')
  * `nodes` / `edges` are the canvas (VueFlow) nodes and edges.
  * Returns `[{ step_code, node_id, origin, origin_node_id, code: 'taint_needs_approval' }]`.
  */
+/** Same list as NodeDefinition::GUARDED_SAFETY: these steps may not use AI or outside data without an approval first. */
+const GUARDED_SAFETY = ['internal_write', 'external_call', 'publish']
+
 export const lintTaint = (nodes = [], edges = [], catalog = catalogState) => {
     const byType = catalog?.byType || {}
     const approvalTypes = catalog?.approvalTypes || ['approval']
@@ -326,7 +329,8 @@ export const lintTaint = (nodes = [], edges = [], catalog = catalogState) => {
             nodeId: node.id,
             approval: approvalTypes.includes(type),
             source: !!definition?.taint_output,
-            sink: (definition?.safety || []).some((name) => name === 'internal_write' || name === 'publish'),
+            // Same rule as NodeDefinition::isGuardedSink(): a draft-only or bookkeeping write marks itself taint_sink false.
+            sink: definition?.taint_sink !== false && (definition?.safety || []).some((name) => GUARDED_SAFETY.includes(name)),
             reads,
             writes,
         })

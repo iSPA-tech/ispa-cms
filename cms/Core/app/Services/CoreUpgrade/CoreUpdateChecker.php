@@ -10,7 +10,8 @@ use Throwable;
 
 /**
  * Newest core version offered by the hub (the `core` entry of the signed catalog). Never throws: an unconnected
- * hub, an old hub without a core entry, or a bad answer all read as "no information" (null).
+ * hub, an old hub without a core entry, or a bad answer all read as "no information" (null, or the value cached
+ * before when there is one).
  */
 final class CoreUpdateChecker
 {
@@ -30,13 +31,19 @@ final class CoreUpdateChecker
     }
 
     /**
+     * A normal call answers from the cache for an hour. With `$refresh` the cache is skipped: the hub is asked and a
+     * usable answer replaces the cached one; when the hub does not answer (or has no usable core entry) the value
+     * cached before is kept and returned, never wiped.
+     *
      * @return array{version: string, notes_url: ?string}|null
      */
-    public function latest(): ?array
+    public function latest(bool $refresh = false): ?array
     {
+        $cached = null;
         try {
-            $cached = Cache::get(self::CACHE_KEY);
-            if (is_array($cached) && isset($cached['version'])) {
+            $stored = Cache::get(self::CACHE_KEY);
+            $cached = is_array($stored) && isset($stored['version']) ? $stored : null;
+            if ($cached !== null && ! $refresh) {
                 return $cached;
             }
 
@@ -47,9 +54,9 @@ final class CoreUpdateChecker
                 Cache::put(self::CACHE_KEY, $latest, self::TTL_SECONDS);
             }
 
-            return $latest;
+            return $latest ?? $cached;
         } catch (Throwable) {
-            return null;
+            return $cached;
         }
     }
 

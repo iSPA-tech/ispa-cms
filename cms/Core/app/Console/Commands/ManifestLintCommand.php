@@ -31,7 +31,7 @@ class ManifestLintCommand extends Command
         'name', 'alias', 'description', 'keywords', 'priority', 'providers', 'aliases', 'files', 'requires',
         'authors', 'active', 'order',
         'version', 'admin', 'migrations', 'permissions', 'scope_dimensions', 'config_export',
-        'frontend', 'install', 'distribution', 'distribution_reason', 'edition', 'uninstall',
+        'frontend', 'install', 'distribution', 'distribution_reason', 'edition', 'uninstall', 'package',
     ];
 
     private const SEMVER_PATTERN = '/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/';
@@ -210,7 +210,8 @@ class ManifestLintCommand extends Command
     }
 
     /**
-     * Validate the optional online-distribution keys: "frontend", "install" and "distribution" (+ "distribution_reason").
+     * Validate the optional online-distribution keys: "frontend", "install", "distribution" (+ "distribution_reason")
+     * and "package" (files left out of hub packages, {@see \Cms\Core\Services\Modules\Packages\PackageAudit::packageProblems()}).
      *
      * @param  array<string, mixed>  $manifest
      * @param  array<int, string>  $errors
@@ -245,6 +246,10 @@ class ManifestLintCommand extends Command
 
         if (array_key_exists('uninstall', $manifest)) {
             $this->lintUninstall($manifest['uninstall'], $errors);
+        }
+
+        if (array_key_exists('package', $manifest)) {
+            array_push($errors, ...\Cms\Core\Services\Modules\Packages\PackageAudit::packageProblems($manifest['package']));
         }
     }
 

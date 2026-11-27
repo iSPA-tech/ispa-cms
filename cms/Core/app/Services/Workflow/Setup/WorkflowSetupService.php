@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Cms\Core\Services\Workflow\Setup;
 
+use App\Models\User;
+use Cms\Core\Http\Controllers\Workflow\WorkflowReviewerController;
 use Cms\Core\Models\Permission;
 use Cms\Core\Models\Workflows\WorkflowCredential;
 use Cms\Core\Models\Workflows\WorkflowProject;
@@ -14,9 +16,12 @@ use Cms\Core\Services\Workflow\Presets\WorkflowPresetCatalog;
 use Cms\Core\Services\Workflow\Versioning\WorkflowPublishPolicy;
 use Cms\Core\Services\Workflow\Versioning\WorkflowVersionSnapshot;
 use Cms\Core\Services\Workflow\WorkflowScheduleService;
+use Cms\Core\Policies\AbstractModelPolicy;
 use Cms\Core\Workflows\Nodes\NodeRegistry;
+use Cms\Core\Workflows\Runtime\Runners\Human\HumanNotifier;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 /**
@@ -187,6 +192,9 @@ class WorkflowSetupService
             if ($question['kind'] === 'reviewers') {
                 $fields[$question['step_code']][] = 'assignees';
             }
+            if ($question['kind'] === 'notify_channel' && $question['field'] === 'permission') {
+                $fields[$question['step_code']][] = 'users';
+            }
         }
 
         // The schedule answer also sits on a `trigger_schedule` start node (see apply()).
@@ -250,6 +258,10 @@ class WorkflowSetupService
                     'schema' => $schema,
                     'required' => true,
                 ];
+                if ($kind === 'notify_channel' && $field === 'permission') {
+                    $question['suggested'] = $suggested ??= ($this->suggestedNoticePermission($graph) ?? false);
+                    $question['suggested'] = $question['suggested'] ?: null;
+                }
                 [$question['answered'], $question['current']] = $this->state($question, $config);
                 $questions[] = $question;
             }
@@ -322,8 +334,10 @@ class WorkflowSetupService
             case 'notify_channel':
                 if ($question['field'] === 'permission') {
                     $permission = is_string($value) && trim($value) !== '' ? trim($value) : null;
+                    $users = array_values(array_filter((array) ($config['users'] ?? []), 'is_string'));
 
-                    return [($permission !== null && self::permissionExists($permission)) || !self::isEmpty($config['users'] ?? null), $permission];
+                    return [($permission !== null && self::permissionExists($permission)) || $users !== [],
+                        ['permission' => $permission, 'users' => $users, 'suggested' => $question['suggested'] ?? null]];
                 }
 
                 return [!self::isEmpty($value), $value];
@@ -375,11 +389,26 @@ class WorkflowSetupService
                 return null;
             case 'notify_channel':
                 if ($field === 'permission') {
-                    $permission = is_string($value) ? trim($value) : '';
-                    if ($permission === '' || !self::permissionExists($permission)) {
+                    // `{permission, users}` (people first, or everyone who may see a kind of record); a bare string is
+                    // a permission (answers saved before 2026-11-27).
+                    $answer = is_array($value) ? $value : ['permission' => $value];
+                    $permission = is_string($answer['permission'] ?? null) ? trim($answer['permission']) : '';
+                    $users = array_values(array_unique(array_filter((array) ($answer['users'] ?? []), static fn ($uuid): bool => is_string($uuid) && $uuid !== '')));
+                    if ($permission !== '' && !self::permissionExists($permission)) {
                         return 'choose a permission that exists.';
                     }
-                    $config[$field] = $permission;
+                    if ($users !== [] && User::query()->whereIn('uuid', $users)->count() !== count($users)) {
+                        return 'choose people who have an account here.';
+                    }
+                    if ($permission === '' && $users === []) {
+                        return 'choose who is told: people or a permission.';
+                    }
+                    $config[$field] = $permission !== '' ? $permission : null;
+                    if ($users !== []) {
+                        $config['users'] = $users;
+                    } else {
+                        unset($config['users']);
+                    }
 
                     return null;
                 }
@@ -554,12 +583,13 @@ class WorkflowSetupService
 
     /**
      * Step codes reachable only through the `true` edge of a `choice` decision answered "no" (a branch the site
-     * switched off). Walks the graph from the start steps without taking those edges.
+     * switched off). Walks the graph from the start steps without taking those edges. Also read by WorkflowTakeover on
+     * a published graph (same snapshot shape: step codes in `connections`).
      *
      * @param array<string, mixed> $graph
      * @return array<string, true>
      */
-    protected function switchedOffSteps(array $graph): array
+    public static function switchedOffSteps(array $graph): array
     {
         $codes = [];
         $blocked = [];
@@ -603,6 +633,61 @@ class WorkflowSetupService
         }
 
         return array_diff_key($codes, $seen);
+    }
+
+    /**
+     * Who a notice step would reach with these answers (the notify runner's own rule), for the setup preview.
+     *
+     * @param list<string> $userUuids
+     * @return array{count: int, people: list<array{uuid: string, name: string, detail: string|null}>, more: int}
+     */
+    public function noticeRecipients(?string $permission, array $userUuids): array
+    {
+        $permission = is_string($permission) && trim($permission) !== '' ? trim($permission) : null;
+        $max = max(1, (int) config('core.workflow_nodes.human.notify.max_recipients', 50));
+        $users = app(HumanNotifier::class)->recipients($permission, $userUuids, $max);
+        $people = array_map(
+            static fn ($user): array => [
+                'uuid' => (string) $user->uuid,
+                'name' => (string) ($user->name ?: $user->username ?: $user->email),
+                'detail' => WorkflowReviewerController::detail($user),
+            ],
+            array_values($users)
+        );
+
+        return ['count' => count($people), 'people' => array_slice($people, 0, 8), 'more' => max(0, count($people) - 8)];
+    }
+
+    /**
+     * The permission to suggest for "who is told": `viewAny` of the first record the workflow starts from or reads (an
+     * app event's subjectModel(), a model event's or a retrieve step's model), when its policy and the permission row
+     * exist. So a contact notice suggests the people who may read contact messages and a sign-up notice the people
+     * who may see accounts. Null when nothing fits.
+     *
+     * @param array<string, mixed> $graph canonical graph ({@see WorkflowVersionSnapshot})
+     */
+    protected function suggestedNoticePermission(array $graph): ?string
+    {
+        $steps = $graph['steps'];
+        usort($steps, static fn (array $a, array $b): int => [!$a['is_start'], $a['position_y'], $a['position_x']] <=> [!$b['is_start'], $b['position_y'], $b['position_x']]);
+
+        foreach ($steps as $step) {
+            $config = is_array($step['step_config']) ? $step['step_config'] : [];
+            $model = match ((string) $step['step_type']) {
+                'trigger_event' => is_string($config['event'] ?? null) && method_exists($config['event'], 'subjectModel') ? $config['event']::subjectModel() : null,
+                'trigger_model_event', 'retrieve' => $config['model'] ?? null,
+                default => null,
+            };
+            if (!is_string($model) || !class_exists($model)) {
+                continue;
+            }
+            $policy = Gate::getPolicyFor($model);
+            if ($policy instanceof AbstractModelPolicy && self::permissionExists($key = $policy->permissionFor('viewAny'))) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     public static function permissionExists(string $key): bool

@@ -87,6 +87,26 @@
             </template>
 
             <template v-else>
+                <!-- "Cập nhật tất cả" (upgrade-all spec 2026-11-26): every hub widget of this site that has a newer version -->
+                <update-batch-panel v-if="batchAllowed" ref="batchPanel" @state="onBatchState" />
+                <div v-if="batchAllowed && widgetUpdates > 0" class="flex justify-end">
+                    <i-button
+                        native-type="button"
+                        variant="primary"
+                        :disabled="batchOpen"
+                        data-test="widget-update-all"
+                        @click="batchDialogOpen = true"
+                    >
+                        {{ $t('text.update_batch.start_kind', { count: widgetUpdates }) }}
+                    </i-button>
+                </div>
+                <update-batch-dialog
+                    v-if="batchAllowed"
+                    :open="batchDialogOpen"
+                    :kinds="['widget']"
+                    @close="batchDialogOpen = false"
+                    @started="onBatchStarted"
+                />
                 <div class="flex flex-wrap items-center gap-2">
                     <label class="sr-only" for="widget-library-search">{{ $t('text.widget_library.search') }}</label>
                     <a-input
@@ -248,6 +268,10 @@ import AddToDialog from './components/add-to-dialog.vue'
 import UsageDrawer from './components/usage-drawer.vue'
 import HubCard from './components/hub-card.vue'
 import UpdateDialog from './components/update-dialog.vue'
+import UpdateBatchDialog from '../../components/update-batch/update-batch-dialog.vue'
+import UpdateBatchPanel from '../../components/update-batch/update-batch-panel.vue'
+import { isOpen as batchIsOpen } from '../../update-batch-api'
+import { isWebmaster } from '@/hooks/useCan'
 
 defineOptions({ name: 'WidgetLibrary' })
 
@@ -344,6 +368,31 @@ const updateVersion = (widget) => {
     if (widget.origin !== 'hub' || authoring.value) return 0
     const latest = Number(widget.hub_latest_version ?? hubLatestById.value.get(Number(widget.id)) ?? 0)
     return latest > Number(widget.version ?? 0) ? latest : 0
+}
+
+// ---- Upgrade all ("Cập nhật tất cả", Webmaster only) -----------------------------------------------------------
+
+const batchAllowed = computed(() => canHub.value && isWebmaster())
+const batchPanel = ref(null)
+const batchDialogOpen = ref(false)
+const batchState = ref(null)
+const batchOpen = computed(() => batchIsOpen(batchState.value))
+/** Hub widgets of this site with a newer version. */
+const widgetUpdates = computed(() => widgets.value.filter((widget) => updateVersion(widget) > 0).length)
+
+/** A run that just ended changed widgets: read the list and the hub again. */
+const onBatchState = (next) => {
+    const wasOpen = batchOpen.value
+    batchState.value = next
+    if (wasOpen && !batchIsOpen(next)) {
+        load({ quiet: true })
+        loadHub({ quiet: true })
+    }
+}
+
+const onBatchStarted = () => {
+    batchDialogOpen.value = false
+    batchPanel.value?.load?.()
 }
 
 /**

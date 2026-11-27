@@ -159,6 +159,20 @@ describe('notification bell', () => {
         expect(api.markNotificationRead).not.toHaveBeenCalled()
     })
 
+    it('shows the notice text under the label, and no detail line when there is none', async () => {
+        api.getNotifications.mockResolvedValue({
+            items: [row('d', 'workflow.notice', { payload: { message: 'Liên hệ mới từ Lan <b>x</b>' } }), row('e', 'unknown.type')],
+            unreadCount: 2,
+        })
+        const w = await mountBell()
+        await w.findComponent({ name: 'a-dropdown' }).vm.$emit('update:open', true)
+        await flushPromises()
+        const details = w.findAll('[data-testid="notification-detail"]')
+        expect(details).toHaveLength(1)
+        expect(details[0].text()).toBe('Liên hệ mới từ Lan <b>x</b>')
+        expect(details[0].html()).not.toContain('<b>')
+    })
+
     it('marks all read', async () => {
         const w = await mountBell()
         await w.findComponent({ name: 'a-dropdown' }).vm.$emit('update:open', true)

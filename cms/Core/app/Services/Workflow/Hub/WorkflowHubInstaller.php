@@ -49,7 +49,7 @@ class WorkflowHubInstaller
     }
 
     /**
-     * @return array{project_id: int, slug: string, name: string, version: int, version_label: string, is_active: bool, as_copy: bool, copy_reason: ?string, updated_in_place: bool, setup_url: string}
+     * @return array{project_id: int, project_uuid: string, slug: string, name: string, version: int, version_label: string, is_active: bool, as_copy: bool, copy_reason: ?string, updated_in_place: bool, setup_url: string}
      *
      * @throws WorkflowHubException
      */
@@ -92,6 +92,37 @@ class WorkflowHubInstaller
         ]])->save();
 
         return $this->result($project, $bundle, $copyReason, false);
+    }
+
+    /**
+     * Upgrade-all (spec 2026-11-26): update the newest install of `$key` in place, as {@see install()} does for an
+     * unmodified install with an older version, and never install a copy. An install that is missing or was modified
+     * meanwhile is refused with {@see WorkflowHubException::CHANGED}; an install already at this version with
+     * {@see WorkflowHubException::UP_TO_DATE}.
+     *
+     * @return array{project_id: int, project_uuid: string, slug: string, name: string, version: int, version_label: string, is_active: bool, as_copy: bool, copy_reason: ?string, updated_in_place: bool, setup_url: string}
+     *
+     * @throws WorkflowHubException
+     */
+    public function updateInPlaceOnly(string $key, User $user): array
+    {
+        ['bundle' => $bundle] = $this->catalog->verifiedBundle($key);
+        $this->catalog->assertNotOlderThanAdvertised($bundle);
+
+        $missing = $this->catalog->missingModules($bundle->requires['modules']);
+        if ($missing !== []) {
+            throw new WorkflowHubException(WorkflowHubException::NOT_AVAILABLE, 'turn on these modules first: ' . implode(', ', $missing), 409, ['missing_modules' => $missing]);
+        }
+
+        $plan = $this->catalog->plan($this->catalog->installsOf($bundle->key), false, $bundle->version);
+        if ($plan['mode'] === WorkflowHubCatalog::PLAN_CURRENT) {
+            throw self::upToDate();
+        }
+        if ($plan['mode'] !== WorkflowHubCatalog::PLAN_UPDATE) {
+            throw new WorkflowHubException(WorkflowHubException::CHANGED, 'the installed workflow changed meanwhile; try again', 409);
+        }
+
+        return $this->result($this->updateInPlace($plan['project'], $bundle, $user), $bundle, null, true);
     }
 
     /**
@@ -257,12 +288,13 @@ class WorkflowHubInstaller
     }
 
     /**
-     * @return array{project_id: int, slug: string, name: string, version: int, version_label: string, is_active: bool, as_copy: bool, copy_reason: ?string, updated_in_place: bool, setup_url: string}
+     * @return array{project_id: int, project_uuid: string, slug: string, name: string, version: int, version_label: string, is_active: bool, as_copy: bool, copy_reason: ?string, updated_in_place: bool, setup_url: string}
      */
     protected function result(WorkflowProject $project, WorkflowBundle $bundle, ?string $copyReason, bool $updated): array
     {
         return [
             'project_id' => (int) $project->getKey(),
+            'project_uuid' => (string) $project->uuid,
             'slug' => (string) $project->slug,
             'name' => (string) $project->name,
             'version' => $bundle->version,
@@ -271,7 +303,7 @@ class WorkflowHubInstaller
             'as_copy' => $copyReason !== null,
             'copy_reason' => $copyReason,
             'updated_in_place' => $updated,
-            'setup_url' => WorkflowHubCatalog::setupUrl((int) $project->getKey()),
+            'setup_url' => WorkflowHubCatalog::setupUrl((string) $project->slug),
         ];
     }
 

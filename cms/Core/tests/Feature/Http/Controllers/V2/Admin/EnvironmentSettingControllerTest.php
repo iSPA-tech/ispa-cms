@@ -62,6 +62,9 @@ function escEnvLines(object $test): array
 
 beforeEach(function (): void {
     $this->realEnvHash = is_file(base_path('.env')) ? hash_file('sha256', base_path('.env')) : null;
+    // These cases cover a legacy site (settings runtime off), where a change is also written to `.env`; the mode is
+    // set here so the result never depends on the site's own .env. The runtime-on case is the last test below.
+    config(['ispa-cms.setting_runtime_enabled' => false]);
     Artisan::spy();
 
     // User id 1 is always a Webmaster (User::isWebmaster), so take it with a filler account first.
@@ -213,4 +216,29 @@ test('clear empties the row and the env line and audits only key and secret flag
     Event::assertDispatched(AuditLogEvent::class, fn (AuditLogEvent $e): bool => $e->action === 'config.env.clear'
         && $e->changed === ['key' => 'email.MAIL_PASSWORD', 'secret' => true]);
     Artisan::shouldHaveReceived('call')->with('queue:restart');
+});
+
+test('with the settings runtime on, update and clear change only the row and never the env file', function (): void {
+    config(['ispa-cms.setting_runtime_enabled' => true]);
+    Event::fake([AuditLogEvent::class]);
+    ($this->asWebmaster)();
+    $before = file_get_contents($this->envDir . '/.env');
+    $value = 'Row-Only-Secret-' . Str::random(8);
+
+    $put = $this->putJson(ESC_BASE . '/api.GOOGLE_API', ['value' => $value])->assertOk()
+        ->assertJsonPath('data.in_env_file', false);
+    $this->putJson(ESC_BASE . '/email.MAIL_HOST', ['value' => 'row.example.com'])->assertOk();
+    $this->deleteJson(ESC_BASE . '/email.MAIL_PASSWORD')->assertOk()->assertJsonPath('data.has_value', false);
+
+    expect(file_get_contents($this->envDir . '/.env'))->toBe($before)
+        ->and($put->getContent())->not->toContain($value)
+        ->and(Setting::query()->where('setting_key', 'api.GOOGLE_API')->first()->value)->toBe($value)
+        ->and(DB::table('settings')->where('setting_key', 'api.GOOGLE_API')->value('value'))->not->toBe($value)
+        ->and(Setting::query()->where('setting_key', 'email.MAIL_HOST')->first()->value)->toBe('row.example.com')
+        ->and(DB::table('settings')->where('setting_key', 'email.MAIL_PASSWORD')->value('value'))->toBeIn([null, '']);
+
+    Event::assertDispatched(AuditLogEvent::class, fn (AuditLogEvent $e): bool => $e->action === 'config.env.update'
+        && $e->changed === ['key' => 'api.GOOGLE_API', 'secret' => true]);
+    Event::assertDispatched(AuditLogEvent::class, fn (AuditLogEvent $e): bool => $e->action === 'config.env.clear'
+        && $e->changed === ['key' => 'email.MAIL_PASSWORD', 'secret' => true]);
 });

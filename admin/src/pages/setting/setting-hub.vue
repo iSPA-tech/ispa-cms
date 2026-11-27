@@ -49,6 +49,40 @@
                         </ul>
                     </div>
                 </div>
+                <!-- A category with a pointer line: the card is a plain box, so its two links sit side by side (links cannot nest). -->
+                <div
+                    v-else-if="cat.pointer"
+                    class="bg-white rounded-lg hover:shadow-md transition-shadow"
+                    :class="[cat.spanFull ? 'md:col-span-2' : '']"
+                    :style="{ borderLeft: '3px solid ' + cat.color, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }"
+                    :data-testid="'setting-hub-' + cat.key"
+                >
+                    <router-link :to="{ name: cat.firstChild }" class="p-4 pb-2 flex items-start gap-3 cursor-pointer">
+                        <div
+                            class="rounded-lg w-[38px] h-[38px] flex items-center justify-center flex-shrink-0"
+                            :style="{ backgroundColor: cat.bgColor }"
+                        >
+                            <i-icon :icon="cat.icon" class="size-4" :style="{ color: cat.color }" />
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-sm text-gray-800">{{ $t(cat.label) }}</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">{{ $t(cat.desc) }}</p>
+                            <p class="text-xs font-medium mt-1" :style="{ color: cat.color }">
+                                {{ cat.count }} {{ $t('setting.hub.items') }} →
+                            </p>
+                        </div>
+                    </router-link>
+                    <p class="text-xs text-gray-500 pl-[66px] pr-4 pb-4">
+                        {{ $t(cat.pointer.text) }}
+                        <router-link
+                            :to="{ name: cat.pointer.name }"
+                            class="font-medium hover:underline whitespace-nowrap"
+                            :style="{ color: cat.color }"
+                        >
+                            {{ $t(cat.pointer.link) }} →
+                        </router-link>
+                    </p>
+                </div>
                 <router-link
                     v-else
                     :to="{ name: cat.firstChild }"
@@ -159,10 +193,16 @@ const categories = [
         icon: 'robot',
         color: '#ec4899',
         bgColor: '#fce7f3',
-        firstChild: 'setting-workflows-manage',
+        firstChild: 'setting-agentic',
         spanFull: true,
+        // The workflows have their own sidebar group; people who may open them get a line pointing there.
+        pointer: {
+            name: 'workflows',
+            rule: 'workflow_project.viewAny',
+            text: 'setting.hub.workflows_moved',
+            link: 'setting.hub.workflows_open',
+        },
         children: [
-            { name: 'setting-workflows-manage', rule: 'workflow.viewAny' },
             { name: 'setting-agentic', rule: 'agentic.viewAny' },
             { name: 'setting-ai-runtime', rule: 'setting.viewAny' },
         ],
@@ -187,7 +227,7 @@ const visibleCategories = computed(() => {
         .filter((cat) => cat.children.some(childVisible))
         .map((cat) => {
             const accessibleCount = cat.children.filter(childVisible).length
-            return { ...cat, count: accessibleCount }
+            return { ...cat, count: accessibleCount, pointer: cat.pointer && rule(cat.pointer.rule) ? cat.pointer : null }
         })
 
     const entries = visibleModuleEntries.value

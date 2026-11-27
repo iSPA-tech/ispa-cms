@@ -68,7 +68,7 @@ async function resume() {
     busy.value = true
     errorKey.value = ''
     try {
-        await resumeWorkflow(props.workflow.id)
+        await resumeWorkflow(props.workflow.uuid)
         emit('resumed', props.workflow)
     } catch (error) {
         const code = guardErrorCode(error)

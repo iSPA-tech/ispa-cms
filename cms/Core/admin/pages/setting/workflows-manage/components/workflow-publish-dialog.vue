@@ -1,7 +1,8 @@
 <!--
   Publish dialog of the workflow designer. It first asks the server what a publish of the saved draft would do and says
   it in plain words: the sensitive changes, and whether the version goes live now, waits for a second person or goes
-  live after a waiting time. A sensitive publish asks for the account confirmation (step-up) and is then sent once more.
+  live after a waiting time, which the only publisher of a site may skip ("go live now"). A sensitive publish asks for
+  the account confirmation (step-up) and is then sent once more.
   A refused publish lists its problems the way a refused save does.
 -->
 <template>
@@ -62,6 +63,12 @@
                 <section class="space-y-2">
                     <h4 class="m-0 text-sm font-semibold text-gray-800">{{ t('text.workflow.guard.publish.what_happens') }}</h4>
                     <a-alert :type="outcome.tone" show-icon :message="outcome.text" :data-path="outcome.path" data-testid="publish-outcome" />
+                    <div v-if="outcome.path === 'cooling_off'" class="space-y-1" data-testid="publish-release-now">
+                        <a-checkbox v-model:checked="releaseNow" :disabled="busy">
+                            {{ t('text.workflow.guard.publish.release_now', { minutes: waitMinutes }) }}
+                        </a-checkbox>
+                        <p class="m-0 text-xs text-gray-500">{{ t('text.workflow.guard.publish.release_now_hint') }}</p>
+                    </div>
                     <p v-if="preview.step_up_required" class="m-0 text-sm text-gray-600" data-testid="publish-stepup-note">
                         {{ t('text.workflow.guard.publish.stepup_note') }}
                     </p>
@@ -103,7 +110,7 @@
                     data-testid="publish-confirm"
                     @click="confirm"
                 >
-                    {{ t(publishButtonKey(outcome.path)) }}
+                    {{ t(publishButtonKey(skipsWait ? 'published' : outcome.path)) }}
                 </a-button>
             </div>
         </div>
@@ -146,6 +153,8 @@ const stepUp = useStepUpRunner({ purpose: PUBLISH_PURPOSE, lazy: true })
 const stage = ref('loading')
 const preview = ref({})
 const note = ref('')
+/** The only publisher of the site skips the waiting time (offered only when the publish would wait for it). */
+const releaseNow = ref(false)
 const busy = ref(false)
 const loadErrorKey = ref('')
 const actionErrorKey = ref('')
@@ -155,6 +164,8 @@ const result = ref({ path: 'published', tone: 'success', text: '' })
 const ctx = computed(() => ({ t, names: props.names }))
 const changes = computed(() => describeChanges(preview.value?.changes, ctx.value))
 const outcome = computed(() => publishOutcome(preview.value, { t }))
+const skipsWait = computed(() => releaseNow.value && outcome.value.path === 'cooling_off')
+const waitMinutes = computed(() => (Number(preview.value?.cooling_off_minutes) > 0 ? Number(preview.value.cooling_off_minutes) : 60))
 
 const errorKey = (error, fallback) =>
     ({
@@ -166,7 +177,7 @@ const errorKey = (error, fallback) =>
 
 let token = 0
 async function load() {
-    const id = props.workflow?.id
+    const id = props.workflow?.uuid
     if (!id) return
     const mine = ++token
     stage.value = 'loading'
@@ -191,7 +202,9 @@ async function confirm() {
     actionErrorKey.value = ''
     try {
         // The preview already knows a confirmation is needed: ask first instead of sending a publish that will be refused.
-        const answer = await stepUp.run((grant) => publishDraft(props.workflow.id, note.value.trim(), grant), { askFirst: Boolean(preview.value?.step_up_required) })
+        const answer = await stepUp.run((grant) => publishDraft(props.workflow.uuid, note.value.trim(), grant, skipsWait.value), {
+            askFirst: Boolean(preview.value?.step_up_required),
+        })
         // The operator closed the confirmation: nothing was published.
         if (answer === undefined) return
         result.value = publishOutcome(answer, { t, done: true })
@@ -222,6 +235,7 @@ watch(
     (value) => {
         if (!value) return
         note.value = ''
+        releaseNow.value = false
         load()
     },
     { immediate: true }

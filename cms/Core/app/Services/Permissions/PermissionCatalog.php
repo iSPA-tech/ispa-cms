@@ -29,25 +29,32 @@ class PermissionCatalog
     /**
      * Every permission as a picker option, ordered by module then key. Carries no ids and nothing but names and titles.
      *
-     * @return list<array{key: string, label: string, module: string, module_label: string}>
+     * `resource_label` names what a module permission is about (`education.edu_instructor` → "Giảng viên"), so a picker
+     * can read "Education › Giảng viên › Xem tất cả" instead of a list of identical "Education › Xem tất cả" rows; it
+     * is empty for a one-part group (the module label already names it).
+     *
+     * @return list<array{key: string, label: string, module: string, module_label: string, resource_label: string}>
      */
     public function options(): array
     {
         $moduleLabels = [];
+        $resourceLabels = [];
 
         return Permission::query()
             ->select(['name', 'group', 'title'])
             ->whereNotNull('group')
             ->get()
-            ->map(function (Permission $permission) use (&$moduleLabels): array {
+            ->map(function (Permission $permission) use (&$moduleLabels, &$resourceLabels): array {
                 $module = self::moduleOf($permission->group);
                 $key = $permission->group . '.' . $permission->name;
+                $group = (string) $permission->group;
 
                 return [
                     'key' => $key,
                     'label' => self::label($permission->title, $key),
                     'module' => $module,
                     'module_label' => $moduleLabels[$module] ??= self::moduleLabel($module),
+                    'resource_label' => $resourceLabels[$group] ??= self::resourceLabel($group),
                 ];
             })
             ->sortBy([['module', 'asc'], ['key', 'asc']])
@@ -70,6 +77,26 @@ class PermissionCatalog
         $text = app()->getLocale() === 'vi' ? $vi : $en;
 
         return $text !== '' ? $text : ($en !== '' ? $en : $key);
+    }
+
+    /**
+     * Name of what a module permission group is about: the translation `text.permission.resource.<group>` (the key the
+     * role permission editor reads too), else the resource part made readable (`edu_research_result` → "Research
+     * Result"). Empty for a one-part group.
+     */
+    public static function resourceLabel(string $group): string
+    {
+        if (!str_contains($group, '.')) {
+            return '';
+        }
+
+        $name = 'text.permission.resource.' . Str::lower($group);
+        $text = __($name);
+        if (is_string($text) && $text !== $name) {
+            return $text;
+        }
+
+        return Str::headline((string) preg_replace('/^(edu|qb)_/', '', Str::after($group, '.')));
     }
 
     public static function moduleLabel(string $module): string
