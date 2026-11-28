@@ -221,6 +221,16 @@
                         </li>
                     </ul>
                     <!--
+                        Changed core files (often a hot patch the new version already contains) are the only problem: the
+                        Webmaster may update and overwrite them after confirming in the drawer.
+                    -->
+                    <div v-if="state.info.can_overwrite" class="space-y-2 text-sm" data-testid="core-update-overwrite">
+                        <p class="m-0">{{ $t('text.modules.core_update.overwrite.help') }}</p>
+                        <i-button variant="primary" size="sm" data-testid="core-update-overwrite-open" @click="openConfirm(true)">
+                            {{ $t('text.modules.core_update.action.update_overwrite') }}
+                        </i-button>
+                    </div>
+                    <!--
                         Simple hosting: give the site folder to the web server user once and updates run on their own (no
                         cron). One command, ready to copy, then "Check again".
                     -->
@@ -267,10 +277,17 @@
                             {{ $t('text.modules.core_update.action.recheck') }}
                         </i-button>
                     </div>
-                    <p v-if="showCommandHint" class="m-0 text-sm">
-                        {{ $t('text.modules.core_update.command_hint') }}
-                        <code class="break-all" data-testid="core-update-command">{{ state.info.command }}</code>
-                    </p>
+                    <div v-if="showCommandHint" class="space-y-2 text-sm" data-testid="core-update-command-hint">
+                        <p class="m-0">
+                            {{ $t('text.modules.core_update.command_hint') }}
+                            <code :ref="(el) => (commandCode = el)" class="break-all" data-testid="core-update-command">{{ state.info.command }}</code>
+                        </p>
+                        <i-button size="sm" data-testid="core-update-copy-command" @click="copyCommand">
+                            <span aria-live="polite">
+                                {{ $t(copied.command ? 'text.modules.core_update.action.copied' : 'text.modules.core_update.action.copy_command') }}
+                            </span>
+                        </i-button>
+                    </div>
                 </div>
             </template>
         </div>
@@ -291,9 +308,19 @@
                     data-testid="core-update-submit-error"
                 />
                 <p class="m-0 text-sm">{{ $t('text.modules.core_update.confirm.text') }}</p>
+                <div v-if="confirm.overwrite" class="space-y-2" data-testid="core-update-overwrite-files">
+                    <p class="m-0 text-sm">{{ $t('text.modules.core_update.confirm.overwrite_text') }}</p>
+                    <ul class="m-0 list-disc space-y-1 pl-5 text-xs">
+                        <li v-for="file in modifiedFiles" :key="file" class="break-all">{{ file }}</li>
+                    </ul>
+                </div>
                 <label class="flex cursor-pointer items-start gap-2">
                     <input v-model="confirm.backup" type="checkbox" class="mt-1" data-testid="core-update-backup" />
                     <span class="text-sm font-medium">{{ $t('text.modules.core_update.confirm.backup') }}</span>
+                </label>
+                <label v-if="confirm.overwrite" class="flex cursor-pointer items-start gap-2">
+                    <input v-model="confirm.overwriteChecked" type="checkbox" class="mt-1" data-testid="core-update-overwrite-check" />
+                    <span class="text-sm font-medium">{{ $t('text.modules.core_update.confirm.overwrite') }}</span>
                 </label>
                 <div class="flex flex-wrap justify-end gap-2">
                     <i-button size="sm" data-testid="core-update-cancel" @click="closeConfirm">
@@ -305,9 +332,9 @@
                         native-type="submit"
                         data-testid="core-update-start"
                         :loading="confirm.loading"
-                        :disabled="!confirm.backup || confirm.loading"
+                        :disabled="!canSubmit"
                     >
-                        {{ $t('text.modules.core_update.action.update') }}
+                        {{ $t(confirm.overwrite ? 'text.modules.core_update.action.update_overwrite' : 'text.modules.core_update.action.update') }}
                     </i-button>
                 </div>
             </form>
@@ -420,16 +447,17 @@ const state = reactive({
     loading: false,
     loaded: false,
     error: '',
-    info: { installed: '', latest: null, managed: false, web_user: null, notes_url: null, can_update: false, preflight: { ok: true, issues: [] }, running: null, command: './ispa upgrade', runner: null, runner_setup: { user: '', line: '', base: '', root_owner: false }, can_restore: false },
+    info: { installed: '', latest: null, managed: false, web_user: null, notes_url: null, can_update: false, can_overwrite: false, preflight: { ok: true, issues: [] }, running: null, command: './ispa upgrade', runner: null, runner_setup: { user: '', line: '', base: '', root_owner: false }, can_restore: false },
 })
-const confirm = reactive({ open: false, backup: false, loading: false, error: '' })
+/** The update drawer; `overwrite` when it updates over changed core files (needs its own tick). */
+const confirm = reactive({ open: false, backup: false, overwrite: false, overwriteChecked: false, loading: false, error: '' })
 const restore = reactive({ open: false, checked: false, loading: false, error: '' })
 /** Outcome of the last task followed on this page. */
 const result = reactive({ ok: false, text: '' })
 /** The reload offer after an update: '' (none), 'countdown' or 'later' (countdown stopped, plain button left). */
 const reloadPrompt = reactive({ mode: '', seconds: RELOAD_SECONDS, busy: false })
 /** Which copy button says "copied". */
-const copied = reactive({ line: false, prompt: false, owner: false })
+const copied = reactive({ line: false, prompt: false, owner: false, command: false })
 
 let timer = null
 let reloadTimer = null
@@ -440,7 +468,8 @@ let tracked = { uuid: '', kind: '' }
 let setupCode = null
 let promptPre = null
 let ownerCode = null
-const copiedTimers = { line: null, prompt: null, owner: null }
+let commandCode = null
+const copiedTimers = { line: null, prompt: null, owner: null, command: null }
 
 const running = computed(() => {
     const task = state.info.running
@@ -456,6 +485,12 @@ const showCommandHint = computed(
         issues.value.some((issue) => !SELF_SERVICE_CODES.includes(issue.code)),
 )
 const rootOwner = computed(() => state.info.runner_setup?.root_owner === true)
+/** The core files changed on this site (the CORE_MODIFIED issue), listed in the overwrite drawer. */
+const modifiedFiles = computed(() => {
+    const files = issues.value.find((issue) => issue.code === 'CORE_MODIFIED')?.files
+    return Array.isArray(files) ? files.map(String) : []
+})
+const canSubmit = computed(() => confirm.backup && (!confirm.overwrite || confirm.overwriteChecked) && !confirm.loading)
 const hasIssue = (code) => issues.value.some((issue) => issue.code === code)
 /** The crontab part of the prompt: no runner, a line to add, and a code owner that is not root. */
 const needsRunner = computed(() => hasIssue('CORE_NO_RUNNER') && !!setupLine.value && !rootOwner.value)
@@ -681,7 +716,7 @@ const reloadLater = () => {
  */
 const follow = (res, kind) => {
     tracked = { uuid: String(res?.data?.data?.background_task_uuid || ''), kind }
-    state.info = { ...state.info, can_update: false, can_restore: false, running: { uuid: tracked.uuid, progress: 0, status: 'queued' } }
+    state.info = { ...state.info, can_update: false, can_overwrite: false, can_restore: false, running: { uuid: tracked.uuid, progress: 0, status: 'queued' } }
     schedule()
     load(true)
 }
@@ -711,10 +746,14 @@ const load = async (silent = false, fresh = false) => {
     }
 }
 
-const openConfirm = () => {
-    if (!state.info.can_update) return
+/** Open the update drawer; with `overwrite` it updates over the changed core files it lists. */
+const openConfirm = (overwrite = false) => {
+    const allowed = overwrite === true ? state.info.can_overwrite : state.info.can_update
+    if (!allowed) return
     clearResult()
+    confirm.overwrite = overwrite === true
     confirm.backup = false
+    confirm.overwriteChecked = false
     confirm.error = ''
     confirm.open = true
 }
@@ -729,11 +768,13 @@ const closeConfirm = () => {
  */
 const submit = async () => {
     if (confirm.loading) return
-    if (!confirm.backup || !state.info.latest) return
+    if (!canSubmit.value || !state.info.latest) return
     confirm.loading = true
     confirm.error = ''
+    const body = { version: state.info.latest, confirm_backup: true }
+    if (confirm.overwrite) body.overwrite_modified = true
     try {
-        const res = await ajax.post(ENDPOINT, { version: state.info.latest, confirm_backup: true }, quiet)
+        const res = await ajax.post(ENDPOINT, body, quiet)
         confirm.open = false
         confirm.loading = false
         follow(res, 'upgrade')
@@ -747,7 +788,7 @@ const submit = async () => {
         }
         if (code === 'CORE_PREFLIGHT_FAILED' || code === 'CORE_NO_MANIFEST') {
             const preflight = error?.response?.data?.data?.preflight
-            if (preflight) state.info = { ...state.info, can_update: false, preflight }
+            if (preflight) state.info = { ...state.info, can_update: false, can_overwrite: false, preflight }
             confirm.open = false
             return
         }
@@ -834,6 +875,8 @@ const copyLine = async () => markCopied('line', await copyText(setupLine.value, 
 
 const copyOwner = async () => markCopied('owner', await copyText(ownerCommand.value, ownerCode))
 
+const copyCommand = async () => markCopied('command', await copyText(String(state.info.command || ''), commandCode))
+
 /** Read the card again after a fix on the server; the button is busy until the answer arrives. */
 const recheck = () => {
     if (state.loading) return
@@ -870,5 +913,6 @@ onBeforeUnmount(() => {
     clearTimeout(copiedTimers.line)
     clearTimeout(copiedTimers.prompt)
     clearTimeout(copiedTimers.owner)
+    clearTimeout(copiedTimers.command)
 })
 </script>

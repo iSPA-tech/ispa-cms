@@ -74,6 +74,10 @@ final class ContentServiceProvider extends ModuleServiceProvider
 
         $this->registerPostComponents();
         $this->registerWorkflowNodes();
+
+        // Widget Site Layout "page" target (no-op while cms/Widget is off); after every provider booted, so a
+        // project's `content.widget_page_target` opt-out and cms/Widget's registrar rebind are both in place.
+        $this->app->booted(fn () => \Cms\Content\Widget\PageWidgetTargetContextResolver::registerTargetContext($this->app));
     }
 
     /**

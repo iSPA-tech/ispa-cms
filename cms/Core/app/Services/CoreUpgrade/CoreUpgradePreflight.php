@@ -7,7 +7,8 @@ use Cms\Core\Services\Modules\Install\PreflightResult;
 
 /**
  * What stops a core upgrade before it starts (spec 5.5 step 1). Every problem has a stable code:
- * CORE_UPGRADE_INTERRUPTED, CORE_MODIFIED, CORE_CUSTOM_DEPS (blocking for the admin, a warning on the CLI), CORE_NOT_WRITABLE (CLI only),
+ * CORE_UPGRADE_INTERRUPTED, CORE_MODIFIED (a warning when overwriting is asked: `--overwrite-modified` on the CLI, or the
+ * Webmaster's confirmation in the admin), CORE_CUSTOM_DEPS (blocking for the admin, a warning on the CLI), CORE_NOT_WRITABLE (CLI only),
  * CORE_DISK, CORE_PHP, CORE_MODULE_INSTALL_RUNNING and, for the admin button only, CORE_NO_RUNNER, CORE_RELEASE_LAYOUT and
  * CORE_CODE_DIR_SHARED. Never writes anything.
  *
@@ -90,7 +91,7 @@ class CoreUpgradePreflight
     /**
      * @param string|null     $targetVersion    Version to upgrade to (null = not known yet, e.g. `--check` without `--to`).
      * @param bool            $forAdmin         The admin button path: no overwrite, a live runner needed, no custom dependencies.
-     * @param bool            $overwriteModified CLI `--overwrite-modified`: modified core files do not block.
+     * @param bool            $overwriteModified CLI `--overwrite-modified`, or the admin's confirmed overwrite: modified core files do not block.
      * @param int|null        $packageBytes     Signed package size when known (disk check uses 3x).
      * @param CoreManifest|null $new            The new manifest when known (its PHP minimum is checked instead of the installed one).
      * @param list<string>    $extraPhpVersions Other PHP versions that run this site's code (e.g. the web user's), checked like PHP_VERSION.
@@ -119,7 +120,7 @@ class CoreUpgradePreflight
         ));
         if ($modified !== []) {
             $message = 'Core files were changed on this site: '.count($modified).'.';
-            if ($overwriteModified && ! $forAdmin) {
+            if ($overwriteModified) {
                 $add($warnings, 'CORE_MODIFIED', $message.' They go into the upgrade backup and are overwritten.', ['files' => $modified]);
             } else {
                 $add($blocking, 'CORE_MODIFIED', $message.' Put customisations in your own project or module, or use --overwrite-modified on the command line.', ['files' => $modified]);

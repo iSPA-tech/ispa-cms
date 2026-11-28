@@ -43,21 +43,16 @@ use Cms\Widget\SiteLayout\Slots\WidgetTemplateContextRegistry;
  * -- this is what keeps "no-Release output unchanged"
  * (`ExampleProjectWidgetSlotRuntimeTest`, Task 23) true by construction.
  *
- * INTERFACE-DRIVEN SCOPE LIMITATION (disclosed, not an oversight): the root
- * {@see WidgetSlotRuntime::render()} contract and {@see WidgetRenderContext}
- * DTO are both root-owned (outside this task's allowed_paths) and carry
- * only `slotKey` + `projectName`/`useCss`/`isPreview` -- NO template
- * context key and NO target type/id. Task 23's own closure already
- * disclosed this exact gap ("<x-widget-slot> has no target/template-key
- * attribute today"). Consequently this task's real Placement resolution can
- * only ever match `scope_type = 'global'` candidates through the ACTUAL
- * root call site -- a Slot's template- or target-scoped Placements are
- * resolved correctly at the {@see WidgetPlacementResolver} algorithm level
- * (proven by that class's own frozen unit suite, Task 17) but are not
- * reachable from THIS entry point until a future task threads template/
- * target context through the root contract. Locale is read from
- * `app()->getLocale()` (an already-global, already-established accessor)
- * rather than a new interface parameter, for the same reason.
+ * RENDER CONTEXT: published resolution uses the same three tiers as the
+ * preview overlay. The template tier is the Slot's own registered Template
+ * Context key; the target tier is {@see WidgetRenderContext::$targetType}/
+ * `$targetId`, which <x-widget-slot> copies from the request-scoped
+ * {@see \App\Support\Widget\WidgetRenderTarget} a page view sets (e.g.
+ * a project's reader view announces `page:<post uuid>`). A request that sets no
+ * target resolves global + template placements only. (Until 2026-11-28 this
+ * path queried `scope_type = 'global'` only, so "this page only" and "by
+ * page type" placements published fine but never rendered publicly.)
+ * Locale is read from `app()->getLocale()`.
  *
  * EMERGENCY CONTROL, NOT ELIGIBILITY RE-EVALUATION: rendering a PUBLISHED
  * Release's pinned Instance Version deliberately does NOT run the fresh-
@@ -366,8 +361,16 @@ final class WidgetSlotRuntimeService implements WidgetSlotRuntime
             return null;
         }
 
+        // Same Render Context the preview overlay uses: the template tier is
+        // the Slot's own registered Template Context, the target tier is the
+        // page the request announced (WidgetRenderTarget -> WidgetRenderContext).
+        $templateKey = $this->templateContextKeyForSlot($slotKey);
+        $hasTarget = $context->targetType !== null && $context->targetId !== null;
+        $targetType = $hasTarget ? $context->targetType : null;
+        $targetId = $hasTarget ? $context->targetId : null;
+
         $locale = app()->getLocale();
-        $cacheKey = WidgetPlacementCache::buildKey($context->projectName, $locale, $slotKey, null, null, null, $release->version);
+        $cacheKey = WidgetPlacementCache::buildKey($context->projectName, $locale, $slotKey, $templateKey, $targetType, $targetId, $release->version);
 
         $rows = $this->cache->get($cacheKey);
         if ($rows !== null) {
@@ -376,7 +379,20 @@ final class WidgetSlotRuntimeService implements WidgetSlotRuntime
             $rows = WidgetPlacement::query()
                 ->where('layout_version_id', $release->id)
                 ->where('slot_key', $slotKey)
-                ->where('scope_type', WidgetPlacementResolver::SCOPE_GLOBAL)
+                ->where(static function ($query) use ($templateKey, $targetType, $targetId): void {
+                    $query->where('scope_type', WidgetPlacementResolver::SCOPE_GLOBAL);
+                    if ($templateKey !== null) {
+                        $query->orWhere(static fn ($q) => $q
+                            ->where('scope_type', WidgetPlacementResolver::SCOPE_TEMPLATE)
+                            ->where('scope_key', $templateKey));
+                    }
+                    if ($targetId !== null) {
+                        $query->orWhere(static fn ($q) => $q
+                            ->where('scope_type', WidgetPlacementResolver::SCOPE_TARGET)
+                            ->where('target_type', $targetType)
+                            ->where('target_id', $targetId));
+                    }
+                })
                 ->where('enabled', true)
                 ->get(['scope_type', 'scope_key', 'target_type', 'target_id', 'position', 'widget_instance_version_id'])
                 ->map(static fn (WidgetPlacement $placement): array => [
@@ -399,11 +415,7 @@ final class WidgetSlotRuntimeService implements WidgetSlotRuntime
         }
 
         $candidates = array_map(WidgetPlacementResolver::candidateFromRow(...), $rows);
-        // Only `global` candidates can ever be present in $rows (query
-        // filters on it), so template/target context is correctly passed
-        // as null here regardless of the interface-driven limitation
-        // documented on this class -- see class docblock.
-        $winners = $this->resolver->resolve($candidates, $declaration->cardinality, null, null, null);
+        $winners = $this->resolver->resolve($candidates, $declaration->cardinality, $templateKey, $targetType, $targetId);
 
         if ($winners === []) {
             return null;

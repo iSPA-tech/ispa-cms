@@ -120,7 +120,7 @@ it('request round trip and file modes', function () {
 
     expect($tick->readRequest())->toBe([
         'action' => 'upgrade', 'task_uuid' => CRT_TASK, 'version' => '2026.12.1',
-        'web_php' => '/usr/bin/php8.3', 'requested_at' => date('c', $this->now),
+        'web_php' => '/usr/bin/php8.3', 'requested_at' => date('c', $this->now), 'overwrite_modified' => false,
     ])
         ->and(fileperms($this->base.'/'.CoreRunnerTick::REQUEST_FILE) & 0777)->toBe(0664)
         ->and(fileperms($this->base.'/'.CoreRunnerTick::DIR) & 0777)->toBe(0775)

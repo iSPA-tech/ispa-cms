@@ -39,7 +39,8 @@ class DeployPreflightCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'cms:deploy-preflight';
+    protected $signature = 'cms:deploy-preflight
+        {--build : Check only the build output (Vite manifest entries); the deploy runs this before migrations}';
 
     /**
      * The console command description.
@@ -61,6 +62,10 @@ class DeployPreflightCommand extends Command
         TrackingBufferedCounterStore $trackingStore,
     ): int
     {
+        if ($this->option('build')) {
+            return $this->checkBuildOutput();
+        }
+
         $this->info('Starting deployment preflight check...');
 
         $requirements = [
@@ -137,17 +142,7 @@ class DeployPreflightCommand extends Command
             }
         }
 
-        foreach ($this->missingViteManifestEntries() as $entry => $details) {
-            $missing[] = [
-                'label' => "Vite manifest entry: {$entry}",
-                'path' => $details['manifest'],
-                'command' => 'pnpm build',
-            ];
-            $this->error("MISSING: Vite manifest entry: {$entry}");
-            $this->line("  Expected in: {$details['manifest']}");
-            $this->line("  Source: {$details['source']}");
-            $this->line('  Generate with: pnpm build');
-        }
+        $missing = array_merge($missing, $this->reportMissingViteEntries());
 
         // Generic root deployment-preflight registry: has no Widget (or any
         // module) knowledge here, and preserves current behavior exactly
@@ -184,6 +179,62 @@ class DeployPreflightCommand extends Command
 
         $this->info('Preflight check PASSED.');
         return self::SUCCESS;
+    }
+
+    /**
+     * `--build`: prove only the build output, before the deploy hook runs the migrations. A release whose full preflight
+     * fails after migrating leaves the live release running on the migrated schema (seen on a live site on 2026-11-28:
+     * module assets missing from the Vite manifest). The full preflight still runs after the migrations.
+     * Fails open on an error (for example a database activator before the first migration): the full check decides.
+     *
+     * @return int Command::SUCCESS or Command::FAILURE
+     */
+    protected function checkBuildOutput(): int
+    {
+        $this->info('Checking the build output...');
+
+        try {
+            $missing = $this->reportMissingViteEntries();
+        } catch (\Throwable $e) {
+            $this->warn('Build output check skipped: ' . $e->getMessage());
+
+            return self::SUCCESS;
+        }
+
+        if ($missing !== []) {
+            $this->newLine();
+            $this->error('Build output check FAILED. Missing ' . count($missing) . ' Vite manifest entries.');
+
+            return self::FAILURE;
+        }
+
+        $this->info('Build output check PASSED.');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Print each required Vite entry missing from the root build manifest and return them as preflight issues.
+     *
+     * @return list<array{label: string, path: string, command: string}>
+     */
+    protected function reportMissingViteEntries(): array
+    {
+        $missing = [];
+
+        foreach ($this->missingViteManifestEntries() as $entry => $details) {
+            $missing[] = [
+                'label' => "Vite manifest entry: {$entry}",
+                'path' => $details['manifest'],
+                'command' => 'pnpm build',
+            ];
+            $this->error("MISSING: Vite manifest entry: {$entry}");
+            $this->line("  Expected in: {$details['manifest']}");
+            $this->line("  Source: {$details['source']}");
+            $this->line('  Generate with: pnpm build');
+        }
+
+        return $missing;
     }
 
     /**

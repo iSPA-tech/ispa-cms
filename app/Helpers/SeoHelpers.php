@@ -68,6 +68,7 @@ if (!function_exists('iSeo')) {
             'skype' => 'setting.social.url.skype',
             'tiktok' => 'setting.social.url.tiktok',
             'zalo' => 'setting.social.url.zalo',
+            'discord' => 'setting.social.url.discord',
             'version' => 'setting.advanced.VERSION',
             'timezone' => 'setting.advanced.TIMEZONE',
             'editor' => 'setting.advanced.TEXT_EDITOR',

@@ -2381,6 +2381,7 @@ return [
     'uploaded_at' => 'Uploaded at',
     'uploaded_by' => 'Uploaded by',
     'url' => [
+        'discord' => 'Discord server',
         'facebook' => 'Fanpage Facebook',
         'instagram' => 'Instagram account',
         'linkedIn' => 'Linkedin URL',

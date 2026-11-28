@@ -8,6 +8,7 @@ use App\Enums\PaymentStatusEnum;
 use Illuminate\Http\Request;
 use App\Support\Modules\ModuleStatus;
 use Cms\Core\Facades\CMSLogger;
+use Cms\Core\Services\CMSSettingRuntime;
 use Cms\Ecommerce\Models\Order;
 use Stripe\Webhook as StripeWebhook;
 use App\Http\Controllers\Controller;
@@ -30,11 +31,12 @@ class StripeWebhookController extends Controller
      * Answers 404 when Ecommerce is not enabled, 500 when no webhook secret is configured, 400 for a bad signature or
      * payload, and 200 `{received: true}` otherwise (also for event types it ignores, so Stripe stops retrying).
      *
-     * @param Request $request raw Stripe request
+     * @param Request           $request  raw Stripe request
+     * @param CMSSettingRuntime $settings settings runtime that reads the webhook secrets
      *
      * @return Responsable
      */
-    public function handle(Request $request): Responsable
+    public function handle(Request $request, CMSSettingRuntime $settings): Responsable
     {
         if (! ModuleStatus::isEnabled('Ecommerce') || ! class_exists(Order::class)) {
             return ires()->notFound('Not found.');
@@ -44,12 +46,13 @@ class StripeWebhookController extends Controller
         $payload = $request->getContent();
         $signature = $request->header('Stripe-Signature');
 
-        // 2) Resolve the correct webhook secret from config/env
-        // Prefer a single STRIPE_WEBHOOK_SECRET; fallback to env-based split
-        $endpointSecret =
+        // 2) Resolve the webhook secret of the current mode. The secrets are private settings rows (`isPublic: false`),
+        //    never written to config/setting.php, so they are read from the row.
+        $endpointSecret = $settings->secret(
             config('setting.order.payment.enable_test_mode') === 'true'
-                ? config('setting.order.payment.test_webhook_secret')
-                : config('setting.order.payment.webhook_secret');
+                ? 'order.payment.test_webhook_secret'
+                : 'order.payment.webhook_secret'
+        );
 
         if (empty($endpointSecret)) {
             CMSLogger::error([

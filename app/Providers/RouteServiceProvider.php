@@ -81,7 +81,21 @@ class RouteServiceProvider extends ServiceProvider
                 return Limit::none();
             }
 
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            //  Signed-in admin SPA traffic gets its own per-account budget. Route
+            //  middleware priority runs `auth:sanctum` before this limiter, so the
+            //  account is already resolved here. Every admin screen loads about
+            //  ten shell calls (account, notifications, tasks, settings, modules,
+            //  ...) on top of its own, so the shared 60/min below returned
+            //  "Too Many Attempts." after a few clicks. The separate key keeps
+            //  admin calls from draining the same person's public/client budget.
+            //  Unauthenticated admin routes (sign-in, password reset) fall through
+            //  to the per-IP limit and keep their own route throttles.
+            $user = $request->user();
+            if ($user !== null && $request->is('api/v2/admin/*')) {
+                return Limit::perMinute(300)->by('admin:' . $user->getAuthIdentifier());
+            }
+
+            return Limit::perMinute(60)->by($user?->id ?: $request->ip());
         });
 
         //  View tracking ingest. A single per-IP limit is wrong here: the beacon

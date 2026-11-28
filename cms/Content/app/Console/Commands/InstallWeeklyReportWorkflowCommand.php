@@ -9,6 +9,7 @@ use Cms\Core\Models\Email;
 use Cms\Core\Models\Workflows\WorkflowConnection;
 use Cms\Core\Models\Workflows\WorkflowProject;
 use Cms\Core\Models\Workflows\WorkflowStep;
+use Cms\Core\Services\Workflow\Hub\WorkflowTemplateTranslations;
 use Cms\Core\Services\Workflow\Setup\WorkflowGraphLayout;
 use Cms\Core\Workflows\Nodes\NodeRegistry;
 use Illuminate\Console\Command;
@@ -56,33 +57,46 @@ final class InstallWeeklyReportWorkflowCommand extends Command
         . "{{ len(vars.posts) >= 100 ? '100+' : len(vars.posts) }} bài viết mới đăng. "
         . 'Xem ở mục Liên hệ và Bài viết trong trang quản trị.';
 
-    protected $signature = 'content:workflow-install-weekly-report';
+    protected $signature = 'content:workflow-install-weekly-report {--locale= : Language of the names and notice texts, vi or en (default: the site language)} {--suffix= : Added to the workflow slug, e.g. -en to build a second language next to the first}';
 
     protected $description = 'Install the sample workflow "Báo cáo tuần" (inactive, no schedule).';
 
     public function handle(): int
     {
-        $existing = WorkflowProject::withTrashed()->where('slug', self::PROJECT)->first();
+        $locale = WorkflowTemplateTranslations::commandLocale($this->option('locale'));
+        $suffix = (string) $this->option('suffix');
+        if ($locale === null || preg_match('/\A[a-z0-9_-]{0,20}\z/', $suffix) !== 1) {
+            $this->error('--locale must be vi or en; --suffix may only use a-z, 0-9, - and _.');
+
+            return self::FAILURE;
+        }
+        $slug = self::PROJECT . $suffix;
+        $existing = WorkflowProject::withTrashed()->where('slug', $slug)->first();
         if ($existing !== null) {
-            $this->line('Workflow ' . self::PROJECT . ($existing->trashed() ? ' was deleted; left deleted.' : ' exists; left unchanged.'));
+            $this->line('Workflow ' . $slug . ($existing->trashed() ? ' was deleted; left deleted.' : ' exists; left unchanged.'));
 
             return self::SUCCESS;
         }
 
-        DB::transaction(static function (): void {
+        [$text, $steps] = WorkflowTemplateTranslations::applyToDefinition(self::TEXT, $locale, [
+            'name' => 'Báo cáo tuần',
+            'description' => 'Theo lịch trang chọn (ví dụ sáng thứ Hai), đếm tin liên hệ mới và bài viết mới đăng trong 7 ngày qua rồi báo cho quản trị viên trong trang quản trị. Tuần không có gì mới thì không báo.',
+        ], self::steps());
+
+        DB::transaction(static function () use ($slug, $text, $steps): void {
             $project = WorkflowProject::query()->create([
-                'name' => 'Báo cáo tuần',
-                'slug' => self::PROJECT,
+                'name' => $text['name'],
+                'slug' => $slug,
                 'target_entity_type' => 'none',
                 'is_active' => false,
                 'tags' => ['report', 'contact', 'posts', 'notice', 'sample'],
-                'description' => 'Theo lịch trang chọn (ví dụ sáng thứ Hai), đếm tin liên hệ mới và bài viết mới đăng trong 7 ngày qua rồi báo cho quản trị viên trong trang quản trị. Tuần không có gì mới thì không báo.',
+                'description' => $text['description'],
             ]);
 
             $made = [];
             // Laid out top to bottom as the designer's "Tidy up" does.
-            $positions = WorkflowGraphLayout::tidy(array_keys(self::steps()), self::edges());
-            foreach (self::steps() as $code => [$type, $name, $config]) {
+            $positions = WorkflowGraphLayout::tidy(array_keys($steps), self::edges());
+            foreach ($steps as $code => [$type, $name, $config]) {
                 [$x, $y] = $positions[$code];
                 $made[$code] = WorkflowStep::query()->create([
                     'project_id' => $project->id,
@@ -106,10 +120,34 @@ final class InstallWeeklyReportWorkflowCommand extends Command
             }
         });
 
-        $this->info('Created workflow ' . self::PROJECT . ' (inactive, no schedule).');
+        $this->info('Created workflow ' . $slug . ' (inactive, no schedule).');
 
         return self::SUCCESS;
     }
+
+    /**
+     * The template in other languages ({@see WorkflowTemplateTranslations}); the Vietnamese text above is the base.
+     * `--locale=en` writes it; a hub bundle carries it when built with `--translation=en:<slug of that install>`.
+     */
+    public const TEXT = [
+        'en' => [
+            'name' => 'Weekly report',
+            'description' => 'On the schedule the site picks (for example Monday morning), counts the new contact messages and the posts published in the last 7 days and tells the admins in the admin area. A week with nothing new sends nothing.',
+            'steps' => [
+                'schedule' => ['name' => 'Every week'],
+                'contacts' => ['name' => 'Find contact messages of the last 7 days'],
+                'posts' => ['name' => 'Find posts published in the last 7 days'],
+                'anything_new' => ['name' => 'Anything new?'],
+                'notify_admins' => ['name' => 'Tell the admins', 'config' => ['message' => self::MESSAGE_EN]],
+            ],
+        ],
+    ];
+
+    /** {@see self::MESSAGE} in English. */
+    public const MESSAGE_EN = "Last 7 days ({{ formatDate('-7 days', 'j M') }} – {{ formatDate('now', 'j M') }}): "
+        . "{{ len(vars.contacts) >= 100 ? '100+' : len(vars.contacts) }} new contact messages, "
+        . "{{ len(vars.posts) >= 100 ? '100+' : len(vars.posts) }} new posts. "
+        . 'See Contacts and Posts in the admin area.';
 
     /**
      * Steps in graph order: code => [type, name, config].

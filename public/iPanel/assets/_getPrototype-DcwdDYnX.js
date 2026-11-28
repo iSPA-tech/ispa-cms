@@ -1,0 +1,1 @@
+import{jc as e}from"./config-BWXZGT4-.js";var t=e(Object.getPrototypeOf,Object);export{t};

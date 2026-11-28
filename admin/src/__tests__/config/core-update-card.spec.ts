@@ -335,6 +335,64 @@ describe('core update card', () => {
         expect(w.get('[data-testid="core-update-command"]').text()).toBe('./ispa upgrade')
     })
 
+    it('changed core files alone offer the update with overwrite; the drawer lists them and needs both ticks', async () => {
+        const files = ['app/Providers/RouteServiceProvider.php']
+        answer(status({
+            can_update: false,
+            can_overwrite: true,
+            command: './ispa upgrade --overwrite-modified',
+            preflight: { ok: false, issues: [{ code: 'CORE_MODIFIED', message: 'raw', files }] },
+        }))
+        ajaxMock.post.mockImplementation(() => {
+            answer(status({ can_update: false, running: { uuid: 'u2', progress: 0, status: 'queued' } }))
+            return Promise.resolve({ data: { data: { background_task_uuid: 'u2' } } })
+        })
+        const w = await mountCard()
+        expect(w.get('[data-testid="core-update-open"]').attributes('disabled')).toBeDefined()
+        expect(w.get('[data-testid="core-update-command"]').text()).toBe('./ispa upgrade --overwrite-modified')
+
+        await w.get('[data-testid="core-update-overwrite-open"]').trigger('click')
+        expect(w.get('[data-testid="core-update-overwrite-files"]').text()).toContain(files[0])
+        expect(w.get('[data-testid="core-update-start"]').text()).toBe('text.modules.core_update.action.update_overwrite')
+        await w.get('[data-testid="core-update-backup"]').setValue(true)
+        expect(w.get('[data-testid="core-update-start"]').attributes('disabled')).toBeDefined()
+        await w.get('[data-testid="core-update-form"]').trigger('submit')
+        expect(ajaxMock.post).not.toHaveBeenCalled()
+
+        await w.get('[data-testid="core-update-overwrite-check"]').setValue(true)
+        await w.get('[data-testid="core-update-form"]').trigger('submit')
+        await flushPromises()
+        expect(ajaxMock.post).toHaveBeenCalledWith('core-update', { version: '2026.12.0', confirm_backup: true, overwrite_modified: true }, expect.anything())
+        expect(w.find('[data-testid="core-update-waiting"]').exists()).toBe(true)
+    })
+
+    it('no overwrite button when the server does not offer it', async () => {
+        answer(status({
+            can_update: false,
+            can_overwrite: false,
+            preflight: { ok: false, issues: [{ code: 'CORE_MODIFIED', message: 'raw', files: ['a.php'] }, { code: 'CORE_DISK', message: 'raw' }] },
+        }))
+        const w = await mountCard()
+        expect(w.find('[data-testid="core-update-overwrite-open"]').exists()).toBe(false)
+        // The plain update drawer never carries the overwrite parts.
+        expect(w.find('[data-testid="core-update-overwrite-files"]').exists()).toBe(false)
+    })
+
+    it('the command under a refusal is copyable', async () => {
+        const writeText = vi.fn(() => Promise.resolve())
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+        answer(status({
+            can_update: false,
+            command: './ispa upgrade --overwrite-modified',
+            preflight: { ok: false, issues: [{ code: 'CORE_MODIFIED', message: 'raw', files: ['a.php'] }] },
+        }))
+        const w = await mountCard()
+        await w.get('[data-testid="core-update-copy-command"]').trigger('click')
+        await flushPromises()
+        expect(writeText).toHaveBeenCalledWith('./ispa upgrade --overwrite-modified')
+        expect(w.get('[data-testid="core-update-copy-command"]').text()).toBe('text.modules.core_update.action.copied')
+    })
+
     it('needs the backup checkbox before the upgrade is queued', async () => {
         answer(status())
         ajaxMock.post.mockImplementation(() => {

@@ -2351,6 +2351,7 @@ return [
     'uploaded_at' => 'Tải lên lúc',
     'uploaded_by' => 'Người đăng tải',
     'url' => [
+        'discord' => 'Kênh Discord',
         'facebook' => 'Fanpage Facebook',
         'instagram' => 'Tài khoản Instagram',
         'linkedIn' => 'Đường dẫn Linkedin',

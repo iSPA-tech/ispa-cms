@@ -2,6 +2,32 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.10
+
+- **Ships Core module 2026.11.15, Content 2026.11.11 and Widget 2026.11.02.**
+- **Core updates run the new version's steps**: after the files are replaced, the version being installed runs the
+  steps that follow (migrations, permissions, caches, translations, admin language packs). Before, the version doing the
+  update chose them, so a step added by the new version was skipped: a site updated from the admin could show raw text
+  keys in its admin because the language packs of the new version were never written. An update started from an older
+  version now also writes those packs.
+- **Core updates over changed files**: when the only thing stopping an update is core files changed on the site (an
+  urgent fix applied by hand, for example), the update card offers "Update and overwrite changed files". It lists the
+  files, asks for a second confirmation, keeps them in the update's backup and replaces them with the new version's. The
+  command shown under a refused update is now the one that works (`./ispa upgrade --overwrite-modified` when files were
+  changed) and has a copy button.
+- **Admin rate limit**: signed-in admin requests get their own budget of 300 a minute per account, so busy admin screens
+  no longer answer "Too Many Attempts".
+- **Workflows**: templates from the hub follow the site language (Vietnamese or English), and every bundled template
+  ships in both.
+- **Widgets**: the published site layout renders page and page-type placements; the standard site layout areas are
+  registered once for every project, and widget slots carry the page they belong to.
+- **Settings**: password and runtime credential settings stay out of `config/setting.php`; seeded payment, logistics,
+  mail and push credentials are private; the Stripe webhook reads its secret from its settings row; a Discord address
+  in Settings → Social.
+- **Deploys**: `cms:deploy-preflight --build` checks only the build output, so a deploy can check it before running
+  migrations.
+- **Logging**: writing configuration logs the file, groups and key count, never the values.
+
 ## 2026.11.09
 
 - **Ships Core module 2026.11.14, Content 2026.11.10 and Widget 2026.11.01.**

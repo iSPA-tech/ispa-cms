@@ -100,14 +100,17 @@ final class CoreRequestRunner
 
             $version = $request['version']
                 ?? throw new CoreUpgradeException('CORE_UPGRADE_FAILED', 'The request names no core version.');
-            $result = $this->preflight->check($this->upgrader->installed(), $version, true, false, null, null, [$request['web_php']]);
+            // The Webmaster confirmed overwriting core files changed on the site: as `./ispa upgrade --overwrite-modified`,
+            // they go into the file backup of this upgrade and are replaced.
+            $overwrite = $request['overwrite_modified'];
+            $result = $this->preflight->check($this->upgrader->installed(), $version, true, $overwrite, null, null, [$request['web_php']]);
             if ($result->blocking !== []) {
                 $first = $result->blocking[0];
                 $files = array_map('strval', array_values((array) ($first['details']['files'] ?? [])));
                 throw new CoreUpgradeException((string) $first['code'], (string) $first['message']);
             }
             $this->upgrader->usePreparedBackup($prepared);
-            $this->upgrader->run($version, false, $task, $task->started_by, [$request['web_php']]);
+            $this->upgrader->run($version, $overwrite, $task, $task->started_by, [$request['web_php']]);
 
             return 'succeeded';
         } catch (Throwable $e) {

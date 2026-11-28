@@ -106,3 +106,49 @@ test('setting table seed exposes hcaptcha only through the shared provider selec
 
     expect($options->where('value', 'hcaptcha')->pluck('label')->all())->toBe(['hCaptcha']);
 });
+
+/*
+ * 2026-11-28: the seeded payment, logistics, SES and Pusher credentials are `isPublic: false`, so
+ * `cms:setting-initialize` keeps them out of `config/setting.php`. Existing sites receive the flag on deploy, where
+ * `cms:modules-sync` runs this seeder: it rewrites the definition (also an old double-encoded one) and keeps the value.
+ */
+test('setting table seed marks the seeded credentials private on an existing site and keeps their values', function () {
+    DB::table('settings')->insert([
+        [
+            'setting_key' => 'order.payment.webhook_secret',
+            'type' => 'text',
+            'group_name' => 'order',
+            'name' => 'payment.webhook_secret',
+            'value' => 'whsec_existing',
+            'input_setting' => '{"title":"setting.payment.stripe_webhook_secret","isEnv":false,"sub_group":"stripe"}',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'setting_key' => 'email.AWS_SECRET_ACCESS_KEY',
+            'type' => 'text',
+            'group_name' => 'email',
+            'name' => 'AWS_SECRET_ACCESS_KEY',
+            'value' => 'aws-existing',
+            'input_setting' => json_encode(json_encode(['title' => 'text.aws_secret_access_key', 'parent_group' => 'ses'])),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    (new SettingTableSeed())->run();
+
+    $rows = DB::table('settings')
+        ->whereIn('setting_key', ['order.payment.webhook_secret', 'email.AWS_SECRET_ACCESS_KEY', 'order.payment.key1', 'order.logistics.ghn_token'])
+        ->get()
+        ->keyBy('setting_key');
+
+    expect($rows)->toHaveCount(4);
+    foreach ($rows as $settingKey => $row) {
+        $definition = json_decode((string) $row->input_setting, true);
+        expect($definition)->toBeArray("{$settingKey} definition is one JSON object")
+            ->and($definition['isPublic'] ?? null)->toBe(false, "{$settingKey} is private");
+    }
+    expect($rows['order.payment.webhook_secret']->value)->toBe('whsec_existing')
+        ->and($rows['email.AWS_SECRET_ACCESS_KEY']->value)->toBe('aws-existing');
+});

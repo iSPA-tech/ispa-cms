@@ -46,7 +46,8 @@ class WorkflowHubCatalog
     }
 
     /**
-     * Every template the hub shows this site, with site state.
+     * Every template the hub shows this site, with site state. Name, description and step names are in the site
+     * language when the template carries that language ({@see WorkflowTemplateTranslations}), else the base text.
      *
      * @return list<array<string, mixed>>
      *
@@ -235,6 +236,8 @@ class WorkflowHubCatalog
      */
     protected function present(array $entry, array $projects): array
     {
+        // Name, description and step names in the site language when the template carries them (else the base text).
+        $entry = WorkflowTemplateTranslations::localizeEntry($entry);
         $missing = $this->missingModules($entry['requires']['modules']);
         $latest = $projects[0] ?? null;
         $installed = null;
@@ -281,7 +284,7 @@ class WorkflowHubCatalog
         return [
             'key' => $bundle->key, 'publisher' => $bundle->publisher, 'name' => $bundle->name, 'description' => $bundle->description,
             'group' => $bundle->group, 'latest_version' => $bundle->version, 'requires' => $bundle->requires,
-            'summary' => $bundle->summary, 'notes' => $bundle->notes,
+            'summary' => $bundle->summary, 'notes' => $bundle->notes, 'translations' => WorkflowTemplateTranslations::displayOf($bundle),
         ];
     }
 
@@ -373,6 +376,8 @@ class WorkflowHubCatalog
                 'setup_questions' => array_values(array_filter(is_array($summary['setup_questions'] ?? null) ? $summary['setup_questions'] : [], 'is_array')),
             ],
             'notes' => is_array($row['notes'] ?? null) ? WorkflowBundle::normalNotes($row['notes']) : null,
+            // Per-language name, description and step names (hubs before 2026-11-28 send none).
+            'translations' => WorkflowTemplateTranslations::display($row['translations'] ?? null),
         ];
     }
 

@@ -72,12 +72,15 @@ class WorkflowHubInstaller
         }
 
         $copyReason = $plan['reason'];
-        $sourceSlug = (string) ($bundle->package['workflow']['slug'] ?? '');
+        // The workflow is written in the site language when the template carries it (names, notice texts).
+        $package = WorkflowTemplateTranslations::localizePackage($bundle->package);
+        $templateName = WorkflowTemplateTranslations::name($bundle);
+        $sourceSlug = (string) ($package['workflow']['slug'] ?? '');
         $slug = $this->freeSlug($sourceSlug, $copyReason !== null ? $bundle->version : null);
-        $name = $copyReason !== null ? $bundle->name . ' (' . WorkflowBundle::versionLabel($bundle->version) . ')' : $bundle->name;
+        $name = $copyReason !== null ? $templateName . ' (' . WorkflowBundle::versionLabel($bundle->version) . ')' : $templateName;
 
         try {
-            $result = $this->installer->install($bundle->package, $user, [], $slug, $name);
+            $result = $this->installer->install($package, $user, [], $slug, $name);
         } catch (WorkflowPackageException $e) {
             throw new WorkflowHubException(WorkflowHubException::NOT_INSTALLABLE, $e->getMessage(), 422, $e->report);
         }
@@ -139,8 +142,10 @@ class WorkflowHubInstaller
      * `x-secret` credentials included, plus `assignees` of a reviewers question) whose old value is not empty.
      *
      * Project row: `description`, `trigger_event` and `target_entity_type` belong to the template and take the new
-     * values (run settings are frozen at publish, so the running version is not affected); name, tags (the manual-run
-     * tag), schedule, `is_active` and the published version stay. `source` gets the new version, checksum and
+     * values (run settings are frozen at publish, so the running version is not affected); tags (the manual-run tag),
+     * schedule, `is_active` and the published version stay. The name stays unless it is still one of the template's own
+     * names ({@see WorkflowTemplateTranslations::names()}): then it takes the name in the site language. Steps, names and
+     * notice texts come in the site language when the template carries it ({@see WorkflowTemplateTranslations}). `source` gets the new version, checksum and
      * installed hash; the previous installed hashes move to `source.installed_hashes` (last
      * {@see WorkflowTemplateHash::HISTORY}). Audited as {@see self::AUDIT_UPDATED}.
      *
@@ -148,7 +153,7 @@ class WorkflowHubInstaller
      */
     protected function updateInPlace(WorkflowProject $target, WorkflowBundle $bundle, User $user): WorkflowProject
     {
-        $package = $bundle->package;
+        $package = WorkflowTemplateTranslations::localizePackage($bundle->package);
         $report = $this->inspector->inspect($package, $user, [], null, null, false);
         if ($report['problems'] !== [] || $report['binding_problems'] !== []) {
             throw new WorkflowHubException(WorkflowHubException::NOT_INSTALLABLE, 'the new template version cannot be installed on this website', 422, $report);
@@ -228,6 +233,10 @@ class WorkflowHubInstaller
                 if (array_key_exists($field, $row)) {
                     $metadata[$field] = is_string($row[$field]) ? trim($row[$field]) : $row[$field];
                 }
+            }
+            // A name nobody changed here (still a template name, in any language) follows the site language.
+            if (in_array((string) $project->name, WorkflowTemplateTranslations::names($bundle), true)) {
+                $metadata['name'] = WorkflowTemplateTranslations::name($bundle);
             }
             $earlier = array_slice($this->hashes->knownHashes($project), 0, WorkflowTemplateHash::HISTORY);
             $project->forceFill($metadata)->save();

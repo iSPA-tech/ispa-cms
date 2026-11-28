@@ -265,6 +265,93 @@
             "getConstants": "public static function getConstants(): array"
         }
     },
+    "App\\Contracts\\Widget\\DTO\\AuthorizedProjectContext": {
+        "kind": "final class",
+        "properties": {
+            "projectName": "public readonly string $projectName"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $projectName)"
+        }
+    },
+    "App\\Contracts\\Widget\\DTO\\WidgetResolvedTarget": {
+        "kind": "final class",
+        "properties": {
+            "label": "public readonly string $label",
+            "routeName": "public readonly string $routeName",
+            "routeParameters": "public readonly array $routeParameters",
+            "targetId": "public readonly string $targetId",
+            "targetType": "public readonly string $targetType"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $targetId, string $targetType, string $label, string $routeName, array $routeParameters = array ())"
+        }
+    },
+    "App\\Contracts\\Widget\\DTO\\WidgetTargetContextDefinition": {
+        "kind": "final class",
+        "properties": {
+            "labelKey": "public readonly string $labelKey",
+            "resolverService": "public readonly string $resolverService",
+            "targetType": "public readonly string $targetType",
+            "templateContextKey": "public readonly string $templateContextKey"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $targetType, string $labelKey, string $templateContextKey, string $resolverService)"
+        }
+    },
+    "App\\Contracts\\Widget\\DTO\\WidgetTargetPage": {
+        "kind": "final class",
+        "properties": {
+            "items": "public readonly array $items",
+            "page": "public readonly int $page",
+            "perPage": "public readonly int $perPage",
+            "total": "public readonly int $total"
+        },
+        "methods": {
+            "__construct": "public function __construct(array $items, int $page, int $perPage, int $total)"
+        }
+    },
+    "App\\Contracts\\Widget\\DTO\\WidgetTargetSearchQuery": {
+        "kind": "final class",
+        "constants": {
+            "DEFAULT_PER_PAGE": 20,
+            "MAX_PER_PAGE": 100
+        },
+        "properties": {
+            "keywords": "public readonly string $keywords",
+            "page": "public readonly int $page",
+            "perPage": "public readonly int $perPage",
+            "targetType": "public readonly string $targetType"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $targetType, string $keywords = '', int $page = 1, int $perPage = self::DEFAULT_PER_PAGE)"
+        }
+    },
+    "App\\Contracts\\Widget\\DTO\\WidgetTargetSummary": {
+        "kind": "final class",
+        "properties": {
+            "label": "public readonly string $label",
+            "routeName": "public readonly string $routeName",
+            "routeParameters": "public readonly array $routeParameters",
+            "targetId": "public readonly string $targetId"
+        },
+        "methods": {
+            "__construct": "public function __construct(string $targetId, string $label, string $routeName, array $routeParameters = array ())"
+        }
+    },
+    "App\\Contracts\\Widget\\WidgetTargetContextRegistrar": {
+        "kind": "interface",
+        "methods": {
+            "registerTargetContext": "abstract public function registerTargetContext(App\\Contracts\\Widget\\DTO\\WidgetTargetContextDefinition $definition): void"
+        }
+    },
+    "App\\Contracts\\Widget\\WidgetTargetContextResolver": {
+        "kind": "interface",
+        "methods": {
+            "resolve": "abstract public function resolve(App\\Contracts\\Widget\\DTO\\AuthorizedProjectContext $context, string $targetId): App\\Contracts\\Widget\\DTO\\WidgetResolvedTarget",
+            "search": "abstract public function search(App\\Contracts\\Widget\\DTO\\AuthorizedProjectContext $context, App\\Contracts\\Widget\\DTO\\WidgetTargetSearchQuery $query): App\\Contracts\\Widget\\DTO\\WidgetTargetPage"
+        }
+    },
     "App\\Enums\\ContentStatusEnum": {
         "kind": "enum",
         "implements": [
@@ -770,6 +857,45 @@
         "methods": {
             "enabledNames": "public static function enabledNames(): array",
             "isEnabled": "public static function isEnabled(string $name): bool"
+        }
+    },
+    "App\\Support\\Widget\\StandardWidgetSiteAreas": {
+        "kind": "final class",
+        "constants": {
+            "SLOTS": {
+                "site.header.before": "widget_site_layout.slot.site_header_before",
+                "site.header.after": "widget_site_layout.slot.site_header_after",
+                "site.footer.before": "widget_site_layout.slot.site_footer_before",
+                "site.footer.after": "widget_site_layout.slot.site_footer_after",
+                "page.before_content": "widget_site_layout.slot.page_before_content",
+                "page.after_content": "widget_site_layout.slot.page_after_content"
+            },
+            "TEMPLATE_CONTEXTS": {
+                "site.shell": [
+                    "site.header.before",
+                    "site.header.after",
+                    "site.footer.before",
+                    "site.footer.after"
+                ],
+                "page.static": [
+                    "page.before_content",
+                    "page.after_content"
+                ]
+            },
+            "TEMPLATE_PAGE_STATIC": "page.static",
+            "TEMPLATE_SITE_SHELL": "site.shell"
+        },
+        "methods": {
+            "enabled": "public static function enabled(): bool",
+            "register": "public static function register(Illuminate\\Contracts\\Container\\Container $app): bool"
+        }
+    },
+    "App\\Support\\Widget\\WidgetRenderTarget": {
+        "kind": "final class",
+        "methods": {
+            "set": "public function set(string $targetType, string $targetId): void",
+            "targetId": "public function targetId(): ?string",
+            "targetType": "public function targetType(): ?string"
         }
     },
     "App\\Traits\\Models\\PublishedDateTrait": {
@@ -2270,6 +2396,29 @@
         "methods": {
             "enrichBlocks": "public function enrichBlocks(array $content): array",
             "resolve": "public function resolve(int $widgetId, int $themeId, string $widgetKey = '', string $themeKey = ''): ?array"
+        }
+    },
+    "Cms\\Core\\Services\\Workflow\\Hub\\WorkflowTemplateTranslations": {
+        "kind": "final class",
+        "constants": {
+            "KEY": "translations",
+            "LOCALES": [
+                "en",
+                "vi"
+            ]
+        },
+        "methods": {
+            "applyToDefinition": "public static function applyToDefinition(array $texts, string $locale, array $project, array $steps): array",
+            "commandLocale": "public static function commandLocale(mixed $option): ?string",
+            "derive": "public static function derive(array $base, array $translated): array",
+            "display": "public static function display(mixed $value): ?array",
+            "displayOf": "public static function displayOf(Cms\\Core\\Services\\Workflow\\Hub\\WorkflowBundle $bundle): ?array",
+            "locale": "public static function locale(): string",
+            "localizeEntry": "public static function localizeEntry(array $entry, ?string $locale = NULL): array",
+            "localizePackage": "public static function localizePackage(array $package, ?string $locale = NULL): array",
+            "name": "public static function name(Cms\\Core\\Services\\Workflow\\Hub\\WorkflowBundle $bundle, ?string $locale = NULL): string",
+            "names": "public static function names(Cms\\Core\\Services\\Workflow\\Hub\\WorkflowBundle $bundle): array",
+            "normal": "public static function normal(mixed $value): ?array"
         }
     },
     "Cms\\Core\\Services\\Workflow\\Presets\\WorkflowPresetCatalog": {

@@ -37,6 +37,9 @@ final class CuFakePreflight extends CoreUpgradePreflight
 
     public array $calls = [];
 
+    /** @var list<bool> overwriteModified of every check() */
+    public array $overwrites = [];
+
     public function __construct(string $base)
     {
         parent::__construct($base);
@@ -45,8 +48,19 @@ final class CuFakePreflight extends CoreUpgradePreflight
     public function check(CoreManifest $installed, ?string $targetVersion, bool $forAdmin, bool $overwriteModified = false, ?int $packageBytes = null, ?CoreManifest $new = null, array $extraPhpVersions = []): PreflightResult
     {
         $this->calls[] = [$targetVersion, $forAdmin];
+        $this->overwrites[] = $overwriteModified;
+        // As the real preflight: overwriting turns CORE_MODIFIED into a warning.
+        $blocking = [];
+        $warnings = [];
+        foreach ($this->blocking as $item) {
+            if ($overwriteModified && $item['code'] === 'CORE_MODIFIED') {
+                $warnings[] = $item;
+            } else {
+                $blocking[] = $item;
+            }
+        }
 
-        return new PreflightResult(CoreManifest::FILE, $targetVersion ?? '', $this->blocking, [], [], 'upgrade', $installed->version);
+        return new PreflightResult(CoreManifest::FILE, $targetVersion ?? '', $blocking, $warnings, [], 'upgrade', $installed->version);
     }
 }
 
@@ -225,6 +239,62 @@ test('GET cannot update when preflight fails, nothing newer, or an upgrade runs'
         ->assertJsonPath('data.running.uuid', $task->uuid)
         ->assertJsonPath('data.running.progress', 40)
         ->assertJsonPath('data.running.status', 'running');
+});
+
+test('GET offers the overwrite and its command only when changed core files are the only problem', function () {
+    Sanctum::actingAs(cuUser('cu-web-ow1@test.local', true));
+    $modified = ['code' => 'CORE_MODIFIED', 'message' => 'Changed.', 'details' => ['files' => ['app/Providers/RouteServiceProvider.php']]];
+
+    $this->preflight->blocking = [$modified];
+    $this->getJson($this->url)->assertOk()
+        ->assertJsonPath('data.can_update', false)
+        ->assertJsonPath('data.can_overwrite', true)
+        ->assertJsonPath('data.command', './ispa upgrade --overwrite-modified')
+        ->assertJsonPath('data.preflight.issues.0.files', ['app/Providers/RouteServiceProvider.php']);
+
+    $this->preflight->blocking = [$modified, ['code' => 'CORE_DISK', 'message' => 'Full.', 'details' => []]];
+    $this->getJson($this->url)->assertOk()->assertJsonPath('data.can_overwrite', false);
+
+    $this->preflight->blocking = [['code' => 'CORE_CUSTOM_DEPS', 'message' => 'Own deps.', 'details' => []]];
+    $this->getJson($this->url)->assertOk()
+        ->assertJsonPath('data.can_overwrite', false)
+        ->assertJsonPath('data.command', './ispa upgrade');
+
+    $this->preflight->blocking = [$modified];
+    Cache::put(CoreUpdateChecker::CACHE_KEY, ['version' => '2026.11.0', 'notes_url' => null], 3600);
+    $this->getJson($this->url)->assertOk()->assertJsonPath('data.can_overwrite', false);
+});
+
+test('POST with overwrite_modified starts over changed core files and records them in the audit log', function () {
+    Event::fake([AuditLogEvent::class]);
+    Sanctum::actingAs(cuUser('cu-web-ow2@test.local', true));
+    $this->preflight->blocking = [['code' => 'CORE_MODIFIED', 'message' => 'Changed.', 'details' => ['files' => ['app/X.php']]]];
+
+    $this->postJson($this->url, ['version' => '2026.12.0', 'confirm_backup' => true])
+        ->assertStatus(409)
+        ->assertJsonPath('data.preflight.issues.0.code', 'CORE_MODIFIED');
+    $this->postJson($this->url, ['version' => '2026.12.0', 'confirm_backup' => true, 'overwrite_modified' => 'yes'])->assertStatus(422);
+    expect(is_file($this->requestFile))->toBeFalse();
+
+    $this->postJson($this->url, ['version' => '2026.12.0', 'confirm_backup' => true, 'overwrite_modified' => true])->assertStatus(202);
+
+    $request = json_decode((string) file_get_contents($this->requestFile), true);
+    expect($request['overwrite_modified'] ?? null)->toBeTrue();
+    Event::assertDispatched(AuditLogEvent::class, fn (AuditLogEvent $e) => $e->action === 'core.upgrade_started'
+        && ($e->changed['overwrite_modified'] ?? null) === true && ($e->changed['files'] ?? null) === ['app/X.php']);
+});
+
+test('POST with overwrite_modified is still 409 for a problem the overwrite does not cover', function () {
+    Sanctum::actingAs(cuUser('cu-web-ow3@test.local', true));
+    $this->preflight->blocking = [
+        ['code' => 'CORE_MODIFIED', 'message' => 'Changed.', 'details' => ['files' => ['app/X.php']]],
+        ['code' => 'CORE_NO_RUNNER', 'message' => 'No runner.', 'details' => []],
+    ];
+
+    $this->postJson($this->url, ['version' => '2026.12.0', 'confirm_backup' => true, 'overwrite_modified' => true])
+        ->assertStatus(409)
+        ->assertJsonPath('data.preflight.issues.0.code', 'CORE_NO_RUNNER');
+    expect(is_file($this->requestFile))->toBeFalse();
 });
 
 test('GET without a manifest reports CORE_NO_MANIFEST and the configured version', function () {

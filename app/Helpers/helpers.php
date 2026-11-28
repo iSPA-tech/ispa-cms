@@ -530,8 +530,15 @@ if (!function_exists('put_config')) {
         ];
         $export = preg_replace(array_keys($patterns), array_values($patterns), $export);
 
-        logger('Writing config file: ' . $path, ['data' => $data]);
-        
+        // Log the target and the shape only: the payload holds settings values (mail provider keys, ad snippets),
+        // which must never reach storage/logs.
+        $groups = is_array($data) ? array_keys($data) : [];
+        $keyCount = 0;
+        foreach (is_array($data) ? $data : [] as $group) {
+            $keyCount += is_array($group) ? count($group) : 1;
+        }
+        logger('Writing config file: ' . $path, ['groups' => $groups, 'keys' => $keyCount]);
+
         \Cms\Core\Support\Testing\TranslationFileGuard::assertWritable($path);
 
         try {

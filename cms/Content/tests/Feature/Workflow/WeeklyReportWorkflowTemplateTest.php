@@ -273,3 +273,14 @@ test('the template builds as an unsigned hub bundle that asks when and who, from
         @rmdir($dir);
     }
 });
+
+test('the English copy builds into the same bundle so English sites list and install "Weekly report"', function () {
+    $this->artisan('content:workflow-install-weekly-report', ['--locale' => 'vi'])->assertSuccessful();
+    $this->artisan('content:workflow-install-weekly-report', ['--locale' => 'en', '--suffix' => '-en'])->assertSuccessful();
+
+    $bundle = app(WorkflowBundleBuilder::class)->build(InstallWeeklyReportWorkflowCommand::PROJECT, 'ispa.weekly-report', 20261201, 'iSPA', group: 'notifications', translations: ['en' => InstallWeeklyReportWorkflowCommand::PROJECT . '-en']);
+    $english = \Cms\Core\Services\Workflow\Hub\WorkflowTemplateTranslations::localizePackage($bundle->package, 'en')['workflow'];
+    expect($bundle->name)->toBe('Báo cáo tuần')
+        ->and($english['name'])->toBe('Weekly report')
+        ->and(collect($english['steps'])->firstWhere('step_code', 'notify_admins')['step_config']['message'])->toBe(InstallWeeklyReportWorkflowCommand::MESSAGE_EN);
+});

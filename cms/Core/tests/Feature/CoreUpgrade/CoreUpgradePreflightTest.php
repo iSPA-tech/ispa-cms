@@ -97,6 +97,21 @@ test('admin mode ignores web-user writability', function () {
         ->and($cli->blockingCodes())->toContain('CORE_NOT_WRITABLE');
 });
 
+test('changed core files block the admin and the CLI until the overwrite is confirmed', function () {
+    file_put_contents($this->base.'/app/X.php', 'x-hot-patch');
+    $preflight = cpfPreflight($this->base, cpfHeartbeat());
+
+    foreach ([true, false] as $forAdmin) {
+        $plain = $preflight->check($this->manifest, '2026.12.1', $forAdmin);
+        $overwrite = $preflight->check($this->manifest, '2026.12.1', $forAdmin, true);
+
+        expect($plain->blockingCodes())->toContain('CORE_MODIFIED')
+            ->and($overwrite->blockingCodes())->not->toContain('CORE_MODIFIED')
+            ->and(array_column($overwrite->warnings, 'code'))->toContain('CORE_MODIFIED')
+            ->and($overwrite->warnings[array_search('CORE_MODIFIED', array_column($overwrite->warnings, 'code'), true)]['details']['files'])->toBe(['app/X.php']);
+    }
+});
+
 test('admin mode refuses a release layout', function () {
     $release = $this->dir.'/releases/r1';
     mkdir($release, 0755, true);

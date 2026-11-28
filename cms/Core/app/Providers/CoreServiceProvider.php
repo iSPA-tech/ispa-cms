@@ -645,6 +645,7 @@ final class CoreServiceProvider extends ModuleServiceProvider
             \Cms\Core\Console\Commands\CorePackageBuildCommand::class,
             \Cms\Core\Console\Commands\CoreUpgradeCommand::class,
             \Cms\Core\Console\Commands\CoreUpgradeBackupCommand::class,
+            \Cms\Core\Console\Commands\CoreUpgradeFinishCommand::class,
             \Cms\Core\Console\Commands\WorkflowRunCommand::class,
             \Cms\Core\Console\Commands\WorkflowRunScheduledCommand::class,
             \Cms\Core\Console\Commands\WorkflowIntegrityCheckCommand::class,

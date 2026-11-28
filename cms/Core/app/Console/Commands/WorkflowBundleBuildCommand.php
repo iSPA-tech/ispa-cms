@@ -16,11 +16,13 @@ use Throwable;
  * The version defaults to CalVer `YYYY.MM.NN` stored as the integer YYYYMMNN (app timezone, NN = build of the month), or
  * one above the highest version of the same key already built in the output folder when that is this month's; the hub
  * refuses any version not above its latest. `--hub-version` takes `2026.12.01` or `20261201` (named so because the
- * console owns --version). Next step: `cms:workflow-bundle-sign`.
+ * console owns --version). `--translation=en:<slug>` (repeatable, one per language) adds the text of a local workflow
+ * with the same graph in that language: a site in that language lists and installs it (installer commands of the
+ * iSPA templates write it with `--locale=en --suffix=-en`). Next step: `cms:workflow-bundle-sign`.
  */
 class WorkflowBundleBuildCommand extends Command
 {
-    protected $signature = 'cms:workflow-bundle-build {slug : Slug of a workflow in the local database} {--key= : Template key on the hub, e.g. ispa.church-story (never renamed)} {--hub-version= : YYYY.MM.NN (default: automatic CalVer)} {--publisher=iSPA : Publisher} {--name= : Name shown in the library (default: the workflow name)} {--description= : One-line description (default: the workflow description)} {--group= : Library group, e.g. posts, support, notifications} {--notes= : What changed in this version (Vietnamese)} {--notes-en= : What changed in this version (English)} {--out= : Output directory (default storage/app/workflow-bundles)}';
+    protected $signature = 'cms:workflow-bundle-build {slug : Slug of a workflow in the local database} {--key= : Template key on the hub, e.g. ispa.church-story (never renamed)} {--hub-version= : YYYY.MM.NN (default: automatic CalVer)} {--publisher=iSPA : Publisher} {--name= : Name shown in the library (default: the workflow name)} {--description= : One-line description (default: the workflow description)} {--group= : Library group, e.g. posts, support, notifications} {--notes= : What changed in this version (Vietnamese)} {--notes-en= : What changed in this version (English)} {--translation=* : Text in another language from a local workflow with the same graph, as <language>:<slug>, e.g. en:contact-new-message-en} {--out= : Output directory (default storage/app/workflow-bundles)}';
 
     protected $description = 'Build the unsigned hub bundle of a local workflow template.';
 
@@ -55,6 +57,14 @@ class WorkflowBundleBuildCommand extends Command
             }
         }
 
+        $translations = [];
+        foreach ((array) $this->option('translation') as $pair) {
+            if (preg_match('/\A([a-z]{2}):([a-z0-9][a-z0-9_-]{0,190})\z/', trim((string) $pair), $m) !== 1 || isset($translations[$m[1]])) {
+                return $this->refuse('--translation must look like en:<slug>, once per language.');
+            }
+            $translations[$m[1]] = $m[2];
+        }
+
         try {
             $json = $builder->build(
                 (string) $this->argument('slug'),
@@ -65,6 +75,7 @@ class WorkflowBundleBuildCommand extends Command
                 $this->option('description') !== null ? (string) $this->option('description') : null,
                 $this->option('group') !== null ? (string) $this->option('group') : null,
                 ['vi' => (string) $this->option('notes'), 'en' => (string) $this->option('notes-en')],
+                $translations,
             )->toCanonicalJson();
             // Parse our own output back: a bundle the format rejects fails here, not at sign or publish time.
             $bundle = WorkflowBundle::fromJson($json);

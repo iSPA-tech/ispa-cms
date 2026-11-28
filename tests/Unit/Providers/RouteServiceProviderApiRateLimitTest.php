@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Middleware\Authenticate;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -79,3 +83,44 @@ test('all other API requests keep the sixty per minute limit', function (string 
     'internal article write' => ['POST', '/api/v3/contact', '127.0.0.1', '1'],
     'other internal wiki write' => ['POST', '/api/v2/wiki/terms', '127.0.0.1', '1'],
 ]);
+
+//  2026-11-28: every signed-in admin call counted against the shared 60/min, so a few
+//  admin clicks (about ten shell calls per screen) returned "Too Many Attempts.".
+function apiRateLimitForUser(string $path, ?User $user): Limit
+{
+    $request = Request::create($path, 'GET', [], [], [], ['REMOTE_ADDR' => '203.0.113.9']);
+    $request->setUserResolver(static fn () => $user);
+
+    return RateLimiter::limiter('api')($request);
+}
+
+test('signed-in admin requests get a per-account admin budget under their own key', function (): void {
+    $limit = apiRateLimitForUser('/api/v2/admin/workflows', (new User())->forceFill(['id' => 42]));
+
+    expect($limit->maxAttempts)->toBe(300)
+        ->and($limit->key)->toBe('admin:42');
+});
+
+test('unauthenticated admin and signed-in non-admin requests keep the shared limit', function (): void {
+    $anonymousAdmin = apiRateLimitForUser('/api/v2/admin/auth/login', null);
+    $signedInPublic = apiRateLimitForUser('/api/v2/public/settings', (new User())->forceFill(['id' => 42]));
+
+    expect($anonymousAdmin->maxAttempts)->toBe(60)
+        ->and($anonymousAdmin->key)->toBe('203.0.113.9')
+        ->and($signedInPublic->maxAttempts)->toBe(60)
+        ->and($signedInPublic->key)->toBe(42);
+});
+
+test('admin routes authenticate before the api limiter so it sees the account', function (): void {
+    $route = Route::getRoutes()->match(Request::create('/api/v2/admin/workflows', 'GET'));
+    //  Declared group + route middleware only: gathering controller middleware builds
+    //  controllers, and some constructors query the database.
+    $resolved = array_values(app('router')->resolveMiddleware($route->middleware()));
+
+    $authenticate = array_search(Authenticate::class . ':sanctum', $resolved, true);
+    $apiLimiter = array_search(ThrottleRequests::class . ':api', $resolved, true);
+
+    expect($authenticate)->toBeInt()
+        ->and($apiLimiter)->toBeInt()
+        ->and($authenticate)->toBeLessThan($apiLimiter);
+});

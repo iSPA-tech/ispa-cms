@@ -45,6 +45,7 @@ use App\Support\Widget\LegacyWidgetMutationLockGateway;
 use App\Support\Widget\LegacyWidgetRenderer;
 use App\Support\Widget\NullWidgetExtensionRegistrar;
 use App\Support\Widget\NullWidgetSlotRuntime;
+use App\Support\Widget\StandardWidgetSiteAreas;
 use Cms\Core\Responses\AppResponse;
 use Cms\Core\Services\CMSSettingRuntime;
 use Cms\Core\Services\Import\ImportDefinitionRegistry;
@@ -134,6 +135,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(WidgetRenderer::class, LegacyWidgetRenderer::class);
         // Per-request memo of widget emergency block state, read by LegacyWidgetRenderer.
         $this->app->scoped(\App\Support\Widget\WidgetBlockState::class);
+        // Per-request current page target for "this page only" site layout placements.
+        $this->app->scoped(\App\Support\Widget\WidgetRenderTarget::class);
         $this->app->singleton(CanonicalWidgetSchemaResolver::class, CanonicalWidgetSchema::class);
         $this->app->singleton(WidgetSlotRuntime::class, NullWidgetSlotRuntime::class);
         $this->app->singleton(\App\Contracts\Widget\WidgetAreaUsageCounter::class, \App\Support\Widget\NullWidgetAreaUsageCounter::class);
@@ -218,6 +221,10 @@ class AppServiceProvider extends ServiceProvider
         // Register import definitions
         $registry = $this->app->make(ImportDefinitionRegistry::class);
         $registry->register('App', 'contacts', ContactImportDefinition::class);
+
+        // Standard Widget Site Layout areas for every project (no-op while cms/Widget is off). After every
+        // provider booted, so cms/Widget has rebound the root registrars and a project's opt-out config is set.
+        $this->app->booted(fn () => StandardWidgetSiteAreas::register($this->app));
     }
 
     /**

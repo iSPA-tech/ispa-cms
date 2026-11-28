@@ -10,6 +10,7 @@ namespace App\View\Components;
 
 use App\Contracts\Widget\DTO\WidgetRenderContext;
 use App\Contracts\Widget\WidgetSlotRuntime;
+use App\Support\Widget\WidgetRenderTarget;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
@@ -34,9 +35,12 @@ class WidgetSlot extends Component
         public string $slotKey,
         public bool $useCss = false,
     ) {
+        $target = app(WidgetRenderTarget::class);
         $context = new WidgetRenderContext(
             projectName: (string) config('ispa-cms.folder_name', 'Default'),
             useCss: $this->useCss,
+            targetType: $target->targetType(),
+            targetId: $target->targetId(),
         );
 
         $result = app(WidgetSlotRuntime::class)->render($this->slotKey, $context);

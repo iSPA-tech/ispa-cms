@@ -656,6 +656,90 @@ test('a release-zip update imports the new translations and writes the admin lan
         ->and($up->warnings())->toBe([]);
 });
 
+/** The 2026.12.1 package with `cms:core-upgrade-finish` in it, its key trusted. */
+function cuFinishPackage(string $dir): array
+{
+    $pkg = cuPackage($dir, [], ['cms/Core/app/Console/Commands/CoreUpgradeFinishCommand.php' => '<?php // finish']);
+    config(['core.module_packages.core_package_key_ids' => [array_key_first($pkg[2])]]);
+
+    return $pkg;
+}
+
+/** Runner that answers `cms:core-upgrade-finish` with $outcome written to its --result file (null writes nothing). */
+function cuFinishRunner(?array $outcome): object
+{
+    return new class($outcome) extends ProcessRunner {
+        /** @var list<list<string>> */
+        public array $commands = [];
+
+        public function __construct(private ?array $outcome)
+        {
+        }
+
+        public function run(array $cmd, ?string $cwd, array $env = [], bool $quiet = false): int
+        {
+            $this->commands[] = $cmd;
+            if (in_array('cms:core-upgrade-finish', $cmd, true)) {
+                foreach ($cmd as $arg) {
+                    if (str_starts_with($arg, '--result=') && $this->outcome !== null) {
+                        file_put_contents(substr($arg, 9), json_encode($this->outcome));
+                    }
+                }
+
+                return ($this->outcome['ok'] ?? false) === true ? 0 : 1;
+            }
+
+            return 0;
+        }
+
+        public function joined(): string
+        {
+            return implode("\n", array_map(static fn (array $c): string => implode(' ', array_slice($c, 1)), $this->commands));
+        }
+    };
+}
+
+test('the version being installed runs the steps after the swap', function () {
+    // the steps belong to the new version, not to the updater that was loaded before the swap.
+    $pkg = cuFinishPackage($this->dir.'/package');
+    $runner = cuFinishRunner(['ok' => true, 'warnings' => ['Could not write the admin language packs.']]);
+    [$up] = cuUpgrader($this->tree, $pkg, $runner);
+
+    $up->run('2026.12.1', false);
+
+    expect(CoreManifest::installed($this->tree)->version)->toBe('2026.12.1')
+        ->and($runner->joined())->toContain('artisan cms:core-upgrade-finish --result='.$this->tree.'/.ispa-runner/finish-result-')
+        ->and($runner->joined())->not->toContain('--deploy')
+        // The updater no longer runs the steps itself.
+        ->and($runner->joined())->not->toContain('migrate --force')
+        ->and($runner->joined())->not->toContain('cms:translation-generate')
+        ->and($up->warnings())->toBe(['Could not write the admin language packs.'])
+        ->and(glob($this->tree.'/.ispa-runner/finish-result-*'))->toBe([]);
+});
+
+test('a failure the new version reports puts the old files back with its code', function () {
+    $pkg = cuFinishPackage($this->dir.'/package');
+    [$up] = cuUpgrader($this->tree, $pkg, cuFinishRunner(['ok' => false, 'code' => 'CORE_MIGRATE_FAILED', 'message' => '`php artisan migrate --force` failed.']));
+
+    expect(fn () => $up->run('2026.12.1', false))->toThrow(fn (CoreUpgradeException $e) => expect($e->errorCode)->toBe('CORE_MIGRATE_FAILED'));
+    cuExpectUntouched($this->tree);
+});
+
+test('the new version leaving no outcome fails the update and puts the old files back', function () {
+    $pkg = cuFinishPackage($this->dir.'/package');
+    [$up] = cuUpgrader($this->tree, $pkg, cuFinishRunner(null));
+
+    expect(fn () => $up->run('2026.12.1', false))->toThrow(fn (CoreUpgradeException $e) => expect($e->errorCode)->toBe('CORE_UPGRADE_FAILED'));
+    cuExpectUntouched($this->tree);
+});
+
+test('an unknown failure code from the new version becomes CORE_UPGRADE_FAILED', function () {
+    $pkg = cuFinishPackage($this->dir.'/package');
+    [$up] = cuUpgrader($this->tree, $pkg, cuFinishRunner(['ok' => false, 'code' => 'CORE_HEALTH_FAILED', 'message' => 'x']));
+
+    expect(fn () => $up->run('2026.12.1', false))->toThrow(fn (CoreUpgradeException $e) => expect($e->errorCode)->toBe('CORE_UPGRADE_FAILED'));
+});
+
 test('a release-zip update that cannot write the language packs only warns', function () {
     $runner = new class extends ProcessRunner {
         /** @var list<list<string>> */

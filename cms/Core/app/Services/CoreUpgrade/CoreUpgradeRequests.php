@@ -173,11 +173,11 @@ final class CoreUpgradeRequests
      *
      * @throws \InvalidArgumentException When the request would be invalid; the task is then closed as failed.
      */
-    public function create(string $action, ?string $version, int $userId): BackgroundTask
+    public function create(string $action, ?string $version, int $userId, bool $overwriteModified = false): BackgroundTask
     {
         $task = $this->recorder->start(self::TASK_TYPE, 'Core', $userId);
         try {
-            CoreRunnerTick::writeRequest($this->base, $action, $task->uuid, $version, PHP_VERSION, now()->getTimestamp());
+            CoreRunnerTick::writeRequest($this->base, $action, $task->uuid, $version, PHP_VERSION, now()->getTimestamp(), $overwriteModified);
         } catch (Throwable $e) {
             $this->recorder->fail($task, self::failureMessage('CORE_UPGRADE_FAILED', $action === 'restore'), ['code' => 'CORE_UPGRADE_FAILED']);
 

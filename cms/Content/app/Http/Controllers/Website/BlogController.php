@@ -11,6 +11,8 @@ namespace Cms\Content\Http\Controllers\Website;
 use App\Constants\Constant;
 use App\Enums\StatusEnum;
 use App\Events\SaveTracking;
+use App\Support\Widget\WidgetRenderTarget;
+use Cms\Content\Widget\PageWidgetTargetContextResolver;
 use Illuminate\Contracts\View\View;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -71,6 +73,12 @@ class BlogController extends Controller
         }
 
         event(new SaveTracking([Constant::PAGE_VIEW, 'article'], get_class($this->post->model()), $target->target_id));
+
+        // A page announces itself as the Widget Site Layout "page" target, so its "this page only" placements render
+        // in every slot of this request (header and footer included) without each theme setting it.
+        if ($target->target->type === PageWidgetTargetContextResolver::TARGET_TYPE && (string) $target->target->uuid !== '') {
+            app(WidgetRenderTarget::class)->set(PageWidgetTargetContextResolver::TARGET_TYPE, (string) $target->target->uuid);
+        }
 
         return $this->pageView('reader', [
             'view' => $target->target,

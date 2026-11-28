@@ -44,6 +44,9 @@ final class CoreUpdateController extends AdminController
 
     public const COMMAND = './ispa upgrade';
 
+    /** The command line equivalent of the confirmed overwrite: changed core files go into the backup and are replaced. */
+    public const OVERWRITE_COMMAND = './ispa upgrade --overwrite-modified';
+
     /**
      * Query `refresh=1` makes the newest version come from the hub, not from the cache (see CoreUpdateChecker::latest).
      *
@@ -68,15 +71,20 @@ final class CoreUpdateController extends AdminController
         $heartbeat = CoreRunnerTick::freshHeartbeat($requests->base(), now()->getTimestamp());
 
         $newer = $latest !== null && $installed !== '' && ModuleVersionConstraint::compare($latest['version'], $installed) > 0;
+        // Changed core files (often a hot patch) are the only thing in the way: the Webmaster may confirm overwriting
+        // them. The overwrite only turns CORE_MODIFIED into a warning, so the other issues tell whether it would start.
+        $others = array_values(array_filter($issues, static fn (array $issue): bool => $issue['code'] !== 'CORE_MODIFIED'));
+        $modified = count($others) < count($issues);
 
         return ires()->data([
             'installed' => $installed,
             'latest' => $latest['version'] ?? null,
             'notes_url' => $latest['notes_url'] ?? null,
             'can_update' => $newer && $issues === [] && $running === null,
+            'can_overwrite' => $newer && $modified && $others === [] && $running === null,
             'preflight' => ['ok' => $issues === [], 'issues' => $issues],
             'running' => $running === null ? null : ['uuid' => $running->uuid, 'progress' => (int) $running->progress, 'status' => $running->status],
-            'command' => self::COMMAND,
+            'command' => $modified ? self::OVERWRITE_COMMAND : self::COMMAND,
             'runner' => $heartbeat === null ? null : ['seen_at' => Carbon::createFromTimestamp($heartbeat['at'])->toIso8601String(), 'user' => $heartbeat['user']],
             'runner_setup' => $requests->runnerSetup(),
             'web_user' => self::webUser(),
@@ -87,8 +95,10 @@ final class CoreUpdateController extends AdminController
     }
 
     /**
-     * Body `{ version, confirm_backup: true }`. Answers 202 `{ background_task_uuid }`; 422 without the confirmation or
-     * with a bad version; 409 CORE_UPGRADE_RUNNING while one runs, or with the preflight issues when it blocks.
+     * Body `{ version, confirm_backup: true, overwrite_modified?: true }`. `overwrite_modified` confirms that core files
+     * changed on this site go into the upgrade's file backup and are replaced (as `./ispa upgrade --overwrite-modified`).
+     * Answers 202 `{ background_task_uuid }`; 422 without the confirmation or with a bad version; 409
+     * CORE_UPGRADE_RUNNING while one runs, or with the preflight issues when it blocks.
      *
      * @return mixed
      */
@@ -107,12 +117,14 @@ final class CoreUpdateController extends AdminController
         $data = $request->validate([
             'version' => ['required', 'string', 'regex:/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/'],
             'confirm_backup' => ['required', 'accepted'],
+            'overwrite_modified' => ['sometimes', 'boolean'],
         ]);
         if ($request->input('confirm_backup') !== true) {
             return ires()->error()->code(422)->errorCode('CORE_BACKUP_CONFIRMATION_REQUIRED')
                 ->message('Confirm that you have a backup to start the upgrade.');
         }
         $version = (string) $data['version'];
+        $overwrite = $request->input('overwrite_modified') === true;
 
         $lock = $this->startLock();
         if (! $lock->get()) {
@@ -128,19 +140,31 @@ final class CoreUpdateController extends AdminController
             if ($manifest === null) {
                 return ires()->conflict('This site was not installed from a core package.')->errorCode('CORE_NO_MANIFEST');
             }
-            $issues = $this->issues($preflight, $manifest, $version);
+            $result = $preflight->check($manifest, $version, true, $overwrite);
+            $issues = self::issueRows($result->blocking);
             if ($issues !== []) {
                 return ires()->conflict('The upgrade cannot start from the admin.')->errorCode('CORE_PREFLIGHT_FAILED')
                     ->data(['preflight' => ['ok' => false, 'issues' => $issues]]);
             }
+            // The files the Webmaster agreed to overwrite (the CORE_MODIFIED warning), for the audit log.
+            $overwritten = [];
+            foreach ($result->warnings as $item) {
+                if ($item['code'] === 'CORE_MODIFIED') {
+                    $overwritten = array_values(array_map('strval', (array) ($item['details']['files'] ?? [])));
+                }
+            }
 
-            $task = $requests->create('upgrade', $version, (int) $user->id);
+            $task = $requests->create('upgrade', $version, (int) $user->id, $overwrite);
         } finally {
             $lock->release();
         }
 
         try {
-            event(new AuditLogEvent('core.upgrade_started', ['from' => $manifest->version, 'to' => $version, 'task_uuid' => $task->uuid], BackgroundTask::class, (int) $task->id, null, null, (int) $user->id));
+            $audit = ['from' => $manifest->version, 'to' => $version, 'task_uuid' => $task->uuid];
+            if ($overwrite) {
+                $audit += ['overwrite_modified' => true, 'files' => $overwritten];
+            }
+            event(new AuditLogEvent('core.upgrade_started', $audit, BackgroundTask::class, (int) $task->id, null, null, (int) $user->id));
         } catch (Throwable) {
             // Best effort: an audit failure never blocks the upgrade.
         }
@@ -234,8 +258,18 @@ final class CoreUpdateController extends AdminController
      */
     private function issues(CoreUpgradePreflight $preflight, CoreManifest $manifest, ?string $version): array
     {
+        return self::issueRows($preflight->check($manifest, $version, true)->blocking);
+    }
+
+    /**
+     * @param list<array{code: string, message: string, details: array<string, mixed>}> $blocking
+     *
+     * @return list<array{code: string, message: string, files?: list<string>}>
+     */
+    private static function issueRows(array $blocking): array
+    {
         $issues = [];
-        foreach ($preflight->check($manifest, $version, true)->blocking as $item) {
+        foreach ($blocking as $item) {
             $issue = ['code' => (string) $item['code'], 'message' => (string) $item['message']];
             $files = $item['details']['files'] ?? null;
             if (is_array($files)) {

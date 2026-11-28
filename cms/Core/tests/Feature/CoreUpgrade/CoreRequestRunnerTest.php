@@ -225,6 +225,32 @@ test('a modified-files block stores the problem message and the files', function
         ->and($this->upgrader->runs)->toBe([]);
 });
 
+test('a confirmed overwrite runs the upgrade over the modified files', function () {
+    file_put_contents($this->base.'/app/X.php', '<?php // hot patch');
+    $task = $this->requests->create('upgrade', '2026.12.0', 7, true);
+
+    expect(json_decode((string) file_get_contents($this->requestFile), true)['overwrite_modified'] ?? null)->toBeTrue();
+    expect($this->runner->tick())->toBe('succeeded');
+    expect($this->upgrader->runs)->toHaveCount(1)
+        ->and($this->upgrader->runs[0][1])->toBeTrue()
+        ->and($task->refresh()->status)->toBe('running');
+});
+
+test('an overwrite flag that is not true, or on a restore, makes the request invalid', function () {
+    $task = $this->requests->create('upgrade', '2026.12.0', 7);
+    $request = json_decode((string) file_get_contents($this->requestFile), true);
+
+    file_put_contents($this->requestFile, json_encode(['overwrite_modified' => 'yes'] + $request));
+    expect((new CoreRunnerTick($this->base))->readRequest())->toBeNull();
+
+    file_put_contents($this->requestFile, json_encode(['action' => 'restore', 'version' => null, 'overwrite_modified' => true] + $request));
+    expect((new CoreRunnerTick($this->base))->readRequest())->toBeNull();
+
+    file_put_contents($this->requestFile, json_encode($request));
+    expect((new CoreRunnerTick($this->base))->readRequest()['overwrite_modified'] ?? null)->toBeFalse()
+        ->and($task->refresh()->status)->toBe('queued');
+});
+
 test('admin rules block in the runner', function () {
     mkdir($this->base.'/cms/Foo', 0775, true);
     file_put_contents($this->base.'/cms/Foo/composer.json', '{}');

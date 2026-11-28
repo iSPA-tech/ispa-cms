@@ -17,6 +17,8 @@ final readonly class WidgetRenderContext
         public bool $useCss = false,
         public bool $isPreview = false,
         public bool $editMarkers = false,
+        public ?string $targetType = null,
+        public ?string $targetId = null,
     ) {
     }
 }

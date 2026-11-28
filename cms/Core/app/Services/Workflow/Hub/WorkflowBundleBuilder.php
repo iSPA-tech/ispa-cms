@@ -7,6 +7,7 @@ namespace Cms\Core\Services\Workflow\Hub;
 use Cms\Core\Models\Workflows\WorkflowProject;
 use Cms\Core\Services\Workflow\Package\WorkflowPackageException;
 use Cms\Core\Services\Workflow\Package\WorkflowPackageExporter;
+use Cms\Core\Services\Workflow\Package\WorkflowPackageFormat;
 use Cms\Core\Services\Workflow\Package\WorkflowPackageInspector;
 use Cms\Core\Services\Workflow\Setup\WorkflowSetupService;
 
@@ -29,10 +30,13 @@ class WorkflowBundleBuilder
 
     /**
      * @param array<string, string>|null $notes `{vi?, en?}`
+     * @param array<string, string> $translations language => slug of a local workflow with the same graph in that
+     *                                            language ({@see WorkflowTemplateTranslations::derive()}); `$name`
+     *                                            and `$description` set the base text only
      *
      * @throws WorkflowPackageException when the workflow cannot become a template (message names the reason)
      */
-    public function build(string $slug, string $key, int $version, string $publisher, ?string $name = null, ?string $description = null, ?string $group = null, ?array $notes = null): WorkflowBundle
+    public function build(string $slug, string $key, int $version, string $publisher, ?string $name = null, ?string $description = null, ?string $group = null, ?array $notes = null, array $translations = []): WorkflowBundle
     {
         $project = WorkflowProject::query()->where('slug', trim($slug))->first();
         if ($project === null) {
@@ -45,9 +49,20 @@ class WorkflowBundleBuilder
         $package = $this->exporter->export($project->slug);
         // Not part of the package checksum; dropped so equal content builds equal bytes.
         unset($package['created_at']);
+        if ($translations !== []) {
+            $package['workflow'][WorkflowTemplateTranslations::KEY] = $this->translations($project, $package['workflow'], $translations);
+            $package['checksum'] = WorkflowPackageFormat::checksum($package);
+        }
         $report = $this->inspector->inspect($package, null, [], null, null, false);
         if (!$report['valid']) {
             throw new WorkflowPackageException('The workflow cannot be shared as it is: ' . implode('; ', array_column($report['problems'], 'message')), $report);
+        }
+        // Each language must pass the same checks as the base text, since that is what a site in that language installs.
+        foreach (array_keys($translations) as $locale) {
+            $localized = $this->inspector->inspect(WorkflowTemplateTranslations::localizePackage($package, $locale), null, [], null, null, false);
+            if (!$localized['valid']) {
+                throw new WorkflowPackageException("The {$locale} text cannot be shared as it is: " . implode('; ', array_column($localized['problems'], 'message')), $localized);
+            }
         }
         $bindings = (array) ($package['manifest']['bindings'] ?? []);
         if ($bindings !== []) {
@@ -70,5 +85,33 @@ class WorkflowBundleBuilder
             summary: $summary,
             package: $package,
         );
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param array<string, string> $translations language => slug
+     * @return array<string, array<string, mixed>>
+     *
+     * @throws WorkflowPackageException
+     */
+    protected function translations(WorkflowProject $project, array $row, array $translations): array
+    {
+        $texts = [];
+        foreach ($translations as $locale => $translatedSlug) {
+            if (!in_array($locale, WorkflowTemplateTranslations::LOCALES, true)) {
+                throw new WorkflowPackageException('--translation must name a language among ' . implode(', ', WorkflowTemplateTranslations::LOCALES) . ", not {$locale}.");
+            }
+            $other = WorkflowProject::query()->where('slug', trim($translatedSlug))->first();
+            if ($other === null || $other->is($project)) {
+                throw new WorkflowPackageException("No other workflow with slug {$translatedSlug} for the {$locale} text.");
+            }
+            $text = WorkflowTemplateTranslations::derive($row, $this->exporter->export($other->slug)['workflow']);
+            if (!isset($text['name'])) {
+                throw new WorkflowPackageException("The {$locale} workflow {$translatedSlug} has no name.");
+            }
+            $texts[$locale] = $text;
+        }
+
+        return WorkflowTemplateTranslations::normal($texts) ?? [];
     }
 }

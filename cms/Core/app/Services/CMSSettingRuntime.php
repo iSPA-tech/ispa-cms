@@ -86,6 +86,24 @@ class CMSSettingRuntime
     }
 
     /**
+     * Read a credential kept out of `config/setting.php` (a row defined with `isPublic: false`, e.g.
+     * `order.payment.webhook_secret`): through the runtime when it is on, straight from the settings row when it is off
+     * (legacy sites), so the reader never depends on the plain-text config file. An empty value counts as missing.
+     *
+     * @param string $settingKey The dot-notated setting key.
+     * @param mixed  $default    Returned when the row is missing or empty.
+     * @return mixed
+     */
+    public function secret(string $settingKey, mixed $default = null): mixed
+    {
+        $value = $this->isEnabled()
+            ? $this->get($settingKey)
+            : Setting::query()->where('setting_key', $settingKey)->first()?->value;
+
+        return $value === null || $value === '' ? $default : $value;
+    }
+
+    /**
      * Read one value out of a warmed scope map.
      *
      * The maps are FLAT and keyed by the dotted setting_key

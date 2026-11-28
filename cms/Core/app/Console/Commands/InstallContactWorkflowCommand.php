@@ -10,6 +10,7 @@ use Cms\Core\Models\Workflows\WorkflowConnection;
 use Cms\Core\Models\Workflows\WorkflowProject;
 use Cms\Core\Models\Workflows\WorkflowStep;
 use Cms\Core\Services\Mail\ManagedEmailTemplates;
+use Cms\Core\Services\Workflow\Hub\WorkflowTemplateTranslations;
 use Cms\Core\Services\Workflow\Setup\WorkflowGraphLayout;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -52,15 +53,23 @@ final class InstallContactWorkflowCommand extends Command
     /** Key (group `workflow`) of the default auto-reply; stable, admins edit the row in "Mẫu email". */
     public const AUTO_REPLY_TEMPLATE = 'contact_auto_reply';
 
-    protected $signature = 'cms:workflow-install-contact';
+    protected $signature = 'cms:workflow-install-contact {--locale= : Language of the names and notice texts, vi or en (default: the site language)} {--suffix= : Added to the workflow slug, e.g. -en to build a second language next to the first}';
 
     protected $description = 'Install the sample workflow "Liên hệ mới" (inactive, no schedule).';
 
     public function handle(): int
     {
-        $existing = WorkflowProject::withTrashed()->where('slug', self::PROJECT)->first();
+        $locale = WorkflowTemplateTranslations::commandLocale($this->option('locale'));
+        $suffix = (string) $this->option('suffix');
+        if ($locale === null || preg_match('/\A[a-z0-9_-]{0,20}\z/', $suffix) !== 1) {
+            $this->error('--locale must be vi or en; --suffix may only use a-z, 0-9, - and _.');
+
+            return self::FAILURE;
+        }
+        $slug = self::PROJECT . $suffix;
+        $existing = WorkflowProject::withTrashed()->where('slug', $slug)->first();
         if ($existing !== null) {
-            $this->line('Workflow ' . self::PROJECT . ($existing->trashed() ? ' was deleted; left deleted.' : ' exists; left unchanged.'));
+            $this->line('Workflow ' . $slug . ($existing->trashed() ? ' was deleted; left deleted.' : ' exists; left unchanged.'));
 
             return self::SUCCESS;
         }
@@ -68,20 +77,25 @@ final class InstallContactWorkflowCommand extends Command
         // The auto-reply the template sends; created once, an edited or removed row is left as it is.
         app(ManagedEmailTemplates::class)->ensureDefaults([self::AUTO_REPLY_TEMPLATE]);
 
-        DB::transaction(static function (): void {
+        [$text, $steps] = WorkflowTemplateTranslations::applyToDefinition(self::TEXT, $locale, [
+            'name' => 'Liên hệ mới',
+            'description' => 'Khi có người gửi biểu mẫu liên hệ, báo ngay cho quản trị viên kèm tên, tiêu đề và biểu mẫu, rồi gửi thư tự động "đã nhận tin" cho người gửi (mẫu "contact_auto_reply" trong Mẫu email; mỗi địa chỉ tối đa một thư mỗi ngày, không gửi cho thư rác). Có thể bật AI đánh dấu thư rác.',
+        ], self::steps());
+
+        DB::transaction(static function () use ($slug, $text, $steps): void {
             $project = WorkflowProject::query()->create([
-                'name' => 'Liên hệ mới',
-                'slug' => self::PROJECT,
+                'name' => $text['name'],
+                'slug' => $slug,
                 'target_entity_type' => 'none',
                 'is_active' => false,
                 'tags' => ['contact', 'notice', 'sample'],
-                'description' => 'Khi có người gửi biểu mẫu liên hệ, báo ngay cho quản trị viên kèm tên, tiêu đề và biểu mẫu, rồi gửi thư tự động "đã nhận tin" cho người gửi (mẫu "contact_auto_reply" trong Mẫu email; mỗi địa chỉ tối đa một thư mỗi ngày, không gửi cho thư rác). Có thể bật AI đánh dấu thư rác.',
+                'description' => $text['description'],
             ]);
 
             $made = [];
             // Laid out top to bottom as the designer's "Tidy up" does.
-            $positions = WorkflowGraphLayout::tidy(array_keys(self::steps()), self::edges());
-            foreach (self::steps() as $code => [$type, $name, $config]) {
+            $positions = WorkflowGraphLayout::tidy(array_keys($steps), self::edges());
+            foreach ($steps as $code => [$type, $name, $config]) {
                 [$x, $y] = $positions[$code];
                 $made[$code] = WorkflowStep::query()->create([
                     'project_id' => $project->id,
@@ -106,10 +120,38 @@ final class InstallContactWorkflowCommand extends Command
             }
         });
 
-        $this->info('Created workflow ' . self::PROJECT . ' (inactive, no schedule).');
+        $this->info('Created workflow ' . $slug . ' (inactive, no schedule).');
 
         return self::SUCCESS;
     }
+
+    /**
+     * The template in other languages ({@see WorkflowTemplateTranslations}); the Vietnamese text above is the base.
+     * `--locale=en` writes it; a hub bundle carries it when built with `--translation=en:<slug of that install>`.
+     */
+    public const TEXT = [
+        'en' => [
+            'name' => 'New contact',
+            'description' => 'When someone sends a contact form, tells the admins right away with the name, subject and form, then sends the sender an automatic "we got your message" e-mail (template "contact_auto_reply" in Email Templates; at most one e-mail per address per day, none to spam). AI spam flagging can be switched on.',
+            'steps' => [
+                'message_received' => ['name' => 'New contact message'],
+                'load_message' => ['name' => 'Read the message just sent'],
+                'use_ai' => ['name' => 'Use AI to flag spam?'],
+                'spam_label' => ['name' => 'AI flags spam', 'config' => ['labels' => [
+                    ['key' => 'spam', 'description' => 'Advertising, scams, strange links or automatic mail unrelated to the site'],
+                    ['key' => 'normal', 'description' => 'A real person asking, commenting or asking for help'],
+                ]]],
+                'notify_admins' => ['name' => 'Tell the admins', 'config' => ['message' => self::MESSAGE_EN]],
+                'is_spam' => ['name' => 'Did the AI flag it as spam?'],
+                'auto_reply' => ['name' => 'Automatic reply to the sender'],
+            ],
+        ],
+    ];
+
+    /** {@see self::MESSAGE} in English. */
+    public const MESSAGE_EN = "{{ vars.spam.label == 'spam' ? '[AI: may be spam] ' : '' }}"
+        . 'New contact from {{ vars.trigger.event.payload.display_name }} (form “{{ vars.trigger.event.payload.form }}”). '
+        . 'Typed by the visitor, not checked: {{ coalesce(vars.message.attributes.raw_data.subject, vars.message.attributes.content) }}';
 
     /**
      * Steps in graph order: code => [type, name, config].

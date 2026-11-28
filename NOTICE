@@ -333,6 +333,7 @@ Source: composer.lock (runtime packages), the pnpm-lock.yaml of the site and of 
 - jiti 2.6.1 - MIT
 - js-cookie 3.0.8 - MIT
 - laravel-vite-plugin 2.1.0 - MIT
+- leaflet 1.9.4 - BSD-2-Clause
 - lightningcss 1.32.0 - MPL-2.0
 - lightningcss-android-arm64 1.32.0 - MPL-2.0 (same package family as lightningcss)
 - lightningcss-darwin-arm64 1.32.0 - MPL-2.0

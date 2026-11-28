@@ -57,6 +57,9 @@ class CoreUpgrader
     private ?string $preparedBackupUuid = null;
 
     /** Runner-only folder under the base that holds staging, backups and the upgrade state. */
+    /** Failure codes the new version's finishing steps may report; any other becomes CORE_UPGRADE_FAILED. */
+    private const FINISH_FAILURE_CODES = ['CORE_MIGRATE_FAILED', 'CORE_PERMISSIONS_FAILED', 'CORE_UPGRADE_FAILED'];
+
     public const RUNNER_DIR = '.ispa-runner';
 
     /** Hint the CLI prints after a failed upgrade. */
@@ -727,70 +730,62 @@ class CoreUpgrader
         return $warnings;
     }
 
+    /**
+     * The steps after the swap. The version being installed runs them: the updater is the old code, loaded before the
+     * swap, and would skip a step the new version added (demo.ispa.tech 2026-11-28: 2026.11.07 updated to 2026.11.09
+     * without its language packs). A package without `cms:core-upgrade-finish` gets this version's steps.
+     *
+     * @return list<string>
+     *
+     * @throws CoreUpgradeException
+     */
     private function finish(string $root, bool $customDeps, bool $deploy = false): array
     {
-        $warnings = [];
-        $php = (new PhpExecutableFinder())->find() ?: 'php';
-        $artisan = fn (array $args): int => $this->runner()->run(array_merge([$php, 'artisan'], $args), $root, [], true);
-
+        // Before anything boots the new code: its vendor/ must have the site's own packages.
         if ($customDeps && $this->runner()->run(['composer', 'install', '--no-dev', '--no-interaction'], $root, [], true) !== 0) {
             throw new CoreUpgradeException('CORE_COMPOSER_FAILED', '`composer install --no-dev` failed. Is Composer installed and the network reachable?');
         }
-        if ($artisan(['migrate', '--force']) !== 0) {
-            throw new CoreUpgradeException('CORE_MIGRATE_FAILED', '`php artisan migrate --force` failed.');
-        }
-        if ($artisan(['cms:modules-sync-permissions']) !== 0) {
-            throw new CoreUpgradeException('CORE_PERMISSIONS_FAILED', 'Syncing module permissions failed.');
-        }
-        $artisan(['optimize:clear']);
-        if ($artisan(['cms:admin-config']) !== 0) {
-            $warnings[] = 'Could not write public/iPanel/config.js; run `./ispa build` or `php artisan cms:admin-config`.';
-        }
-        if ($deploy) {
-            // What the deploy does after activation: cached config and routes and translations imported from the new
-            // sidecars. The admin is rebuilt once the health check passed (rebuildDeployAdmin).
-            if ($artisan(['config:cache']) !== 0) {
-                $warnings[] = 'Could not cache the configuration; run `php artisan config:cache`.';
-            }
-            if ($artisan(['route:cache']) !== 0) {
-                $artisan(['route:clear']);
-                $warnings[] = 'Could not cache the routes; the site runs with uncached routes.';
-            }
-            if ($artisan(['cms:translation-sync', '--all']) !== 0) {
-                $warnings[] = 'Could not import the new translations; run `php artisan cms:translation-sync --all`.';
-            }
-            // The admin and site language packs (storage/app/public/i18n/<VERSION>/..., lang/*) are built from the
-            // translates table, as the deploy does after its sync; without this the new admin texts showed raw keys.
-            if ($artisan(['cms:translation-generate']) !== 0) {
-                $warnings[] = 'Could not rebuild the language packs; run `php artisan cms:translation-generate`.';
-            }
-        } else {
-            // The admin loads its packs from storage/app/public/i18n/<VERSION>/adm, and VERSION just changed: without
-            // packs under the new version every pack request is a 404 and the admin shows humanized keys. Only the
-            // packs are written (--public-only), as a module install does: lang/* and the module seeders are core files
-            // the next update checks for changes.
-            if ($artisan(['cms:translation-sync', '--all']) !== 0) {
-                $warnings[] = 'Could not import the new translations; run `php artisan cms:translation-sync --all`.';
-            }
-            if ($artisan(['cms:translation-generate', '--public-only']) !== 0) {
-                $warnings[] = 'Could not write the admin language packs; run `php artisan cms:translation-generate --public-only`.';
-            }
+        if (is_file($root.'/'.CoreUpgradeFinisher::COMMAND_FILE)) {
+            return $this->finishWithNewVersion($root, $deploy);
         }
 
-        $marker = $this->readJson($this->base.'/storage/app/ispa/custom-build.json');
-        $flags = array_values(array_filter([
-            ($marker['site'] ?? false) === true ? '--site' : null,
-            ($marker['admin'] ?? false) === true ? '--admin' : null,
-        ]));
-        if ($flags !== []) {
-            if ($this->runner()->run(['node', '--version'], null, [], true) !== 0) {
-                $warnings[] = 'This site was built locally and Node.js was not found: run `./ispa build` to rebuild the assets.';
-            } elseif ($artisan(array_merge(['cms:build'], $flags)) !== 0) {
-                $warnings[] = 'The local rebuild failed; the packaged build is in place. Run `./ispa build` to see why.';
-            }
+        return (new CoreUpgradeFinisher($this->runner()))->run($root, $this->base, $deploy);
+    }
+
+    /**
+     * Run `cms:core-upgrade-finish` of the new code and read its outcome from a private result file.
+     *
+     * @return list<string>
+     *
+     * @throws CoreUpgradeException The new version's failure code (migrations, permissions), or CORE_UPGRADE_FAILED when
+     *                              the command left no readable outcome.
+     */
+    private function finishWithNewVersion(string $root, bool $deploy): array
+    {
+        $this->privateDir($this->runnerDir(), 'CORE_STATE_INVALID');
+        $result = $this->runnerDir().'/finish-result-'.bin2hex(random_bytes(8)).'.json';
+        $php = (new PhpExecutableFinder())->find() ?: 'php';
+        $exit = $this->runner()->run(
+            array_merge([$php, 'artisan', CoreUpgradeFinisher::COMMAND, '--result='.$result], $deploy ? ['--deploy'] : []),
+            $root,
+            [],
+            true,
+        );
+        $data = is_file($result) && ! is_link($result) ? json_decode((string) file_get_contents($result), true) : null;
+        @unlink($result);
+        if (! is_array($data) || ! is_bool($data['ok'] ?? null)) {
+            throw new CoreUpgradeException('CORE_UPGRADE_FAILED', "The new version's steps after the update did not finish (exit {$exit}).");
+        }
+        if ($data['ok'] !== true) {
+            $code = in_array($data['code'] ?? null, self::FINISH_FAILURE_CODES, true) ? (string) $data['code'] : 'CORE_UPGRADE_FAILED';
+
+            throw new CoreUpgradeException($code, is_string($data['message'] ?? null) ? $data['message'] : 'The steps after the update failed.');
         }
 
-        return $warnings;
+        return array_values(array_filter(
+            array_map(static fn (mixed $w): string => is_scalar($w) ? (string) $w : '', (array) ($data['warnings'] ?? [])),
+            static fn (string $w): bool => $w !== '',
+        ));
     }
 
     /**

@@ -17,10 +17,18 @@ use Cms\Core\Helpers\RedisHelper;
 use Cms\Core\Services\CMSSettingRuntime;
 use Cms\Core\Services\Settings\EnvBoundSettings;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 
 class GenerateSettingCommand extends Command
 {
     private const MAIL_ENV_SETTING_KEYS = EnvBoundSettings::MAIL_KEYS;
+
+    /**
+     * Credential-shaped setting names: the last key segment ends in secret, token or password, or in an access, secret,
+     * API or private key (optionally `_id`), e.g. `worker_secret`, `cloudflare_api_token`, `r2_access_key_id`. A bare
+     * `_key` suffix is not enough: site keys, publishable keys and storage keys are not secrets.
+     */
+    private const CREDENTIAL_NAME_PATTERN = '/(^|_)(secret|token|password|access_key|secret_key|api_key|private_key)(_id)?$/i';
 
     /** @var bool */
     public bool $isDiscovery = false;
@@ -64,7 +72,7 @@ class GenerateSettingCommand extends Command
                 $inputSetting = (array)$setting->input_setting;
                 // $this->info('Processing setting: ' . 'setting_key: ' . $setting->setting_key . ' - input_setting: ' . json_encode($inputSetting));
                 $isEnv = $this->shouldSynchronizeToEnvironment($setting->setting_key, $inputSetting);
-                $isPrivate = ($inputSetting['isPublic'] ?? true) === false;
+                $isPrivate = $this->isPrivateSetting($setting, $inputSetting);
 
                 // Normalize value for downstream usage
                 if ($setting->type === 'number') {
@@ -186,6 +194,34 @@ class GenerateSettingCommand extends Command
                 ]);
             }
         }
+    }
+
+    /**
+     * Whether a row stays out of the public `config/setting.php`, which is a plain-text file.
+     *
+     * - An explicit `isPublic: false`.
+     * - Type `password`: the value is a secret (EncryptedSettingValue encrypts it at rest) and is never written to the
+     *   file, whatever its definition says.
+     * - A row with no input definition at all (written at runtime by a module, not by the settings seed) whose name is
+     *   credential-shaped, e.g. `mail_hub.r2_access_key_id` (2026-11-28: the MailHub tokens and keys sat in clear text
+     *   in cms.ispa.io's config/setting.php). Those modules read their rows through the Setting model, not config().
+     *
+     * Rows defined by the settings seed keep the old default (public when `isPublic` is absent): readers take most of
+     * them from `config('setting.*')`. The seed marks its own credentials `isPublic: false` (payment, logistics, SES,
+     * Pusher), and their readers use CMSSettingRuntime::secret().
+     */
+    protected function isPrivateSetting(Setting $setting, array $inputSetting): bool
+    {
+        if (($inputSetting['isPublic'] ?? true) === false) {
+            return true;
+        }
+
+        if (strtolower((string)$setting->type) === 'password') {
+            return true;
+        }
+
+        return $inputSetting === []
+            && preg_match(self::CREDENTIAL_NAME_PATTERN, Str::afterLast((string)$setting->setting_key, '.')) === 1;
     }
 
     private function shouldSynchronizeToEnvironment(string $settingKey, array $inputSetting): bool

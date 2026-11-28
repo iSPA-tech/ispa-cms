@@ -297,7 +297,7 @@ final class CoreRunnerTick
      *
      * @throws InvalidArgumentException When the request would not read back as valid.
      */
-    public static function writeRequest(string $base, string $action, string $taskUuid, ?string $version, string $webPhp, ?int $now = null): void
+    public static function writeRequest(string $base, string $action, string $taskUuid, ?string $version, string $webPhp, ?int $now = null, bool $overwriteModified = false): void
     {
         $data = [
             'format' => self::FORMAT,
@@ -307,6 +307,9 @@ final class CoreRunnerTick
             'web_php' => $webPhp,
             'requested_at' => date('c', $now ?? time()),
         ];
+        if ($overwriteModified) {
+            $data['overwrite_modified'] = true;
+        }
         $json = json_encode($data, JSON_UNESCAPED_SLASHES);
         if (self::validRequest($data) === null || $json === false || strlen($json) > self::REQUEST_MAX_BYTES) {
             throw new InvalidArgumentException('Invalid core upgrade request.');
@@ -316,9 +319,10 @@ final class CoreRunnerTick
 
     /**
      * The waiting request, or null when there is none or it is invalid (bad JSON, too large, unknown
-     * action or format, unsafe version, malformed task uuid).
+     * action or format, unsafe version, malformed task uuid, an overwrite flag that is not `true` or not on an upgrade).
+     * `overwrite_modified` is true when the Webmaster confirmed overwriting core files changed on the site.
      *
-     * @return array{action: string, task_uuid: string, version: ?string, web_php: string, requested_at: string}|null
+     * @return array{action: string, task_uuid: string, version: ?string, web_php: string, requested_at: string, overwrite_modified: bool}|null
      */
     public function readRequest(): ?array
     {
@@ -433,11 +437,13 @@ final class CoreRunnerTick
         $version = $data['version'] ?? null;
         $webPhp = $data['web_php'] ?? null;
         $at = $data['requested_at'] ?? null;
+        $overwrite = $data['overwrite_modified'] ?? false;
 
         if (($data['format'] ?? null) !== self::FORMAT || ! in_array($action, self::ACTIONS, true)
             || ! is_string($uuid) || preg_match(self::UUID_PATTERN, $uuid) !== 1
             || ! is_string($webPhp) || $webPhp === '' || str_contains($webPhp, "\0")
-            || ! is_string($at) || $at === '') {
+            || ! is_string($at) || $at === ''
+            || ! is_bool($overwrite) || ($overwrite && $action !== 'upgrade')) {
             return null;
         }
         if ($action === 'restore' ? $version !== null
@@ -445,7 +451,7 @@ final class CoreRunnerTick
             return null;
         }
 
-        return ['action' => $action, 'task_uuid' => $uuid, 'version' => $version, 'web_php' => $webPhp, 'requested_at' => $at];
+        return ['action' => $action, 'task_uuid' => $uuid, 'version' => $version, 'web_php' => $webPhp, 'requested_at' => $at, 'overwrite_modified' => $overwrite];
     }
 
     /**
