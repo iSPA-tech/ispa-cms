@@ -190,3 +190,28 @@ test('importFromModule resolves module path fallback', function () {
 
     File::deleteDirectory(storage_path('framework/testing/blogmodule'));
 });
+
+test('a sidecar that builds its rows in a $records variable does not wipe the sidecars loaded before it', function () {
+    // 2026-11-28: Core's translate-admin-permission-resources.php assigned `$records` at file level; included inline
+    // by the importer it replaced the importer's own `$records`, so translate-admin-authored.php (sorted before it)
+    // was dropped from every sync and new authored keys never reached a site.
+    $dir = storage_path('framework/testing/sidecar-scope-' . uniqid());
+    File::ensureDirectoryExists($dir);
+    $row = fn (string $name, string $vi): string => var_export([
+        'modules' => ['Core'], 'group_name' => 'text', 'name' => $name, 'text' => ['en' => $name, 'vi' => $vi],
+        'for_web' => 0, 'for_adm' => 1, 'for_app' => 0, 'status' => 'status_published',
+    ], true);
+
+    try {
+        File::put($dir . '/translate.php', '<?php return [];');
+        File::put($dir . '/translate-admin-authored.php', '<?php return [' . $row('text.scope.authored', 'Có trước') . '];');
+        File::put($dir . '/translate-admin-later.php', '<?php $records = []; $records[] = ' . $row('text.scope.later', 'Có sau') . '; return $records;');
+
+        $result = (new TranslationModuleSeederImporter())->importFromFile('Core', $dir . '/translate.php', $dir);
+
+        expect($result['created'])->toBe(2)
+            ->and(Translate::query()->whereIn('name', ['text.scope.authored', 'text.scope.later'])->count())->toBe(2);
+    } finally {
+        File::deleteDirectory($dir);
+    }
+});

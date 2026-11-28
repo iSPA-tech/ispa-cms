@@ -6,8 +6,10 @@
 |--------------------------------------------------------------------------
 |
 | `cms:workflow-run-scheduled` starts authored workflow projects whose
-| `schedule_cron` is due. The scheduler entry in app/Console/Kernel.php is
-| registered only when `enabled` is true, so a site opts in explicitly.
+| `schedule_cron` is due. On by default: a project runs on
+| its schedule only after a person published it, switched it on and picked the
+| schedule, and the weekly report template never ran on sites that had to opt
+| in. Set WORKFLOW_SCHEDULER_ENABLED=false to stop every schedule of a site.
 |
 | Each pass also fails runs stuck in `running` (their worker died) with no
 | activity for `stale_running_minutes`, as `stale_running`, so they stop
@@ -16,7 +18,7 @@
 */
 
 return [
-    'enabled' => (bool) env('WORKFLOW_SCHEDULER_ENABLED', false),
+    'enabled' => filter_var(env('WORKFLOW_SCHEDULER_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
 
     'stale_running_minutes' => max(1, (int) env('WORKFLOW_STALE_RUNNING_MINUTES', 30)),
 

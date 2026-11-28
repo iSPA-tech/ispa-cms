@@ -1,0 +1,1 @@
+import{g as e}from"./config-1xwHEF2H.js";var t=(t={})=>{let{errorFields:n=[]}=t,r=``;n.forEach(e=>{r+=`${e.errors[0]}<br>`}),e(r,!0)};export{t};

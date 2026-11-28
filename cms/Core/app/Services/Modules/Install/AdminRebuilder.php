@@ -12,10 +12,12 @@ namespace Cms\Core\Services\Modules\Install;
 
 use App\Support\Modules\ArtisanSubprocess;
 use Cms\Core\Services\Admin\AdminRuntimeConfig;
+use Cms\Core\Services\CoreUpgrade\CoreAdminSourceOverlay;
 use Cms\Core\Services\Toolchain\AdminPaths;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Symfony\Component\Process\ExecutableFinder;
+use Throwable;
 
 /**
  * Rebuilds the Vue admin on a deployed site through the deploy script `.github/deployment/admin-rebuild.sh`.
@@ -68,6 +70,18 @@ class AdminRebuilder
         $script = realpath($release . '/' . self::SCRIPT);
         if ($script === false || ! is_file($script)) {
             return $this->failure(self::ERROR_NOT_DEPLOYED, 'This release has no admin rebuild script.');
+        }
+
+        // During a core update from the admin, the rebuild reads runtime/admin-workspace/admin: lay the package's admin
+        // source over it first. Done here too (not only in CoreUpgrader) because the update that installs this code is
+        // still run by the previous CoreUpgrader, which reaches only this class, loaded fresh after the swap.
+        $upgradeTree = CoreAdminSourceOverlay::runningUpgradeTree($release);
+        if ($upgradeTree !== null) {
+            try {
+                (new CoreAdminSourceOverlay())->apply($upgradeTree, $release);
+            } catch (Throwable $e) {
+                Log::warning('The core package admin source was not copied before the rebuild.', ['error' => $e->getMessage()]);
+            }
         }
 
         $result = Process::path($release)

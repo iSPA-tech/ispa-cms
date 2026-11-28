@@ -169,6 +169,65 @@ test('success runs the script with an argv array, the site base dir and a 2400 s
         && $process->timeout === 2400);
 });
 
+/**
+ * A core update in progress in the release: staging tree with the given admin files and the runner's state file.
+ *
+ * @param array<string, string> $adminFiles
+ */
+function arRunningUpgrade(string $release, array $adminFiles, ?string $stagingOverride = null): void
+{
+    $staging = $release.'/.ispa-runner/upgrade-staging/2026.11.55';
+    foreach ($adminFiles as $rel => $body) {
+        @mkdir(dirname($staging.'/tree/admin/'.$rel), 0700, true);
+        file_put_contents($staging.'/tree/admin/'.$rel, $body);
+    }
+    file_put_contents($release.'/.ispa-runner/core-upgrade-state.json', json_encode(['from' => '2026.11.13', 'to' => '2026.11.55', 'staging' => $stagingOverride ?? $staging]));
+}
+
+function arWorkspace(string $tmp, array $files): string
+{
+    $workspace = $tmp.'/site/runtime/admin-workspace/admin';
+    foreach ($files as $rel => $body) {
+        @mkdir(dirname($workspace.'/'.$rel), 0755, true);
+        file_put_contents($workspace.'/'.$rel, $body);
+    }
+
+    return $workspace;
+}
+
+test('during a core update the package admin source reaches the admin workspace before the deploy rebuild', function () {
+    // The update that installs this code is run by the previous CoreUpgrader, which only calls this class.
+    $release = arRelease($this->tmp);
+    $workspace = arWorkspace($this->tmp, ['src/main.js' => 'shell-v1', 'src/modules/client/page.js' => 'client-page', 'VERSION' => "2026.11.13\n"]);
+    arRunningUpgrade($release, ['src/main.js' => 'shell-v2', 'src/added.js' => 'added', 'VERSION' => "2026.11.55\n"]);
+    Process::fake(['*' => Process::result(output: "ADMIN_BUILD_OK /x/y\n", exitCode: 0)]);
+
+    $result = (new AdminRebuilder(arArtisan(), $release))->rebuild();
+
+    expect($result['ok'])->toBeTrue()
+        ->and(file_get_contents($workspace.'/src/main.js'))->toBe('shell-v2')
+        ->and(file_get_contents($workspace.'/src/added.js'))->toBe('added')
+        ->and(file_get_contents($workspace.'/src/modules/client/page.js'))->toBe('client-page')
+        ->and(file_get_contents($workspace.'/VERSION'))->toBe("2026.11.13\n");
+});
+
+test('without a running core update, or with a staging path outside the runner folder, the workspace stays', function () {
+    $release = arRelease($this->tmp);
+    $workspace = arWorkspace($this->tmp, ['src/main.js' => 'shell-v1']);
+    Process::fake(['*' => Process::result(output: "ADMIN_BUILD_OK /x/y\n", exitCode: 0)]);
+
+    (new AdminRebuilder(arArtisan(), $release))->rebuild();
+    expect(file_get_contents($workspace.'/src/main.js'))->toBe('shell-v1');
+
+    $elsewhere = $this->tmp.'/elsewhere';
+    @mkdir($elsewhere.'/tree/admin/src', 0700, true);
+    file_put_contents($elsewhere.'/tree/admin/src/main.js', 'foreign');
+    arRunningUpgrade($release, ['src/main.js' => 'shell-v2'], $elsewhere);
+
+    (new AdminRebuilder(arArtisan(), $release))->rebuild();
+    expect(file_get_contents($workspace.'/src/main.js'))->toBe('shell-v1');
+});
+
 test('the process environment drops every inherited variable except the kept ones', function () {
     $release = arRelease($this->tmp);
     putenv('SECRET_X=1');

@@ -110,7 +110,7 @@ class TranslationModuleSeederImporter
             return $this->result($filePath, found: false, valid: false, dryRun: $dryRun);
         }
 
-        $records = include $filePath;
+        $records = self::includeIsolated($filePath);
 
         if (! is_array($records)) {
             return $this->result($filePath, found: true, valid: false, dryRun: $dryRun);
@@ -144,7 +144,7 @@ class TranslationModuleSeederImporter
                 continue;
             }
 
-            $sidecarRecords = include $sidecarPath;
+            $sidecarRecords = self::includeIsolated($sidecarPath);
             if (is_array($sidecarRecords)) {
                 $records = array_merge($records, $sidecarRecords);
             }
@@ -576,6 +576,19 @@ class TranslationModuleSeederImporter
             ->all();
 
         return [$existingByName, $existingById];
+    }
+
+    /**
+     * Include a translation seeder file in a scope of its own and return what it returns. A seeder that builds its rows
+     * in a variable (`$records`, `$labels`) must never overwrite the importer's own variables: included inline, a
+     * sidecar assigning `$records` wiped every sidecar record loaded before it (2026-11-28: Core's
+     * translate-admin-permission-resources.php dropped translate-admin-authored.php, 5729 rows, from every sync).
+     */
+    private static function includeIsolated(string $path): mixed
+    {
+        return (static function (string $__translationFile): mixed {
+            return include $__translationFile;
+        })($path);
     }
 
     private function normalizeTranslationName(string $name): string

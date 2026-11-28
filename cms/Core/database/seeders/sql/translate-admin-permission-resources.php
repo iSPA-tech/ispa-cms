@@ -5,6 +5,9 @@
  * role permission editor and the workflow permission picker ("Liên hệ › Xem tất cả"). Imported by cms:translation-sync; existing
  * keys keep their wording, only missing keys are added (2026-11-28).
  */
+// Built inside a closure so its variables never leak into the file that includes it (the importer once kept its
+// own rows in `$records`, and an inline `$records = []` here wiped them).
+return (static function (): array {
 $labels = [
     'text.permission.resource.contact' => ['Contacts', 'Liên hệ'],
     'text.permission.resource.email' => ['Inbox', 'Hộp thư'],
@@ -59,3 +62,4 @@ foreach ($labels as $name => [$en, $vi]) {
 }
 
 return $records;
+})();

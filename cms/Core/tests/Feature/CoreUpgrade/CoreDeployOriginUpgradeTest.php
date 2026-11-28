@@ -322,6 +322,45 @@ test('a deploy-origin release upgrades in place and site files stay byte-identic
         ->and(end($runner->commands))->toBe('artisan view:clear');
 });
 
+test('a deploy site gets the package admin source in its admin workspace, keeping its own admin files', function () {
+    // The deploy built the admin from release/admin, copied it to runtime/admin-workspace/admin and removed it from
+    // the release; every later rebuild reads that copy, so base-admin changes must land there.
+    cdoPut($this->dir, 'runtime/admin-workspace/admin/src/main.js', 'admin-source-v1');
+    cdoPut($this->dir, 'runtime/admin-workspace/admin/src/modules/game/game.js', 'private-game-page');
+    cdoPut($this->dir, 'runtime/admin-workspace/admin/VERSION', "2026.11.05\n");
+    $pkg = cdoPackage($this->dir.'/package-admin', [
+        'admin/src/added.js' => 'added-admin-file',
+        'admin/VERSION' => "2026.11.55\n",
+        'admin/node_modules/left/index.js' => 'never-copied',
+    ]);
+    config(['core.module_packages.core_package_key_ids' => [array_key_first($pkg[2])]]);
+    [$up] = cdoUpgrader($this->release, $pkg);
+
+    $up->run('2026.11.55', false);
+
+    $workspace = $this->dir.'/runtime/admin-workspace/admin';
+    expect(file_get_contents($workspace.'/src/main.js'))->toBe('admin-source')
+        ->and(file_get_contents($workspace.'/src/added.js'))->toBe('added-admin-file')
+        ->and(file_get_contents($workspace.'/src/modules/game/game.js'))->toBe('private-game-page')
+        ->and(file_get_contents($workspace.'/VERSION'))->toBe("2026.11.05\n")
+        ->and(file_exists($workspace.'/node_modules'))->toBeFalse()
+        ->and(file_exists($this->release.'/admin'))->toBeFalse();
+});
+
+test('a failed health check leaves the admin workspace as the deploy left it', function () {
+    cdoPut($this->dir, 'runtime/admin-workspace/admin/src/main.js', 'admin-source-v1');
+    $health = new class extends CoreHealthCheck {
+        public function check(): array
+        {
+            return ['/ answered 500'];
+        }
+    };
+    [$up] = cdoUpgrader($this->release, $this->pkg, $health);
+
+    expect(fn () => $up->run('2026.11.55', false))->toThrow(CoreUpgradeException::class)
+        ->and(file_get_contents($this->dir.'/runtime/admin-workspace/admin/src/main.js'))->toBe('admin-source-v1');
+});
+
 test('the health check compiles views in a folder of its own, never in the folder the web server uses', function () {
     // The runner and the web server (www-data) cannot touch each other's compiled views, which Blade
     // does when a view's source is as new as its compiled copy: the in-process health check then answered 500 and

@@ -1,1 +1,0 @@
-import{jc as e}from"./config-DCa76wH7.js";var t=e(Object.getPrototypeOf,Object);export{t};

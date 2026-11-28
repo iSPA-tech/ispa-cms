@@ -250,6 +250,8 @@ class CoreUpgrader
             }
 
             if ($layout === null && $installed->fromDeploy()) {
+                // Only now that the site answers: the admin source of this version and the admin rebuilt from it.
+                $warnings = $this->warnings = array_merge($warnings, $this->rebuildDeployAdmin($swapDir, $tree));
                 // The health check compiled views as the code owner; the web user cannot touch() those files (Blade
                 // sets their mtime), so pages answered 500 until they were cleared (seen on a CI-deployed site).
                 $this->runner()->run([(new PhpExecutableFinder())->find() ?: 'php', 'artisan', 'view:clear'], $this->base, [], true);
@@ -696,6 +698,35 @@ class CoreUpgrader
      *
      * @return list<string> Warnings (non-fatal).
      */
+    /**
+     * CI-deployed site, after the health check passed: lay the package's admin source over
+     * runtime/admin-workspace/admin (the only source a rebuild reads, refreshed until now by deploys alone) and rebuild
+     * the admin from it through the deploy script. Best effort: a failure is a warning and the served admin stays.
+     *
+     * @return list<string> warnings
+     */
+    private function rebuildDeployAdmin(string $root, string $tree): array
+    {
+        $warnings = [];
+        try {
+            (new CoreAdminSourceOverlay())->apply($tree, $root);
+        } catch (Throwable $e) {
+            $warnings[] = 'The new admin source was not copied ('.$e->getMessage().'); the admin keeps its last deployed source until the next deploy.';
+        }
+        if (is_file($root.'/.github/deployment/admin-rebuild.sh')) {
+            try {
+                $built = (new \Cms\Core\Services\Modules\Install\AdminRebuilder(null, $root))->rebuild();
+            } catch (Throwable $e) {
+                $built = ['ok' => false, 'message' => $e->getMessage()];
+            }
+            if (($built['ok'] ?? false) !== true) {
+                $warnings[] = 'The admin was not rebuilt; rebuild it from Quản lý Module or with the next deploy.';
+            }
+        }
+
+        return $warnings;
+    }
+
     private function finish(string $root, bool $customDeps, bool $deploy = false): array
     {
         $warnings = [];
@@ -716,8 +747,8 @@ class CoreUpgrader
             $warnings[] = 'Could not write public/iPanel/config.js; run `./ispa build` or `php artisan cms:admin-config`.';
         }
         if ($deploy) {
-            // What the deploy does after activation: cached config and routes, translations imported from the new
-            // sidecars, and the admin rebuilt from the new Core admin source (deploy script; best effort).
+            // What the deploy does after activation: cached config and routes and translations imported from the new
+            // sidecars. The admin is rebuilt once the health check passed (rebuildDeployAdmin).
             if ($artisan(['config:cache']) !== 0) {
                 $warnings[] = 'Could not cache the configuration; run `php artisan config:cache`.';
             }
@@ -732,16 +763,6 @@ class CoreUpgrader
             // translates table, as the deploy does after its sync; without this the new admin texts showed raw keys.
             if ($artisan(['cms:translation-generate']) !== 0) {
                 $warnings[] = 'Could not rebuild the language packs; run `php artisan cms:translation-generate`.';
-            }
-            if (is_file($root.'/.github/deployment/admin-rebuild.sh')) {
-                try {
-                    $built = (new \Cms\Core\Services\Modules\Install\AdminRebuilder(null, $root))->rebuild();
-                } catch (Throwable $e) {
-                    $built = ['ok' => false, 'message' => $e->getMessage()];
-                }
-                if (($built['ok'] ?? false) !== true) {
-                    $warnings[] = 'The admin was not rebuilt; rebuild it from Quản lý Module or with the next deploy.';
-                }
             }
         } else {
             // The admin loads its packs from storage/app/public/i18n/<VERSION>/adm, and VERSION just changed: without

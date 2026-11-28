@@ -2,6 +2,17 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.09
+
+- **Ships Core module 2026.11.14, Content 2026.11.10 and Widget 2026.11.01.**
+- **Translations**: the translation sync reads every admin translation file of a module again. In 2026.11.08 one file
+  dropped the ones read before it, so a fresh install lacked most admin texts and an updated site did not get new
+  admin texts (labels such as the new-device notice showed "New notification").
+- **Core updates on a deployed site**: an update from the admin now brings the new admin source too, from this very
+  update on, and rebuilds the admin only after the site passed its health check.
+- **Workflows**: scheduled workflows run by default (the weekly report template needed a setting before);
+  `WORKFLOW_SCHEDULER_ENABLED=false` turns every schedule of a site off.
+
 ## 2026.11.08
 
 - **Ships Core module 2026.11.13, Content 2026.11.10 and Widget 2026.11.01.**
