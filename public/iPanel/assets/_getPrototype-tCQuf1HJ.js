@@ -1,0 +1,1 @@
+import{jc as e}from"./config-BtK6X6Lu.js";var t=e(Object.getPrototypeOf,Object);export{t};

@@ -33,6 +33,8 @@ use Throwable;
  *
  * All destinations are pruned, disabled ones included: their old copies expire just the same. A refusal (object lock,
  * or a delete that left the object in place) marks the row `prune_refused`; it stays a candidate for the next run.
+ * The built-in destination's root is repointed first when it was left on another path (BackupRunner::healBuiltinRoot);
+ * a destination that cannot be opened refuses its candidates and sends one alert a day.
  */
 class RetentionPruner
 {
@@ -117,10 +119,12 @@ class RetentionPruner
             return $result;
         }
 
+        BackupRunner::healBuiltinRoot($destination);
         try {
             $disk = ($this->disks)($destination);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             $disk = null;
+            $this->alertUnopened($destination, $e, $candidates->count());
         }
 
         $warnCode = null;
@@ -202,17 +206,41 @@ class RetentionPruner
      */
     private function warn(BackupDestination $destination, string $code, int $refused): void
     {
-        $key = 'core-backup-prune-warn:' . $destination->id . ':' . Carbon::now()->format('Y-m-d');
-        if (! Cache::add($key, true, 60 * 60 * 26)) {
+        $this->alertOnce('core-backup-prune-warn:' . $destination->id, [
+            'message' => sprintf('Backup prune refused on %s: lock longer than declared (%d days)', Backup::siteSlug(), (int) $destination->lock_days),
+            'destination' => (string) $destination->uuid,
+            'refused' => $refused,
+            'error_code' => $code,
+        ]);
+    }
+
+    /**
+     * Send at most one alert per destination per day: the destination could not be opened, so its expired copies stay.
+     *
+     * Only an error code (`BACKUP_*`) is passed on, never the exception text, which can carry a path.
+     */
+    private function alertUnopened(BackupDestination $destination, Throwable $e, int $expired): void
+    {
+        $this->alertOnce('core-backup-prune-open:' . $destination->id, [
+            'message' => sprintf('Backup prune cannot open a destination on %s: expired copies stay on disk', Backup::siteSlug()),
+            'destination' => (string) $destination->uuid,
+            'expired' => $expired,
+            'error_code' => preg_match('/^BACKUP_[A-Z0-9_]+$/', $e->getMessage()) === 1 ? $e->getMessage() : 'BACKUP_PRUNE_FAILED',
+        ]);
+    }
+
+    /**
+     * Send the alert once per key and day.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function alertOnce(string $key, array $payload): void
+    {
+        if (! Cache::add($key . ':' . Carbon::now()->format('Y-m-d'), true, 60 * 60 * 26)) {
             return;
         }
         try {
-            ($this->alert)([
-                'message' => sprintf('Backup prune refused on %s: lock longer than declared (%d days)', Backup::siteSlug(), (int) $destination->lock_days),
-                'destination' => (string) $destination->uuid,
-                'refused' => $refused,
-                'error_code' => $code,
-            ]);
+            ($this->alert)($payload);
         } catch (Throwable) {
             // An alert failure must not change the prune result.
         }

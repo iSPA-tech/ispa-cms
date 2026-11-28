@@ -216,6 +216,37 @@ it('fails a manual backup with BACKUP_NO_DESTINATION when no destination is enab
         ->and($this->alerts)->toBe([]);
 });
 
+it('stores the built-in root behind the storage symlink, not the release path, and repoints an old release root', function (): void {
+    // storage_path() on a release deploy is releases/<n>/storage -> the shared storage folder.
+    mkdir($this->dir . '/shared/backups', 0770, true);
+    symlink($this->dir . '/shared', $this->dir . '/release-storage');
+    config(['core.backup.local_root' => $this->dir . '/release-storage/backups/local']);
+    $shared = realpath($this->dir . '/shared') . '/backups/local';
+
+    try {
+        $backup = ($this->runner)()->run(Backup::REASON_PRE_INSTALL, null);
+        $builtin = BackupDestination::query()->where('name', BackupRunner::BUILTIN_LOCAL_NAME)->sole();
+        expect($backup->status)->toBe(Backup::STATUS_SUCCEEDED)
+            ->and($builtin->config['root'])->toBe($shared)
+            ->and(runnerFiles($shared))->not->toBe([]);
+
+        $builtin->forceFill(['config' => ['root' => $this->dir . '/releases/168/storage/backups/local']])->save();
+        $other = runnerDestination('Other', $this->dir . '/elsewhere/storage/backups/local');
+        (require base_path('cms/Core/database/migrations/2026_11_28_090000_repoint_builtin_local_backup_root.php'))->up();
+
+        expect($builtin->refresh()->config['root'])->toBe($shared)
+            ->and($other->refresh()->config['root'])->toBe($this->dir . '/elsewhere/storage/backups/local');
+
+        // A database restored from an older release brings the release root back: the next safety backup repoints it.
+        $builtin->forceFill(['config' => ['root' => $this->dir . '/releases/170/storage/backups/local']])->save();
+        expect(($this->runner)()->run(Backup::REASON_PRE_INSTALL, null)->status)->toBe(Backup::STATUS_SUCCEEDED)
+            ->and($builtin->refresh()->config['root'])->toBe($shared)
+            ->and(is_dir($this->dir . '/releases'))->toBeFalse();
+    } finally {
+        @unlink($this->dir . '/release-storage');
+    }
+});
+
 it('sends a safety backup to the built-in local destination when none is marked for safety', function (): void {
     config(['core.backup.local_root' => $this->dir . '/builtin']);
     runnerDestination('Other', $this->dir . '/dest-other');

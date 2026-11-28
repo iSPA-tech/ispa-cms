@@ -61,6 +61,11 @@ class LocalDriver implements DestinationDriver
     /**
      * @inheritDoc
      *
+     * A missing root is created with all its parents only inside this site's storage/backups. Elsewhere only the root
+     * folder itself is created, under a parent that exists: a root whose parent is gone (a deleted release, a moved
+     * site) is refused, otherwise writes land in a recreated folder nothing keeps and deletes "succeed" on files that
+     * were never there.
+     *
      * @throws InvalidArgumentException With a BACKUP_LOCAL_ROOT_* code when the root is not allowed
      */
     public function diskConfig(BackupDestination $destination): array
@@ -73,7 +78,11 @@ class LocalDriver implements DestinationDriver
 
         $root = rtrim((string) $config['root'], '/');
         if (!is_dir($root)) {
-            if (!@mkdir($root, 0770, true) && !is_dir($root)) {
+            $withParents = $this->isInside(self::normalize($root), self::normalize(storage_path('backups')));
+            if (!$withParents && !is_dir(dirname($root))) {
+                throw new InvalidArgumentException('BACKUP_LOCAL_ROOT_INVALID');
+            }
+            if (!@mkdir($root, 0770, $withParents) && !is_dir($root)) {
                 throw new InvalidArgumentException('BACKUP_LOCAL_ROOT_INVALID');
             }
             // mkdir applies the umask; 0770 keeps the ACL mask open for the web server user and the core upgrade runner.
@@ -98,14 +107,14 @@ class LocalDriver implements DestinationDriver
      */
     private function isForbidden(string $root): bool
     {
-        $path = $this->normalize($root);
+        $path = self::normalize($root);
 
-        if ($this->isInside($path, $this->normalize(storage_path('backups')))) {
+        if ($this->isInside($path, self::normalize(storage_path('backups')))) {
             return false;
         }
 
         foreach ([public_path(), storage_path('app'), base_path()] as $protected) {
-            if ($this->isInside($path, $this->normalize($protected))) {
+            if ($this->isInside($path, self::normalize($protected))) {
                 return true;
             }
         }
@@ -123,8 +132,10 @@ class LocalDriver implements DestinationDriver
 
     /**
      * Resolve `.`/`..` segments and symlinks (via the deepest existing ancestor) of an absolute path.
+     *
+     * A path under a release's `storage` symlink comes back as the shared storage folder it points to.
      */
-    private function normalize(string $path): string
+    public static function normalize(string $path): string
     {
         $stack = [];
         foreach (explode('/', $path) as $segment) {

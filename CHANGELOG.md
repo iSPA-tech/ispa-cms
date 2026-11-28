@@ -2,6 +2,21 @@
 
 Notable changes of each release. Versions follow the calendar: `YYYY.MM.NN` (year, month, release of that month).
 
+## 2026.11.11
+
+- **Ships Core module 2026.11.16** (Content 2026.11.11 and Widget 2026.11.02 unchanged).
+- **Local backups no longer pile up after deploys**: the built-in local backup folder was stored with the release path
+  of the day (`releases/<n>/storage/backups/local`). Once that release was removed, backups went to a recreated folder
+  that the next deploy deleted, and the retention cleanup marked old copies as removed while their files stayed in the
+  shared storage. The folder is now stored as the real shared storage path, an update repoints existing sites, a
+  folder whose parent is gone is refused instead of recreated, and the cleanup sends an alert when it cannot open a
+  backup destination.
+- **Core updates on CI-deployed sites**: a site that runs a module updated from the hub, which the core package's own
+  module list does not name, is no longer refused with "update these modules first"; a deployed site keeps its own
+  list.
+- **Stripe webhook test mode**: the webhook picks the test signing secret when the test-mode switch is stored as a
+  boolean.
+
 ## 2026.11.10
 
 - **Ships Core module 2026.11.15, Content 2026.11.11 and Widget 2026.11.02.**

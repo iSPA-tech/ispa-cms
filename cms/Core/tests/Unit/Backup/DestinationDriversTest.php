@@ -97,6 +97,7 @@ it('registers drivers and rejects unknown ones', function (): void {
 
 it('builds a working local disk', function (): void {
     $dir = sys_get_temp_dir() . '/ispa-drv-' . bin2hex(random_bytes(6));
+    mkdir($dir, 0755);
     try {
         $disk = DestinationDisk::for(new BackupDestination(['name' => 'l', 'driver' => 'local', 'config' => ['root' => $dir . '/sub']]));
         $disk->put('a/b.txt', 'hello');
@@ -104,6 +105,11 @@ it('builds a working local disk', function (): void {
             ->and(is_dir($dir . '/sub'))->toBeTrue()
             ->and(substr(sprintf('%o', fileperms($dir . '/sub')), -4))->toBe('0770')
             ->and(substr(sprintf('%o', fileperms($dir . '/sub/a/b.txt')), -4))->toBe('0660');
+
+        // Outside storage/backups a root whose parent is gone (a deleted release) is refused, not recreated.
+        expect(fn () => DestinationDisk::for(new BackupDestination(['name' => 'l', 'driver' => 'local', 'config' => ['root' => $dir . '/releases/168/storage/backups/local']])))
+            ->toThrow(InvalidArgumentException::class, 'BACKUP_LOCAL_ROOT_INVALID')
+            ->and(is_dir($dir . '/releases'))->toBeFalse();
     } finally {
         if (is_dir($dir)) {
             exec('rm -rf ' . escapeshellarg($dir));

@@ -47,9 +47,10 @@ class StripeWebhookController extends Controller
         $signature = $request->header('Stripe-Signature');
 
         // 2) Resolve the webhook secret of the current mode. The secrets are private settings rows (`isPublic: false`),
-        //    never written to config/setting.php, so they are read from the row.
+        //    never written to config/setting.php, so they are read from the row. The test-mode switch is a boolean row
+        //    (a PHP bool in config/setting.php, the string 'true' in older generated files).
         $endpointSecret = $settings->secret(
-            config('setting.order.payment.enable_test_mode') === 'true'
+            filter_var(config('setting.order.payment.enable_test_mode'), FILTER_VALIDATE_BOOLEAN)
                 ? 'order.payment.test_webhook_secret'
                 : 'order.payment.webhook_secret'
         );

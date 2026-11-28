@@ -423,6 +423,33 @@ test('the health check keeps the view namespaces and directives the providers re
         ->and(str_starts_with(app('blade.compiler')->getCompiledPath($views.'/hello.blade.php'), (string) $shared))->toBeTrue();
 });
 
+test('a module the site runs from its own update keeps its place: a deploy release keeps its own runtime_modules.json', function () {
+    // A deploy site (2026-11-28) with a module updated from the hub: the package ships runtime_modules.json without that
+    // module, but the update never writes the deploy's list (CoreFileSwapper::DEPLOY_OWNED_FILES), so the module keeps
+    // running from its own copy and the update must not be refused with CORE_MODULE_NEEDS_UPDATE.
+    $provider = ['providers' => ['Cms\\Acme\\Providers\\AcmeServiceProvider']];
+    cdoPut($this->release, 'cms/Acme/module.json', json_encode(['name' => 'Acme', 'version' => '2026.10.0'] + $provider));
+    cdoPut($this->release, 'runtime_modules.json', '["Acme"]');
+    $copy = $this->dir.'/runtime/modules/.versions/Acme-2026.11.04';
+    cdoPut($copy, 'module.json', json_encode(['name' => 'Acme', 'version' => '2026.11.04', 'files' => [], 'requires' => ['core' => '>=2026.11.06,<2026.13.00']] + $provider));
+    cdoPut($copy, 'composer.json', json_encode(['autoload' => ['psr-4' => ['Cms\\Acme\\' => 'app/']]]));
+    cdoPut($copy, 'app/Providers/AcmeServiceProvider.php', "<?php\n// runtime copy\n");
+    symlink('.versions/Acme-2026.11.04', $this->dir.'/runtime/modules/Acme');
+    \App\Support\Modules\RuntimeModules::resetPath();
+    \App\Support\Modules\RuntimePrecedence::forget();
+    expect(\App\Support\Modules\RuntimePrecedence::decide($this->release, 'Acme')['runtime'])->toBeTrue();
+    $pkg = cdoPackage($this->dir.'/package-list', ['runtime_modules.json' => '["Content", "Widget"]']);
+    config(['core.module_packages.core_package_key_ids' => [array_key_first($pkg[2])]]);
+    [$up] = cdoUpgrader($this->release, $pkg);
+
+    $up->run('2026.11.55', false);
+    \App\Support\Modules\RuntimePrecedence::forget();
+
+    expect(CoreManifest::installed($this->release)->version)->toBe('2026.11.55')
+        ->and(file_get_contents($this->release.'/runtime_modules.json'))->toBe('["Acme"]')
+        ->and(\App\Support\Modules\RuntimePrecedence::decide($this->release, 'Acme'))->toMatchArray(['runtime' => true, 'runtime_version' => '2026.11.04']);
+});
+
 test('a package with an older Core than the release is refused before anything changes', function () {
     $pkg = cdoPackage($this->dir.'/older', ['cms/Core/module.json' => '{"name":"Core","version":"2026.11.08"}']);
     config(['core.module_packages.core_package_key_ids' => [array_key_first($pkg[2])]]);

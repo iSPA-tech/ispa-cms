@@ -16,6 +16,7 @@ use Cms\Core\Models\Backup\BackupCopy;
 use Cms\Core\Models\Backup\BackupDestination;
 use Cms\Core\Services\BackgroundTasks\BackgroundTaskRecorder;
 use Cms\Core\Services\Backup\Destinations\DestinationDisk;
+use Cms\Core\Services\Backup\Destinations\LocalDriver;
 use Cms\Core\Services\Backup\Destinations\ObjectKey;
 use Cms\Core\Services\Backup\Dump\DumperFactory;
 use Cms\Core\Services\Backup\Dump\DumpProcessRunner;
@@ -181,13 +182,62 @@ class BackupRunner
         $found = $query->get()->all();
 
         if ($found === [] && $ids === [] && in_array($reason, self::SAFETY_REASONS, true)) {
-            $found = [BackupDestination::query()->firstOrCreate(
+            $builtin = BackupDestination::query()->firstOrCreate(
                 ['name' => self::BUILTIN_LOCAL_NAME],
-                ['driver' => 'local', 'config' => ['root' => (string) config('core.backup.local_root')], 'retention_days' => 2, 'lock_days' => 0, 'enabled' => true]
-            )];
+                ['driver' => 'local', 'config' => ['root' => self::builtinLocalRoot()], 'retention_days' => 2, 'lock_days' => 0, 'enabled' => true]
+            );
+            self::healBuiltinRoot($builtin);
+            $found = [$builtin];
         }
 
         return $found;
+    }
+
+    /**
+     * Repoint the built-in destination when its stored root is the default folder of another path (a deleted release,
+     * a database restored from another release). Any other destination is left alone.
+     */
+    public static function healBuiltinRoot(BackupDestination $destination): void
+    {
+        if ($destination->name !== self::BUILTIN_LOCAL_NAME || $destination->driver !== 'local') {
+            return;
+        }
+
+        $config = self::repointedBuiltinConfig(is_array($destination->config) ? $destination->config : []);
+        if ($config !== null) {
+            $destination->forceFill(['config' => $config])->save();
+        }
+    }
+
+    /**
+     * The built-in config with its root repointed to builtinLocalRoot(), or null when it needs no change.
+     *
+     * Only a root of the runner's default shape (`.../storage/backups/local`) is repointed.
+     *
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>|null
+     */
+    public static function repointedBuiltinConfig(array $config): ?array
+    {
+        $root = self::builtinLocalRoot();
+        $old = $config['root'] ?? null;
+        if (!is_string($old) || $old === $root || !str_ends_with(rtrim($old, '/'), '/storage/backups/local')) {
+            return null;
+        }
+        $config['root'] = $root;
+
+        return $config;
+    }
+
+    /**
+     * Root of the built-in local destination as it is stored: the real folder behind `storage`.
+     *
+     * On a release deploy `storage_path()` is `releases/<n>/storage`, a symlink to the shared storage. Storing that
+     * release path would outlive the release; once it is deleted, writes and deletes go to an empty folder.
+     */
+    public static function builtinLocalRoot(): string
+    {
+        return LocalDriver::normalize((string) config('core.backup.local_root'));
     }
 
     /**

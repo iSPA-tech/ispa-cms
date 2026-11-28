@@ -192,7 +192,7 @@ class CoreUpgrader
             [$signed, $new] = $this->fetch($targetVersion, $staging);
             $customDeps = $this->customDependencies($installed);
             $this->assertPreflight($this->preflightService()->check($installed, $targetVersion, false, $overwriteModified, $signed->zipSize, $new, $extraPhpVersions));
-            $this->assertModulesKeepTheirPlace($staging);
+            $this->assertModulesKeepTheirPlace($staging, $installed->fromDeploy());
             if ($installed->fromDeploy()) {
                 $this->assertDeployCompatible($staging);
             }
@@ -361,18 +361,21 @@ class CoreUpgrader
      * Refuse (CORE_MODULE_NEEDS_UPDATE) when a module that now runs from its own update (`runtime-modules/<Name>`,
      * {@see RuntimePrecedence}) would lose its place after the upgrade because its `requires.core` range rejects the
      * staged Core version: boot would then fall back to the older package copy on a database the newer copy already
-     * migrated. The same holds when the package ships a `runtime_modules.json` that no longer lists the module. A
-     * package that ships a copy at least as new as the runtime one takes over instead (an upgrade).
+     * migrated. The same holds when the package ships a `runtime_modules.json` that no longer lists the module, except on
+     * a CI-deployed release: the update never writes the deploy's list ({@see CoreFileSwapper::DEPLOY_OWNED_FILES}), so
+     * the package's list does not apply there (2026-11-28: a deploy site was refused for a hub module the package's list
+     * did not name). A package that ships a copy at least as new as the runtime one takes over instead (an upgrade).
      * Called after the download and before the backup tar and the state file, so nothing is changed.
      *
      * @throws CoreUpgradeException
      */
-    private function assertModulesKeepTheirPlace(string $staging): void
+    private function assertModulesKeepTheirPlace(string $staging, bool $deploy = false): void
     {
         $tree = $this->treeOf($staging);
         $core = $this->readJson($tree.'/cms/Core/module.json')['version'] ?? null;
         // The package's own runtime_modules.json replaces the site's list: a module it no longer lists falls back too.
-        $shippedList = is_file($tree.'/'.RuntimePrecedence::LIST_FILE) ? RuntimePrecedence::readList($tree) : null;
+        // Not on a deploy release, which keeps its own list.
+        $shippedList = ! $deploy && is_file($tree.'/'.RuntimePrecedence::LIST_FILE) ? RuntimePrecedence::readList($tree) : null;
         $rejected = [];
         foreach (RuntimePrecedence::listed($this->base) as $name) {
             $decision = RuntimePrecedence::decide($this->base, $name);

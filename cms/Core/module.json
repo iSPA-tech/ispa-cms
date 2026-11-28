@@ -3,7 +3,7 @@
     "edition": "open",
     "alias": "core",
     "description": "Core module, providing essential functionalities for the CMS.",
-    "version": "2026.11.15",
+    "version": "2026.11.16",
     "keywords": [],
     "admin": {
         "custom_code": true

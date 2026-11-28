@@ -8,6 +8,7 @@ use Cms\Core\Console\Commands\BackupPruneCommand;
 use Cms\Core\Models\Backup\Backup;
 use Cms\Core\Models\Backup\BackupCopy;
 use Cms\Core\Models\Backup\BackupDestination;
+use Cms\Core\Services\Backup\BackupRunner;
 use Cms\Core\Services\Backup\RetentionPruner;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -254,6 +255,51 @@ it('records BACKUP_PRUNE_FAILED on other delete errors and goes on with the next
     expect($result[0]['refused'])->toBe(1)->and($result[0]['pruned'])->toBe(1)
         ->and($a->refresh()->status)->toBe(BackupCopy::STATUS_PRUNE_REFUSED)->and($a->error_code)->toBe('BACKUP_PRUNE_FAILED')
         ->and($b->refresh()->status)->toBe(BackupCopy::STATUS_PRUNED);
+});
+
+it('records a failure instead of pruned when the destination root vanished with an old release', function (): void {
+    // The built-in root was stored as releases/<n>/storage/backups/local. Once that release is deleted the files
+    // still live in the shared storage folder, and the recorded root no longer exists.
+    $gone = $this->dir . '/releases/168/storage/backups/local';
+    $shared = $this->dir . '/shared/backups/local';
+    $dest = BackupDestination::query()->create(['name' => 'Built-in', 'driver' => 'local', 'config' => ['root' => $gone], 'retention_days' => 2, 'lock_days' => 0]);
+    prunerCopy($dest, 'site/2026-11-26/new.pgdump', 0, [], $shared);
+    $old = prunerCopy($dest, 'site/2026-11-12/old.pgdump', 10, [], $shared);
+
+    $result = ($this->pruner)()->prune($dest);
+
+    $old->refresh();
+    expect($old->status)->toBe(BackupCopy::STATUS_PRUNE_REFUSED)
+        ->and($old->error_code)->toBe('BACKUP_PRUNE_FAILED')
+        ->and($old->pruned_at)->toBeNull()
+        ->and($result[0]['pruned'])->toBe(0)
+        ->and($result[0]['refused'])->toBe(1)
+        ->and(is_dir($this->dir . '/releases'))->toBeFalse()
+        ->and(prunerFiles($shared))->toContain('site/2026-11-12/old.pgdump')
+        ->and($this->alerts)->toHaveCount(1)
+        ->and($this->alerts[0]['error_code'])->toBe('BACKUP_LOCAL_ROOT_INVALID')
+        ->and($this->alerts[0]['expired'])->toBe(1)
+        ->and(json_encode($this->alerts[0]))->not->toContain($this->dir);
+
+    ($this->pruner)()->prune($dest);
+    expect($this->alerts)->toHaveCount(1);
+});
+
+it('repoints a built-in root left on a deleted release and prunes the files in the shared storage', function (): void {
+    $shared = $this->dir . '/shared/backups/local';
+    mkdir($shared, 0770, true);
+    config(['core.backup.local_root' => $shared]);
+    $dest = BackupDestination::query()->create(['name' => BackupRunner::BUILTIN_LOCAL_NAME, 'driver' => 'local', 'config' => ['root' => $this->dir . '/releases/168/storage/backups/local'], 'retention_days' => 2, 'lock_days' => 0]);
+    prunerCopy($dest, 'site/2026-11-26/new.pgdump', 0, [], $shared);
+    $old = prunerCopy($dest, 'site/2026-11-12/old.pgdump', 10, [], $shared);
+
+    ($this->pruner)()->prune($dest);
+
+    expect($old->refresh()->status)->toBe(BackupCopy::STATUS_PRUNED)
+        ->and($dest->refresh()->config['root'])->toBe(realpath($shared))
+        ->and(prunerFiles($shared))->toBe(['site/2026-11-26/new.pgdump', 'site/2026-11-26/new.pgdump.FAILED', 'site/2026-11-26/new.pgdump.sha256'])
+        ->and(is_dir($this->dir . '/releases'))->toBeFalse()
+        ->and($this->alerts)->toBe([]);
 });
 
 it('prunes probe copies the same way', function (): void {
